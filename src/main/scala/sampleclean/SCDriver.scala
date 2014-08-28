@@ -7,6 +7,8 @@ import org.apache.spark.SparkConf
 import sampleclean.api.SampleCleanContext;
 import sampleclean.api.SampleCleanAQP;
 
+import sampleclean.clean.ParametricOutlier;
+
 import org.apache.spark.sql.hive.HiveContext
 
 /*This class provides the main driver for the SampleClean
@@ -58,16 +60,20 @@ object SCDriver {
     val scc = new SampleCleanContext(sc);
     val saqp = new SampleCleanAQP();
     val hiveContext = new HiveContext(sc);
+    val p = new ParametricOutlier(scc);
     //hiveContext.hql("CREATE TABLE IF NOT EXISTS src (key INT, value STRING)")
     //hiveContext.hql("LOAD DATA LOCAL INPATH 'kv1.txt' INTO TABLE src")
     scc.closeHiveSession("src_sample")
     scc.initializeHive("src","src_sample",0.01)
+    println(saqp.rawSCQuery(scc, "src_sample_clean", "key", "count","key > 300", 0.01))
+    p.clean("src_sample", "key", 1)
+    println(saqp.rawSCQuery(scc, "src_sample_clean", "key", "count","key > 300", 0.01))
     /*hiveContext.hql("select * from src_sample_clean").collect().foreach(println)*/
     //scc.filterWriteTable("src_sample", hiveContext.hql("select * from src_sample_clean limit 10"))
-    println(saqp.rawSCQuery(scc, "src_sample_clean", "key", "count","key > 200", 0.01))
+    //println(saqp.rawSCQuery(scc, "src_sample_clean", "key", "count","key > 200", 0.01))
     //hiveContext.hql("select * from src_sample_clean").collect().foreach(println)
-    scc.updateHiveTableDuplicateCounts("src_sample", hiveContext.hql("select src_sample_clean.hash as hash, 1 as dup from src_sample_clean"))
-    println(saqp.rawSCQuery(scc, "src_sample_clean", "key", "count","key > 200", 0.01))
+    //scc.updateHiveTableDuplicateCounts("src_sample", hiveContext.hql("select src_sample_clean.hash as hash, 1 as dup from src_sample_clean"))
+    //println(saqp.rawSCQuery(scc, "src_sample_clean", "key", "count","key > 200", 0.01))
     //hiveContext.hql("select * from src_sample_clean").collect().foreach(println)
 
 // Queries are expressed in HiveQL

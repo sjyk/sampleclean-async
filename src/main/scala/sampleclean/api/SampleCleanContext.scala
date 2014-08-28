@@ -135,19 +135,19 @@ class SampleCleanContext(sc: SparkContext) {
 	/* Returns an RDD which points to a sample 
 	 * of a full table.
 	 */
-	def getCleanSample(tableName: String):SchemaRDD = {
+	def getCleanSampleRow(tableName: String):SchemaRDD = {
 		val hiveContext = new HiveContext(sc)
 		return hiveContext.hql("SELECT * FROM " + tableName +"_clean");
 	}
 
-
-	//These are two private classes that take an RDD 
-	//and recast them back into the appropriate schema
-	@serializable
-	private case class FilterTuple(hash: String)
-
-	@serializable
-	private case class DupTuple(hash: String, dup: Int)
+	/* Returns an RDD which points to a sample 
+	 * of a full table. This method returns a tuple
+	 * of the hash and the requested attribute
+	 */
+	def getCleanSampleAttr(tableName: String, attr: String):SchemaRDD = {
+		val hiveContext = new HiveContext(sc)
+		return hiveContext.hql("SELECT hash, "+attr+" FROM " + tableName +"_clean");
+	}
 
 	/**This function given a schemardd of rows (col1 = hash, col2 = dup_count)
 	 * it updates the corresponding Hive table. This only works if initializeHive
@@ -205,7 +205,7 @@ class SampleCleanContext(sc: SparkContext) {
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
 		hiveContext.registerRDDAsTable(rdd,"tmp")
 
-		hiveContext.hql("CREATE TABLE " + tmpTableName +" as SELECT * from tmp")
+		hiveContext.hql("CREATE TABLE " + tmpTableName +" as SELECT hash from tmp")
 		
 		hiveContext.hql("INSERT OVERWRITE TABLE "+ tableNameClean +
 			            " SELECT "+tableNameClean+".* FROM " +
