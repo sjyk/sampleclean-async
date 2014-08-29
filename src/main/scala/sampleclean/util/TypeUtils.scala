@@ -2,6 +2,7 @@ package sampleclean.util
 
 import org.apache.spark.sql.SchemaRDD
 import org.apache.spark.sql.Row
+import org.apache.spark.rdd.RDD
 
 @serializable
 object TypeUtils {
@@ -19,6 +20,5 @@ object TypeUtils {
    		}
   
   }
-
 
 }

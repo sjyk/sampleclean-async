@@ -12,6 +12,8 @@ import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 
+import SampleCleanContext._
+
 /** As an analog to the SparkContext, the SampleCleanContext
 *gives a handle to the current session. This class provides
 *the basic API to manipulate the data structures. We assume
@@ -161,26 +163,20 @@ class SampleCleanContext(sc: SparkContext) {
 		//creates a HIVE temporary table based on the RDD provided
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
 		hiveContext.registerRDDAsTable(rdd,"tmp")
-		hiveContext.hql("CREATE TABLE " + tmpTableName +" as SELECT * from tmp")
+		hiveContext.hql("CREATE TABLE " + tmpTableName +" as SELECT * FROM tmp")
 
 		//Uses the hive API to get the schema of the table.
 		var selectionString = ""
-		try{
-		val msc:HiveMetaStoreClient = new HiveMetaStoreClient(new HiveConf());
-		val sd:StorageDescriptor = msc.getTable(tableName+"_clean").getSd();
-		val fieldSchema = sd.getCols();
 
-		for (field <- fieldSchema)
-			if (field.getName().equals("dup")) //if not null update
+		for (field <- getHiveTableSchema(tableName+"_clean"))
+		{
+			if (field.equals("dup"))
 				selectionString = selectionString + " , " + "coalesce(" + tmpTableName + ".dup,1)"
 			else if (selectionString == "")
-				selectionString = tableNameClean +"."+field.getName()
+				selectionString = tableNameClean +"."+field
 			else
-				selectionString = selectionString + " , " + tableNameClean +"."+field.getName()
+				selectionString = selectionString + " , " + tableNameClean +"."+field
 		}
-		catch {
-     		case e: Exception => 0
-   		}
 
    		//applies hive query to update the data
    		hiveContext.hql("INSERT OVERWRITE TABLE "+ 
@@ -205,7 +201,7 @@ class SampleCleanContext(sc: SparkContext) {
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
 		hiveContext.registerRDDAsTable(rdd,"tmp")
 
-		hiveContext.hql("CREATE TABLE " + tmpTableName +" as SELECT hash from tmp")
+		hiveContext.hql("CREATE TABLE " + tmpTableName +" as SELECT hash FROM tmp")
 		
 		hiveContext.hql("INSERT OVERWRITE TABLE "+ tableNameClean +
 			            " SELECT "+tableNameClean+".* FROM " +
@@ -228,7 +224,7 @@ class SampleCleanContext(sc: SparkContext) {
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
 		hiveContext.registerRDDAsTable(rdd,"tmp")
 
-		hiveContext.hql("CREATE TABLE " + tmpTableName +" as SELECT * from tmp")
+		hiveContext.hql("CREATE TABLE " + tmpTableName +" as SELECT * FROM tmp")
 		
 		val result = hiveContext.hql("SELECT "+tableNameClean+ ".* FROM "
 			         +tableNameClean+" JOIN " 
@@ -250,27 +246,19 @@ class SampleCleanContext(sc: SparkContext) {
 		val tableNameClean = tableName + "_clean"
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
 		hiveContext.registerRDDAsTable(rdd,"tmp")
-		hiveContext.hql("CREATE TABLE " + tmpTableName +" as SELECT * from tmp")
+		hiveContext.hql("CREATE TABLE " + tmpTableName +" as SELECT * FROM tmp")
 
 		var selectionString = ""
 
-		try{
-		val msc:HiveMetaStoreClient = new HiveMetaStoreClient(new HiveConf());
-
-		val sd:StorageDescriptor = msc.getTable(tableName+"_clean").getSd();
-		val fieldSchema = sd.getCols();
-
-		for (field <- fieldSchema)
-			if (field.getName().equals("dup"))
+		for (field <- getHiveTableSchema(tableName+"_clean"))
+		{
+			if (field.equals("dup"))
 				selectionString = selectionString + " , " + "coalesce(" + tmpTableName + ".dup,1)"
 			else if (selectionString == "")
-				selectionString = tableNameClean +"."+field.getName()
+				selectionString = tableNameClean +"."+field
 			else
-				selectionString = selectionString + " , " + tableNameClean +"."+field.getName()
+				selectionString = selectionString + " , " + tableNameClean +"."+field
 		}
-		catch {
-     		case e: Exception => 0
-   		}
 
    		val result = hiveContext.hql("SELECT " + selectionString + 
    			                         " FROM "+tableNameClean +
@@ -281,6 +269,27 @@ class SampleCleanContext(sc: SparkContext) {
    		hiveContext.hql("DROP TABLE " + tmpTableName)
 
    		return result
+	}
+
+}
+
+@serializable
+object SampleCleanContext {
+
+	def getHiveTableSchema(tableName:String):List[String] = {
+		var schemaList = List[String]()
+		try{
+			val msc:HiveMetaStoreClient = new HiveMetaStoreClient(new HiveConf());
+			val sd:StorageDescriptor = msc.getTable(tableName).getSd();
+			val fieldSchema = sd.getCols();
+			for (field <- fieldSchema)
+				schemaList = field.getName() :: schemaList 
+		}
+		catch {
+     		case e: Exception => 0
+   		}
+
+		return schemaList.reverse
 	}
 
 }
