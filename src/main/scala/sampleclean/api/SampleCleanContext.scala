@@ -3,6 +3,8 @@ package sampleclean.api
 import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.SchemaRDD
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.SQLContext
 import scala.util.Random
 
 import scala.collection.JavaConversions._
@@ -157,12 +159,10 @@ class SampleCleanContext(sc: SparkContext) {
 	 */
 	def updateHiveTableDuplicateCounts(tableName: String, rdd:SchemaRDD)= {
 		val hiveContext = new HiveContext(sc)
-
+		val sqlContext = new SQLContext(sc)
 		val tableNameClean = tableName + "_clean"
-
-		//creates a HIVE temporary table based on the RDD provided
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
-		hiveContext.registerRDDAsTable(rdd,"tmp")
+		hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceDupSchema(rdd)),"tmp")
 		hiveContext.hql("CREATE TABLE " + tmpTableName +" as SELECT * FROM tmp")
 
 		//Uses the hive API to get the schema of the table.
@@ -196,10 +196,10 @@ class SampleCleanContext(sc: SparkContext) {
 	 */
 	def filterHiveTable(tableName: String, rdd:SchemaRDD)= {
 		val hiveContext = new HiveContext(sc)
-
+		val sqlContext = new SQLContext(sc)
 		val tableNameClean = tableName + "_clean"
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
-		hiveContext.registerRDDAsTable(rdd,"tmp")
+		hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceFilterSchema(rdd)),"tmp")
 
 		hiveContext.hql("CREATE TABLE " + tmpTableName +" as SELECT hash FROM tmp")
 		
@@ -219,10 +219,10 @@ class SampleCleanContext(sc: SparkContext) {
 	*/
 	def filterTable(tableName: String, rdd:SchemaRDD):SchemaRDD= {
 		val hiveContext = new HiveContext(sc)
-
+		val sqlContext = new SQLContext(sc)
 		val tableNameClean = tableName + "_clean"
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
-		hiveContext.registerRDDAsTable(rdd,"tmp")
+		hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceFilterSchema(rdd)),"tmp")
 
 		hiveContext.hql("CREATE TABLE " + tmpTableName +" as SELECT * FROM tmp")
 		
@@ -238,15 +238,15 @@ class SampleCleanContext(sc: SparkContext) {
 
 	/**This function given a schemardd of rows (col1 = hash, col2 = dup_count)
 	 * returns an updated RDD. 
-	 * (Under development)
 	 */
 	def updateTableDuplicateCounts(tableName: String, rdd:SchemaRDD):SchemaRDD = {
 		val hiveContext = new HiveContext(sc)
-
+		val sqlContext = new SQLContext(sc)
 		val tableNameClean = tableName + "_clean"
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
-		hiveContext.registerRDDAsTable(rdd,"tmp")
+		hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceDupSchema(rdd)),"tmp")
 		hiveContext.hql("CREATE TABLE " + tmpTableName +" as SELECT * FROM tmp")
+
 
 		var selectionString = ""
 
@@ -290,6 +290,19 @@ object SampleCleanContext {
    		}
 
 		return schemaList.reverse
+	}
+
+
+	case class FilterTuple(hash: String)
+
+	def enforceFilterSchema(rdd:SchemaRDD): RDD[FilterTuple] = {
+		return rdd.map( x => FilterTuple(x(0).asInstanceOf[String]))
+	}
+
+	case class DupTuple(hash: String, dup: Int)
+
+	def enforceDupSchema(rdd:SchemaRDD): RDD[DupTuple] = {
+		return rdd.map( x => DupTuple(x(0).asInstanceOf[String],x(1).asInstanceOf[Int]))
 	}
 
 }

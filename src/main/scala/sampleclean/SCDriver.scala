@@ -66,7 +66,8 @@ object SCDriver {
     scc.closeHiveSession("src_sample")
     scc.initializeHive("src","src_sample",0.01)
     println(saqp.rawSCQuery(scc, "src_sample_clean", "key", "count","key > 300", 0.01))
-    p.clean("src_sample", "key", 1)
+    //p.clean("src_sample", "key", 1)
+    scc.updateHiveTableDuplicateCounts("src_sample", hiveContext.hql("select src_sample_clean.hash as hash, 2 as dup from src_sample_clean limit 10"))
     println(saqp.rawSCQuery(scc, "src_sample_clean", "key", "count","key > 300", 0.01))
     /*hiveContext.hql("select * from src_sample_clean").collect().foreach(println)*/
     //scc.filterWriteTable("src_sample", hiveContext.hql("select * from src_sample_clean limit 10"))
