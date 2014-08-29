@@ -5,6 +5,8 @@ import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.Row
 
+import sampleclean.util.TypeUtils._
+
 /* This class provides the approximate query processing 
 * for SampleClean. Currently, it supports SUM, COUNT, AVG
 * and returns confidence intervals in the form of CLT variance
@@ -35,10 +37,7 @@ class SampleCleanAQP() {
 	  //Helper function that "transforms" our queries into mean queries
 	  private def aqpPartitionMap(row:Row, transform: Double => Double): Double = 
 	  {
-	  		if (row(0).isInstanceOf[Int])
-	  			return transform(row(0).asInstanceOf[Int].toDouble)/row(1).asInstanceOf[Int]
-	  		else
-	  			return transform(row(0).asInstanceOf[Double])/row(1).asInstanceOf[Int]
+	  		return transform(rowToNumber(row,0))/rowToNumber(row,1)
 	  }
 
 	  //approximate count, sum, avg
