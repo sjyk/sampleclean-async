@@ -232,7 +232,6 @@ class SampleCleanContext(sc: SparkContext) {
 			         " ON ("+tmpTableName+".hash = "+
 			         tableNameClean+".hash)")
 
-		hiveContext.hql("DROP TABLE " + tmpTableName)
 		return result
 	}
 
@@ -247,17 +246,25 @@ class SampleCleanContext(sc: SparkContext) {
 		hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceDupSchema(rdd)),"tmp")
 		hiveContext.hql("CREATE TABLE " + tmpTableName +" as SELECT * FROM tmp")
 
-
 		var selectionString = ""
 
 		for (field <- getHiveTableSchema(tableName+"_clean"))
 		{
-			if (field.equals("dup"))
-				selectionString = selectionString + " , " + "coalesce(" + tmpTableName + ".dup,1)"
-			else if (selectionString == "")
-				selectionString = tableNameClean +"."+field
-			else
-				selectionString = selectionString + " , " + tableNameClean +"."+field
+			if (field.equals("dup")) {
+					selectionString = selectionString + 
+					                  " , " + "coalesce("+					                  
+					                  	tmpTableName + ".dup,1) as dup"
+			}
+			else if (selectionString == ""){
+				selectionString = tableNameClean + 
+				                  "."+field + 
+				                  " as " + field
+			}
+			else{
+				selectionString = selectionString + 
+				                  " , " + tableNameClean + 
+				                  "."+ field + " AS " + field
+			}
 		}
 
    		val result = hiveContext.hql("SELECT " + selectionString + 
@@ -265,8 +272,6 @@ class SampleCleanContext(sc: SparkContext) {
    			                         " LEFT OUTER JOIN " + tmpTableName +
    			                         " ON ("+tmpTableName+".hash = "
    			                         +tableNameClean+".hash)")
-
-   		hiveContext.hql("DROP TABLE " + tmpTableName)
 
    		return result
 	}

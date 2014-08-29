@@ -118,12 +118,42 @@ class SampleCleanAQP() {
 	  /*This query executes rawSC given an attribute to aggregate, expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
 	  * It returns a tuple of the estimate, and the variance of the estimate (EST, VAR_EST)
 	  */
-	  def rawSCQuery(scc:SampleCleanContext, baseTable: String, 
+	  def rawSCQuery(scc:SampleCleanContext, sampleName: String, 
 	  				  attr: String, expr: String, 
 	  				  pred:String, 
 	  				  sampleRatio: Double): (Double, Double)=
 	  {
 	  	  val hc:HiveContext = scc.getHiveContext()
+	  	  val baseTable = sampleName + "_clean"
+
+	  	  var query = ""
+	  	  if (expr.toLowerCase() == "avg"){
+	  	  	 query = "SELECT " + attr + ",dup FROM " + baseTable + " where " + pred 
+	  	  	 return approxAvg(hc.hql(query),sampleRatio)
+	  	  }
+	  	  else if (expr.toLowerCase() == "sum"){
+	  	  	 query = "SELECT " + attr + "*if((" + pred + "),1.0,0.0), dup FROM " + baseTable
+	  	  	 return approxSum(hc.hql(query),sampleRatio)
+	  	  	}
+	  	  else
+	  	  {
+	  	  	query = "SELECT if((" + pred + "),1.0,0.0), dup FROM " + baseTable
+	  	  	 return approxCount(hc.hql(query),sampleRatio)
+	  	  }
+
+	  }
+
+	  /*This query executes rawSC given an attribute to aggregate, expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
+	  * It returns a tuple of the estimate, and the variance of the estimate (EST, VAR_EST)
+	  */
+	  def rawSCQuery(scc:SampleCleanContext, rdd:SchemaRDD, 
+	  				  attr: String, expr: String, 
+	  				  pred:String, 
+	  				  sampleRatio: Double): (Double, Double)=
+	  {
+	  	  val hc:HiveContext = scc.getHiveContext()
+	  	  hc.registerRDDAsTable(rdd,"tmp")
+	  	  val baseTable = "tmp"
 
 	  	  var query = ""
 	  	  if (expr.toLowerCase() == "avg"){
