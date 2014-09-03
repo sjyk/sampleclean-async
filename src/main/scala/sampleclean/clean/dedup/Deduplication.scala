@@ -6,9 +6,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Row}
 
 
-/**
- * Created by jnwang on 8/30/14.
- */
+
 class Deduplication(@transient scc: SampleCleanContext) {
   case class Record(hash: String, dup: Integer)
   def duplicateCount(candidatePairs: RDD[(Row, Row)]): RDD[(String, Int)] = {
@@ -17,17 +15,28 @@ class Deduplication(@transient scc: SampleCleanContext) {
     candidatePairs.map(x => (x._1.getString(0),1)).reduceByKey(_ + _)
   }
 
-  def clean(fullTableName:String, sampleTableName:String, blockingStrategy: BlockingStrategy) {
+  def clean(fullTableName:String,
+            sampleTableName:String,
+            blockingStrategy: BlockingStrategy,
+            featureVectorStrategy: FeatureVectorStrategy) {
+
+    // To Sanjay: 1. Will I generate a new RDD when I call this function?
+    //            2. Can you provide a function that can get a full table name based on a given sample name
     val sampleTable = scc.getCleanSampleRow(sampleTableName)
     val fullTable = scc.getFullTable(fullTableName)
 
     val candidatePairs = blockingStrategy.blocking(scc.getSparkContext(), sampleTable, fullTable)
+    val featureVectors = featureVectorStrategy.toFeatureVectors(candidatePairs)
+    println(featureVectors.count())
+    println(featureVectors.first())
+    //featureVectors.map(println(_))
+
     //candidatePairs.map(println(_))
-    val updateDupCount = duplicateCount(candidatePairs).filter(_._2 > 1)
+    /*val updateDupCount = duplicateCount(candidatePairs).filter(_._2 > 1)
     scc.updateHiveTableDuplicateCounts(sampleTableName, updateDupCount)
     println(sampleTable.count())
     println(candidatePairs.count())
-    println(candidatePairs.first())
+    println(candidatePairs.first())*/
   }
 
 }

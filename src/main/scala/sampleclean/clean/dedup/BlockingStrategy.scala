@@ -13,9 +13,6 @@ import scala.collection.mutable.ArrayBuffer
 import org.amplab.sampleclean.cleaning.{WeightedCosineJoin, WeightedDiceJoin, WeightedOverlapJoin, WeightedJaccardJoin}
 
 
-/**
- * Created by jnwang on 8/30/14.
- */
 
 trait Tokenizer extends Serializable {
   def tokenSet(text: String): List[String]

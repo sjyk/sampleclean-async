@@ -12,9 +12,6 @@ import org.apache.spark.sql._
 import sampleclean.clean.dedup.BlockingKey
 import sampleclean.clean.dedup.BlockingKey
 
-/**
- * Created by juanmanuelsanchez on 8/4/14.
- */
 
 
 //  also supports regular Prefix Filtering
