@@ -6,9 +6,11 @@ import org.apache.spark.SparkConf
 
 import sampleclean.api.SampleCleanContext;
 import sampleclean.api.SampleCleanAQP;
-
+import sampleclean.parse.SampleCleanParser;
+import sampleclean.parse.SampleCleanParser._;
 import sampleclean.clean.ParametricOutlier;
 import sampleclean.clean.dedup._
+
 import org.apache.spark.sql.hive.HiveContext
 import sampleclean.clean.dedup.WordTokenizer
 import sampleclean.clean.dedup.BlockingStrategy
@@ -35,7 +37,7 @@ object SCDriver {
   *  prompt. The execution returns an exit code which
   * determines the next action. 
   */
-  def run(command:String, parser:SCParse):Int = {
+  def run(command:String, parser:SampleCleanParser):Int = {
 
   	//force the string to lower case
   	val commandL = command.toLowerCase(); 
@@ -64,25 +66,33 @@ object SCDriver {
     val saqp = new SampleCleanAQP();
     val hiveContext = new HiveContext(sc);
     val p = new ParametricOutlier(scc);
+    scc.closeHiveSession("src_sample")
+    scc.initializeHive("src","src_sample",0.01)
+    p.clean("src_sample", "key", 1.8)
+    println(saqp.normalizedSCQuery(scc, "src_sample", "key", "sum","true", 0.01))
+    println(saqp.rawSCQuery(scc, "src_sample", "key", "sum","true", 0.01))
+    p.clean("src_sample", "key", 1.0)
+    println(saqp.normalizedSCQuery(scc, "src_sample", "key", "sum","true", 0.01))
+     println(saqp.rawSCQuery(scc, "src_sample", "key", "sum","true", 0.01))
     //hiveContext.hql("CREATE TABLE IF NOT EXISTS src (key INT, value STRING)")
     //hiveContext.hql("LOAD DATA LOCAL INPATH 'kv1.txt' OVERWRITE INTO TABLE src")
     //hiveContext.hql("CREATE TABLE IF NOT EXISTS dblp (value STRING)")
     //hiveContext.hql("LOAD DATA LOCAL INPATH 'dblp.txt' OVERWRITE INTO TABLE dblp")
-    scc.closeHiveSession("dblp_sample")
+    /*scc.closeHiveSession("dblp_sample")
     scc.initializeHive("dblp","dblp_sample",0.001)
     hiveContext.hql("select count(*) from dblp").collect().foreach(println)
-    hiveContext.hql("select count(*) from dblp_sample_clean").collect().foreach(println)
+    hiveContext.hql("select count(*) from dblp_sample_clean").collect().foreach(println)*/
 
     //println(saqp.rawSCQuery(scc, "src_sample", "key", "count","key > 300", 0.1))
-    println(saqp.rawSCQuery(scc, "dblp_sample", "value", "count","true", 0.001)) // To Sanjay: predicate cannot be empty
+    //println(saqp.normalizedSCQuery(scc, "dblp_sample", "value", "count","true", 0.001)) // To Sanjay: predicate cannot be empty
     //p.clean("src_sample", "key", 1)
 
 
-    val d = new Deduplication(scc);
+    /*val d = new Deduplication(scc);
     val sampleKey = new BlockingKey(Seq(2),WordTokenizer())
     val fullKey = new BlockingKey(Seq(0),WordTokenizer())
     d.clean("dblp", "dblp_sample", BlockingStrategy("Jaccard", 0.8, sampleKey, fullKey))
-    println(saqp.rawSCQuery(scc, "dblp_sample", "value", "count","true", 0.001)) 
+    println(saqp.normalizedSCQuery(scc, "dblp_sample", "value", "count","true", 0.001)) */
     
     //println(saqp.rawSCQuery(scc, scc.updateTableDuplicateCounts("src_sample", hiveContext.hql("select src_sample_clean.hash as hash, 2 as dup from src_sample_clean limit 10")), "key", "count","key > 300", 0.01))
     /*hiveContext.hql("select * from src_sample_clean").collect().foreach(println)*/

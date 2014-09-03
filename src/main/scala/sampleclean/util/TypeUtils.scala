@@ -21,4 +21,12 @@ object TypeUtils {
   
   }
 
+  def typeSafeHQL(attr:String):String = {
+    return "COALESCE(" +attr+"-0,0)"
+  }
+
+  def typeSafeHQL(attr:String, defaultVal:Int):String = {
+    return "COALESCE(" +attr+"-0," + defaultVal+")"
+  }
+
 }

@@ -67,9 +67,8 @@ class SampleCleanContext(sc: SparkContext) {
 		hiveContext.hql(query)
 
 		query = "CREATE TABLE " + tableName + 
-		        "_dirty as SELECT reflect(\"java.util.UUID\", \"randomUUID\")"+
-		        " as hash,1 as dup, * FROM " + 
-		        baseTable + " TABLESAMPLE("+samplingRatio+"PERCENT)" 
+		        "_dirty as SELECT * FROM " + 
+		        tableName + "_clean"
 		
 		hiveContext.hql(query)
 	}
