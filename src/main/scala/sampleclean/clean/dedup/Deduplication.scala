@@ -23,8 +23,8 @@ class Deduplication(@transient scc: SampleCleanContext) {
 
     val candidatePairs = blockingStrategy.blocking(scc.getSparkContext(), sampleTable, fullTable)
     //candidatePairs.map(println(_))
-    //val updateDupCount = duplicateCount(candidatePairs).filter(_._2 > 1)
-    //scc.updateTableDuplicateCounts(sampleTableName, updateDupCount)
+    val updateDupCount = duplicateCount(candidatePairs).filter(_._2 > 1)
+    scc.updateHiveTableDuplicateCounts(sampleTableName, updateDupCount)
     println(sampleTable.count())
     println(candidatePairs.count())
     println(candidatePairs.first())

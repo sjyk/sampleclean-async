@@ -66,8 +66,8 @@ object SCDriver {
     val p = new ParametricOutlier(scc);
     //hiveContext.hql("CREATE TABLE IF NOT EXISTS src (key INT, value STRING)")
     //hiveContext.hql("LOAD DATA LOCAL INPATH 'kv1.txt' OVERWRITE INTO TABLE src")
-    hiveContext.hql("CREATE TABLE IF NOT EXISTS dblp (value STRING)")
-    hiveContext.hql("LOAD DATA LOCAL INPATH 'dblp.txt' OVERWRITE INTO TABLE dblp")
+    //hiveContext.hql("CREATE TABLE IF NOT EXISTS dblp (value STRING)")
+    //hiveContext.hql("LOAD DATA LOCAL INPATH 'dblp.txt' OVERWRITE INTO TABLE dblp")
     scc.closeHiveSession("dblp_sample")
     scc.initializeHive("dblp","dblp_sample",0.001)
     hiveContext.hql("select count(*) from dblp").collect().foreach(println)
@@ -82,6 +82,7 @@ object SCDriver {
     val sampleKey = new BlockingKey(Seq(2),WordTokenizer())
     val fullKey = new BlockingKey(Seq(0),WordTokenizer())
     d.clean("dblp", "dblp_sample", BlockingStrategy("Jaccard", 0.8, sampleKey, fullKey))
+    println(saqp.rawSCQuery(scc, "dblp_sample", "value", "count","true", 0.001)) 
     
     //println(saqp.rawSCQuery(scc, scc.updateTableDuplicateCounts("src_sample", hiveContext.hql("select src_sample_clean.hash as hash, 2 as dup from src_sample_clean limit 10")), "key", "count","key > 300", 0.01))
     /*hiveContext.hql("select * from src_sample_clean").collect().foreach(println)*/

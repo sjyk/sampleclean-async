@@ -190,11 +190,68 @@ class SampleCleanContext(sc: SparkContext) {
    		hiveContext.hql("DROP TABLE " + tmpTableName)
 	}
 
+		/**This function given a schemardd of rows (col1 = hash, col2 = dup_count)
+	 * it updates the corresponding Hive table. This only works if initializeHive
+	 * has been called first.
+	 */
+	def updateHiveTableDuplicateCounts(tableName: String, rdd:RDD[(String, Int)])= {
+		val hiveContext = new HiveContext(sc)
+		val sqlContext = new SQLContext(sc)
+		val tableNameClean = tableName + "_clean"
+		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
+		hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceDupSchema(rdd)),"tmp")
+		hiveContext.hql("CREATE TABLE " + tmpTableName +" as SELECT * FROM tmp")
+
+		//Uses the hive API to get the schema of the table.
+		var selectionString = ""
+
+		for (field <- getHiveTableSchema(tableName+"_clean"))
+		{
+			if (field.equals("dup"))
+				selectionString = selectionString + " , " + "coalesce(" + tmpTableName + ".dup,1)"
+			else if (selectionString == "")
+				selectionString = tableNameClean +"."+field
+			else
+				selectionString = selectionString + " , " + tableNameClean +"."+field
+		}
+
+   		//applies hive query to update the data
+   		hiveContext.hql("INSERT OVERWRITE TABLE "+ 
+   			            tableNameClean +" SELECT "+ 
+   			            selectionString+" FROM "+
+   			            tableNameClean+" LEFT OUTER JOIN " + 
+   			            tmpTableName+" ON ("+
+   			            tmpTableName+".hash = "+tableNameClean+".hash)")
+
+   		//drop temporary table
+   		hiveContext.hql("DROP TABLE " + tmpTableName)
+	}
+
 	/**This function given a schemardd of rows (col1 = hash)
 	 * keeps only rows in the schemardd. It updates the HIVE
 	 * table with the new sample.
 	 */
 	def filterHiveTable(tableName: String, rdd:SchemaRDD)= {
+		val hiveContext = new HiveContext(sc)
+		val sqlContext = new SQLContext(sc)
+		val tableNameClean = tableName + "_clean"
+		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
+		hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceFilterSchema(rdd)),"tmp")
+
+		hiveContext.hql("CREATE TABLE " + tmpTableName +" as SELECT hash FROM tmp")
+		
+		hiveContext.hql("INSERT OVERWRITE TABLE "+ tableNameClean +
+			            " SELECT "+tableNameClean+".* FROM " +
+			            tableNameClean+
+			            " JOIN " + tmpTableName +
+			            " ON ("+tmpTableName+".hash = "+
+			            tableNameClean+".hash)")
+
+		hiveContext.hql("DROP TABLE " + tmpTableName)
+	}
+
+
+	def filterHiveTable(tableName: String, rdd:RDD[String])= {
 		val hiveContext = new HiveContext(sc)
 		val sqlContext = new SQLContext(sc)
 		val tableNameClean = tableName + "_clean"
@@ -235,9 +292,68 @@ class SampleCleanContext(sc: SparkContext) {
 		return result
 	}
 
+
+	def filterTable(tableName: String, rdd:RDD[String]):SchemaRDD= {
+		val hiveContext = new HiveContext(sc)
+		val sqlContext = new SQLContext(sc)
+		val tableNameClean = tableName + "_clean"
+		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
+		hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceFilterSchema(rdd)),"tmp")
+
+		hiveContext.hql("CREATE TABLE " + tmpTableName +" as SELECT * FROM tmp")
+		
+		val result = hiveContext.hql("SELECT "+tableNameClean+ ".* FROM "
+			         +tableNameClean+" JOIN " 
+			         + tmpTableName+
+			         " ON ("+tmpTableName+".hash = "+
+			         tableNameClean+".hash)")
+
+		return result
+	}
+
+
+
 	/**This function given a schemardd of rows (col1 = hash, col2 = dup_count)
 	 * returns an updated RDD. 
 	 */
+	def updateTableDuplicateCounts(tableName: String, rdd:RDD[(String, Int)]):SchemaRDD = {
+		val hiveContext = new HiveContext(sc)
+		val sqlContext = new SQLContext(sc)
+		val tableNameClean = tableName + "_clean"
+		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
+		hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceDupSchema(rdd)),"tmp")
+		hiveContext.hql("CREATE TABLE " + tmpTableName +" as SELECT * FROM tmp")
+
+		var selectionString = ""
+
+		for (field <- getHiveTableSchema(tableName+"_clean"))
+		{
+			if (field.equals("dup")) {
+					selectionString = selectionString + 
+					                  " , " + "coalesce("+					                  
+					                  	tmpTableName + ".dup,1) as dup"
+			}
+			else if (selectionString == ""){
+				selectionString = tableNameClean + 
+				                  "."+field + 
+				                  " as " + field
+			}
+			else{
+				selectionString = selectionString + 
+				                  " , " + tableNameClean + 
+				                  "."+ field + " AS " + field
+			}
+		}
+
+   		val result = hiveContext.hql("SELECT " + selectionString + 
+   			                         " FROM "+tableNameClean +
+   			                         " LEFT OUTER JOIN " + tmpTableName +
+   			                         " ON ("+tmpTableName+".hash = "
+   			                         +tableNameClean+".hash)")
+
+   		return result
+	}
+
 	def updateTableDuplicateCounts(tableName: String, rdd:SchemaRDD):SchemaRDD = {
 		val hiveContext = new HiveContext(sc)
 		val sqlContext = new SQLContext(sc)
@@ -304,10 +420,18 @@ object SampleCleanContext {
 		return rdd.map( x => FilterTuple(x(0).asInstanceOf[String]))
 	}
 
+	def enforceFilterSchema(rdd:RDD[String]): RDD[FilterTuple] = {
+		return rdd.map( x => FilterTuple(x.asInstanceOf[String]))
+	}
+
 	case class DupTuple(hash: String, dup: Int)
 
+	def enforceDupSchema(rdd:RDD[(String, Int)]): RDD[DupTuple] = {
+		return rdd.map( x => DupTuple(x._1.asInstanceOf[String],x._2.asInstanceOf[Int]))
+	}
+
 	def enforceDupSchema(rdd:SchemaRDD): RDD[DupTuple] = {
-		return rdd.map( x => DupTuple(x(0).asInstanceOf[String],x(1).asInstanceOf[Int]))
+		return rdd.map( x => DupTuple(x(0).asInstanceOf[String],x(2).asInstanceOf[Int]))
 	}
 
 }
