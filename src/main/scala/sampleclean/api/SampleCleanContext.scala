@@ -66,6 +66,8 @@ class SampleCleanContext(sc: SparkContext) {
 
 		hiveContext.hql(query)
 
+		hiveContext.hql(setTableParent(getCleanSampleName(tableName),baseTable))
+
 		query = createTableAs(getDirtySampleName(tableName)) +
 					buildSelectQuery(List("*"),getCleanSampleName(tableName))
 		
@@ -87,17 +89,20 @@ class SampleCleanContext(sc: SparkContext) {
 		val selectionList = List("reflect(\"java.util.UUID\", \"randomUUID\") as hash",
 			                     "1 as dup", "*")
 
-		var query = createTableAs(getCleanSampleName(tableName)) +
-					buildSelectQuery(selectionList,baseTable) +
-					tableSample(samplingRatio)
-
-		hiveContext.hql(query)
-
 		if(persist)
 		{
+			var query = createTableAs(getCleanSampleName(tableName)) +
+			buildSelectQuery(selectionList,baseTable) +
+			tableSample(samplingRatio)
+
+			hiveContext.hql(query)
+
+			hiveContext.hql(setTableParent(getCleanSampleName(tableName),baseTable))
+
 			query = createTableAs(getDirtySampleName(tableName)) +
 					buildSelectQuery(List("*"),getCleanSampleName(tableName))
 		
+
 			hiveContext.hql(query)
 		}
 		
@@ -123,11 +128,12 @@ class SampleCleanContext(sc: SparkContext) {
 
 	/* Returns an RDD which points to a full table
 	*/
-	def getFullTable(tableName: String):SchemaRDD = {
+	def getFullTable(sampleName: String):SchemaRDD = {
 
 		val hiveContext = new HiveContext(sc)
 
-		return hiveContext.hql(buildSelectQuery(List("*"),tableName))
+		return hiveContext.hql(buildSelectQuery(List("*"),
+							  getParentTable(getCleanSampleName(sampleName))))
 	}
 
 	/* Returns an RDD which points to a sample 
@@ -273,11 +279,23 @@ object SampleCleanContext {
 		return tableList
 	}
 
+	/*This function uses the hive catalog to get the parent table
+	 */
+	def getParentTable(tableName:String):String =
+	{
+		try{
+			val msc:HiveMetaStoreClient = new HiveMetaStoreClient(new HiveConf());
+			return msc.getTable(tableName).getParameters().get("comment")
+		}
+		catch {
+     		case e: Exception => 0
+   		}
+   		return ""
+	}
 
 	//two case clases that can help force typing
 	case class FilterTuple(hash: String)
 	case class DupTuple(hash: String, dup: Int)
-
 
 	//These methods take un-named cols in RDDs and force them
 	//into named cols.

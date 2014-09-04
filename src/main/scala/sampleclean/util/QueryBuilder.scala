@@ -13,6 +13,7 @@ object QueryBuilder {
 
 	//some common templates
 	val CTAS_TEMPLATE = "CREATE TABLE %s AS "
+	val CTASC_TEMPLATE = "CREATE TABLE %s COMMENT '%b' AS "
 	val HASH_COL_NAME = "hash"
 	val DUP_COL_NAME = "dup"
 	val HASH_DUP_INIT = " REFLECT(\"java.util.UUID\", \"randomUUID\") AS %h, 1 AS %d, "
@@ -23,6 +24,10 @@ object QueryBuilder {
 	*/
 	def createTableAs(tableName:String): String ={
 		return CTAS_TEMPLATE.replace("%s",tableName)
+	}
+
+	def setTableParent(tableName:String,baseTable:String): String = {
+		return "ALTER TABLE "+tableName + " SET TBLPROPERTIES ('comment' = '"+baseTable+"')"
 	}
 
 	/** Returns the string corresponding to the 
