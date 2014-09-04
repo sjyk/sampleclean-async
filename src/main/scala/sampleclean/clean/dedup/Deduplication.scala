@@ -15,15 +15,15 @@ class Deduplication(@transient scc: SampleCleanContext) {
     candidatePairs.map(x => (x._1.getString(0),1)).reduceByKey(_ + _)
   }
 
-  def clean(fullTableName:String,
+  def clean(//fullTableName:String,
             sampleTableName:String,
             blockingStrategy: BlockingStrategy,
             featureVectorStrategy: FeatureVectorStrategy) {
 
     // To Sanjay: 1. Will I generate a new RDD when I call this function?
     //            2. Can you provide a function that can get a full table name based on a given sample name
-    val sampleTable = scc.getCleanSampleRow(sampleTableName)
-    val fullTable = scc.getFullTable(fullTableName)
+    val sampleTable = scc.getCleanSample(sampleTableName)
+    val fullTable = scc.getFullTable(sampleTableName)
 
     val candidatePairs = blockingStrategy.blocking(scc.getSparkContext(), sampleTable, fullTable)
     val featureVectors = featureVectorStrategy.toFeatureVectors(candidatePairs)

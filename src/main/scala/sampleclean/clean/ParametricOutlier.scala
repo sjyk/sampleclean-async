@@ -25,8 +25,8 @@ class ParametricOutlier(scc: SampleCleanContext) {
 		val mean = getMean(sampleToClean)
 		val std = getSTD(sampleToClean, mean)
 
-		val filtered_rdd = sampleToClean.where(x => Math.abs(rowToNumber(x,1) - mean)/std <= z_thresh)
-		scc.filterHiveTable(tableName, filtered_rdd)
+		val filtered_rdd = sampleToClean.filter(x => Math.abs(rowToNumber(x,1) - mean)/std <= z_thresh).map(x => x(0).asInstanceOf[String])
+		scc.filterTable(tableName, filtered_rdd)
 	}
 
 }
