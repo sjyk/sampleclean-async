@@ -1,9 +1,5 @@
 package org.amplab.sampleclean.cleaning
 
-/**
- * Created by juanmanuelsanchez on 8/11/14.
- */
-
 import java.io.{BufferedWriter, FileWriter}
 
 import org.apache.spark.{SparkConf, SparkContext}
