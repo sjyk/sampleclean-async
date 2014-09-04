@@ -22,7 +22,7 @@ class Deduplication(@transient scc: SampleCleanContext) {
 
     // To Sanjay: 1. Will I generate a new RDD when I call this function?
     //            2. Can you provide a function that can get a full table name based on a given sample name
-    val sampleTable = scc.getCleanSampleRow(sampleTableName)
+    val sampleTable = scc.getCleanSample(sampleTableName)
     val fullTable = scc.getFullTable(fullTableName)
 
     val candidatePairs = blockingStrategy.blocking(scc.getSparkContext(), sampleTable, fullTable)

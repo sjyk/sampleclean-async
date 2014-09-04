@@ -7,8 +7,6 @@ import org.apache.spark.sql.Row
 
 import sampleclean.util.TypeUtils._
 import sampleclean.util.QueryBuilder._
-//import sampleclean.parse.SampleCleanParser;
-//import sampleclean.parse.SampleCleanParser._;
 
 /* This class provides the approximate query processing 
 * for SampleClean. Currently, it supports SUM, COUNT, AVG
@@ -19,6 +17,8 @@ import sampleclean.util.QueryBuilder._
 class SampleCleanAQP() {
 
 	  /**This function executes the per-partition query processing of the agg function
+	   * Notice that this operation returns a single tuple from each partition which is
+	     then aggregated in a reduce call.
 	   */
 	  private def aqpPartitionAgg(partitionData:Iterator[Double]): Iterator[(Double,Double,Double)] =
 	  {
@@ -37,17 +37,15 @@ class SampleCleanAQP() {
 	  		return List((result,variance, n)).iterator
 	  }
 
-	  //Helper function that "transforms" our queries into mean queries
+	  /**Helper function that "transforms" our queries into mean queries
+	  */
 	  private def aqpPartitionMap(row:Row, transform: Double => Double): Double = 
 	  {
 	  		return transform(rowToNumber(row,0))/rowToNumber(row,1)
 	  }
 
-	  //approximate count, sum, avg
-	  //The basic idea is we aggregate an average
-	  //on each split then average them together and
-	  //rescale 
-
+	  /**Internal method to execute the count query, returns a tuple of (Result, Confidence)
+	  */
 	  private def approxCount(rdd:SchemaRDD, sampleRatio:Double):(Double, Double)=
 	  {
 
@@ -71,6 +69,8 @@ class SampleCleanAQP() {
 	  }
 
 
+	  /**Internal method to execute the sum query, returns a tuple of (Result, Confidence)
+	  */
 	  private def approxSum(rdd:SchemaRDD, sampleRatio:Double):(Double, Double)=
 	  {
 
@@ -93,11 +93,8 @@ class SampleCleanAQP() {
 	  	  	       Math.sqrt(rdd.count()))
 	  }
 
-	  private def duplicationRate(rdd:SchemaRDD):Double=
-	  {
-	  	  return rdd.count()/rdd.map( x => 1.0/x(1).asInstanceOf[Int]).reduce(_ + _)
-	  }
-
+	 /**Internal method to execute the AVG query, returns a tuple of (Result, Confidence)
+	  */
 	  private def approxAvg(rdd:SchemaRDD, sampleRatio:Double):(Double, Double)=
 	  {
 	  	  val partitionResults = rdd.map(row => aqpPartitionMap(row,x => x))
@@ -118,8 +115,18 @@ class SampleCleanAQP() {
 	  	  	     Math.sqrt(rdd.count()))
 	  }
 
+	  /**Internal method to calculate the normalization for the AVG query
+	  */
+	  private def duplicationRate(rdd:SchemaRDD):Double=
+	  {
+	  	  return rdd.count()/rdd.map( x => 1.0/x(1).asInstanceOf[Int]).reduce(_ + _)
+	  }
+
 	  /*This query executes rawSC given an attribute to aggregate, expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
 	  * It returns a tuple of the estimate, and the variance of the estimate (EST, VAR_EST)
+
+	  *Args (SampleCleanContext, Name of Sample to Query, 
+	  *Attr to Query, Agg Function to Use, Predicate, Sampling Ratio)
 	  */
 	  def rawSCQuery(scc:SampleCleanContext, sampleName: String, 
 	  				  attr: String, expr: String, 
@@ -160,7 +167,9 @@ class SampleCleanAQP() {
 
 	  /*This query executes rawSC given an attribute to aggregate, expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
 	  * It returns a tuple of the estimate, and the variance of the estimate (EST, VAR_EST)
-	  * (To clean up)
+	  *
+	  *Args (SampleCleanContext, Name of Sample to Query, 
+	  *Attr to Query, Agg Function to Use, Predicate, Sampling Ratio)
 	  */
 	 def normalizedSCQuery(scc:SampleCleanContext, sampleName: String, 
 	  				  attr: String, expr: String, 
@@ -212,48 +221,5 @@ class SampleCleanAQP() {
 	  	  	 return approxSum(hc.hql(buildQuery),sampleRatio)
 	  	  }
 
-	  }
-
-	  /*This query executes rawSC given an attribute to aggregate, expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
-	  * It returns a tuple of the estimate, and the variance of the estimate (EST, VAR_EST)
-	  */
-	  def rawSCQuery(scc:SampleCleanContext, rdd:SchemaRDD, 
-	  				  attr: String, expr: String, 
-	  				  pred:String, 
-	  				  sampleRatio: Double): (Double, Double)=
-	  {
-	  	  val hc:HiveContext = scc.getHiveContext()
-	  	  hc.registerRDDAsTable(rdd,"tmp")
-	  	  val hiveTableName = "tmp"
-
-	  	  if (expr.toLowerCase() == "avg"){
-	  	  	 
-	  	  	 val buildQuery = buildSelectQuery(List(attr,"dup"),
-	  	  	 	                               hiveTableName,
-	  	  	 	                               pred)
-	  	  	 
-	  	  	 return approxAvg(hc.hql(buildQuery),sampleRatio)
-	  	  }
-	  	  else if (expr.toLowerCase() == "sum"){
-
-	  	  	 val buildQuery = buildSelectQuery(
-	  	  	 	                 List(predicateToCaseMult(pred,attr)
-	  	  	 	                 ,"dup"),
-	  	  	 	              hiveTableName)
-
-	  	  	 return approxSum(hc.hql(buildQuery),sampleRatio)
-	  	  	}
-	  	  else
-	  	  {
-	  	  	 val buildQuery = buildSelectQuery(
-	  	  	 	                 List(predicateToCase(pred)
-	  	  	 	                 ,"dup"),
-	  	  	 	              hiveTableName)
-
-	  	  	 return approxCount(hc.hql(buildQuery),sampleRatio)
-	  	  }
-
-	  }
-
-	 
+	  }	 
 }
