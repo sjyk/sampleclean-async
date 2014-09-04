@@ -28,7 +28,7 @@ class Deduplication(@transient scc: SampleCleanContext) {
     val candidatePairs = blockingStrategy.blocking(scc.getSparkContext(), sampleTable, fullTable)
     val featureVectors = featureVectorStrategy.toFeatureVectors(candidatePairs)
     println(featureVectors.count())
-    println(featureVectors.first())
+    println(featureVectors.first().toSeq)
     //featureVectors.map(println(_))
 
     //candidatePairs.map(println(_))

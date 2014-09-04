@@ -24,12 +24,12 @@ class Feature (cols1: Seq[Int],
 
 case class FeatureVectorStrategy (features: Seq[Feature], lowerCase: Boolean = true){
 
-  def toFeatureVectors(recordPairs: RDD[(Row, Row)]): RDD[Seq[Float]] = {
+  def toFeatureVectors(recordPairs: RDD[(Row, Row)]): RDD[Array[Float]] = {
     recordPairs.map(x => toFeatureVector(x._1, x._2))
   }
 
   // Returns chosen metrics for two records
-  def toFeatureVector(row1: Row, row2: Row): Seq[Float] = {
+  def toFeatureVector(row1: Row, row2: Row): Array[Float] = {
 
     features.map {
       case feature: Feature => {
@@ -49,7 +49,7 @@ case class FeatureVectorStrategy (features: Seq[Feature], lowerCase: Boolean = t
         }
         getSimilarities(concatenateCols1, concatenateCols2, simMeasures)
       }
-    }.flatten
+    }.flatten.toArray
   }
 
   def getSimilarities(s1: String, s2: String, simMeasures: Seq[String]): Seq[Float] = {
@@ -91,7 +91,7 @@ case class FeatureVectorStrategy (features: Seq[Feature], lowerCase: Boolean = t
       }
       else
         measure.asInstanceOf[AbstractStringMetric].getSimilarity(s1, s2)
-    })
+    }).toVector
   }
 
 }
