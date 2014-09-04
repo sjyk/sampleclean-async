@@ -7,7 +7,7 @@ import org.apache.spark.SparkConf
 import sampleclean.api.SampleCleanContext;
 import sampleclean.api.SampleCleanAQP;
 import sampleclean.parse.SampleCleanParser;
-import sampleclean.parse.SampleCleanParser._;
+//import sampleclean.parse.SampleCleanParser._;
 import sampleclean.clean.ParametricOutlier;
 import sampleclean.clean.dedup._
 
@@ -68,12 +68,13 @@ object SCDriver {
     val p = new ParametricOutlier(scc);
     scc.closeHiveSession("src_sample")
     scc.initializeHive("src","src_sample",0.01)
-    p.clean("src_sample", "key", 1.8)
+    /*p.clean("src_sample", "key", 1.8)
     println(saqp.normalizedSCQuery(scc, "src_sample", "key", "sum","true", 0.01))
     println(saqp.rawSCQuery(scc, "src_sample", "key", "sum","true", 0.01))
     p.clean("src_sample", "key", 1.0)
     println(saqp.normalizedSCQuery(scc, "src_sample", "key", "sum","true", 0.01))
-     println(saqp.rawSCQuery(scc, "src_sample", "key", "sum","true", 0.01))
+     println(saqp.rawSCQuery(scc, "src_sample", "key", "sum","true", 0.01))*/
+    println(saqp.normalizedSCQuery(scc, "src_sample", "key", "avg","true", 0.01))
     //hiveContext.hql("CREATE TABLE IF NOT EXISTS src (key INT, value STRING)")
     //hiveContext.hql("LOAD DATA LOCAL INPATH 'kv1.txt' OVERWRITE INTO TABLE src")
     //hiveContext.hql("CREATE TABLE IF NOT EXISTS dblp (value STRING)")

@@ -25,32 +25,3 @@ class SampleCleanParser(scc: SampleCleanContext) {
   }
 
 }
-
-object SampleCleanParser {
-
-	def punctuationParseString(expr:String):String = {
-		var resultString = " "
-		for (i <- 0 until expr.length)
-		{
-			if(expr(i).isLetterOrDigit)
-				resultString = resultString + expr(i)
-			else
-				resultString = resultString + ' ' + expr(i) + ' '
-		}
-
-		return resultString + " "
-	}
-
-	def makeExpressionExplicit(expr:String, 
-		                       sampleExpName:String):String = {
-
-		var resultExpr = punctuationParseString(expr.toLowerCase)
-		for(col <- getHiveTableSchema(sampleExpName))
-		{
-			resultExpr = resultExpr.replaceAll(' ' + col.toLowerCase + ' ', ' ' + sampleExpName+'.'+col + ' ')
-		}
-
-		return resultExpr
-	}
-
-}
