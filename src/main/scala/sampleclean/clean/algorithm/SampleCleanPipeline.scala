@@ -6,12 +6,27 @@ import sampleclean.api.SampleCleanAQP;
 
 import SampleCleanPipeline._
 
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.{Failure, Success}
+
 @serializable
 class SampleCleanPipeline(saqp: SampleCleanAQP,
 						  var execList:List[SampleCleanAlgorithm]=List[SampleCleanAlgorithm](),
 	                      var queryList:List[SampleCleanQuery]=List[SampleCleanQuery]()) {
 
-	def execAllQueries()={
+	def setPipelineOnQueries()={
+		for (l <- execList)
+		{
+			l.pipeline = this
+		}
+	}
+
+	def execAllQueries(name:String=null)={
+
+		if(name != null)
+			println("Inside Algorithm: " + name)
+
 		var query = 1
 		for(q <- queryList)
 		{
@@ -39,19 +54,29 @@ class SampleCleanPipeline(saqp: SampleCleanAQP,
 	}
 
 	def exec(sampleName: String)={
-		var stage = 1
 		for(l <- execList)
 		{
 			val before = System.nanoTime
-			l.exec(sampleName)
-			println("--------")
-			println("Stage " + stage + 
-				    " complete in " + 
-				    (System.nanoTime-before)/1e9 + 
-				    " (s) ")
-			execAllQueries()
-			stage = stage + 1
+			var stageName = "Anon"
+			if(l.name != null)
+				stageName = l.name
 
+			if(l.blocking){
+					println("Queued " + stageName)
+					l.exec(sampleName)
+					println("Completed " + stageName)
+				}
+			else{
+					val f = Future{
+						println("Queued " + stageName)
+						l.exec(sampleName)
+					}
+
+					f.onComplete {
+						case Success(value) => println("Completed " + stageName)
+						case Failure(e) => e.printStackTrace
+					}
+				}
 		}
 	}
 

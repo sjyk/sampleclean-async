@@ -24,7 +24,6 @@ class ParametricOutlier(params:AlgorithmParameters,scc: SampleCleanContext)
 	}
 
 	def exec(tableName:String)={
-
 		val attr = params.get("attr").asInstanceOf[String]
 		val z_thresh = params.get("z_thresh").asInstanceOf[Double]
 		val sampleToClean = scc.getCleanSampleAttr(tableName, attr)
