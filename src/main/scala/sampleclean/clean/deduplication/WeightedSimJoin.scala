@@ -1,4 +1,4 @@
-package org.amplab.sampleclean.cleaning
+package sampleclean.clean.deduplication
 
 import java.io.{BufferedWriter, FileWriter}
 

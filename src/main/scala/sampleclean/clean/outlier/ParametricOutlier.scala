@@ -1,4 +1,4 @@
-package sampleclean.clean
+package sampleclean.clean.outlier
 
 import sampleclean.api.SampleCleanContext
 import sampleclean.clean.algorithm.SampleCleanFilterAlgorithm

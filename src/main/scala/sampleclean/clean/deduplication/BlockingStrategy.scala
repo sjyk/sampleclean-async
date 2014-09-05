@@ -1,6 +1,4 @@
-package sampleclean.clean.dedup
-
-
+package sampleclean.clean.deduplication
 
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.SchemaRDD
@@ -10,7 +8,7 @@ import scala.collection.Seq
 import scala.List
 import java.util.StringTokenizer
 import scala.collection.mutable.ArrayBuffer
-import org.amplab.sampleclean.cleaning.{WeightedCosineJoin, WeightedDiceJoin, WeightedOverlapJoin, WeightedJaccardJoin}
+//import org.amplab.sampleclean.cleaning.{WeightedCosineJoin, WeightedDiceJoin, WeightedOverlapJoin, WeightedJaccardJoin}
 
 
 

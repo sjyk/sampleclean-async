@@ -1,4 +1,4 @@
-package sampleclean.clean.dedup
+package sampleclean.clean.deduplication
 
 import org.apache.spark.rdd.RDD
 import scala.collection.Seq

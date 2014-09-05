@@ -1,4 +1,4 @@
-package sampleclean.clean.dedup
+package sampleclean.clean.deduplication
 
 
 import scala.collection.immutable.Map
