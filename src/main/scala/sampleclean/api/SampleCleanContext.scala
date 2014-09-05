@@ -170,7 +170,7 @@ class SampleCleanContext(sc: SparkContext) {
 		for (field <- getHiveTableSchema(tableNameClean))
 		{
 			if (field.equals("dup"))
-				selectionString = typeSafeHQL(makeExpressionExplicit("dup",tableNameClean),1) :: selectionString
+				selectionString = typeSafeHQL(makeExpressionExplicit("dup",tmpNameClean),1) :: selectionString
 			else
 				selectionString = makeExpressionExplicit(field,tableNameClean) :: selectionString
 		}

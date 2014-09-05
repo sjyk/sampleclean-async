@@ -10,11 +10,17 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
+/**This class defines a "pipeline". A pipeline is a set of SampleCleanAlgorithms 
+* to execute. The pipeline determines how the execute the algorithms and whether to
+* optimize their executions
+*/
 @serializable
 class SampleCleanPipeline(saqp: SampleCleanAQP,
 						  var execList:List[SampleCleanAlgorithm]=List[SampleCleanAlgorithm](),
 	                      var queryList:List[SampleCleanQuery]=List[SampleCleanQuery]()) {
 
+	/**This associates the current object with the pipeline algorithms
+	*/
 	def setPipelineOnQueries()={
 		for (l <- execList)
 		{
@@ -22,6 +28,8 @@ class SampleCleanPipeline(saqp: SampleCleanAQP,
 		}
 	}
 
+	/**Executes all queries associated with the pipeline
+	*/
 	def execAllQueries(name:String=null)={
 
 		if(name != null)
@@ -53,6 +61,8 @@ class SampleCleanPipeline(saqp: SampleCleanAQP,
 		}
 	}
 
+	/**Executes the algorithms in the pipeline
+	*/
 	def exec(sampleName: String)={
 		for(l <- execList)
 		{
