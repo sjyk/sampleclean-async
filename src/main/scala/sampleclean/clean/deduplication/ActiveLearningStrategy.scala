@@ -9,13 +9,16 @@ import org.apache.spark.mllib.classification.SVMModel
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.mllib.linalg.Vectors
 
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
 
 
 case class ActiveLearningStrategy(featureVector: FeatureVector,
                              toPointLabelingContext: (Row, Row) => PointLabelingContext,
                              groupLabelingContext: GroupLabelingContext) {
 
-  def run(labeledInput: RDD[(String, LabeledPoint)], candidatePairs: RDD[(Row, Row)], onUpdateDupCount: RDD[(Row, Row)] => RDD[(String, Int)]) = {
+  def asyncRun(labeledInput: RDD[(String, LabeledPoint)], candidatePairs: RDD[(Row, Row)], onUpdateDupCounts: RDD[(Row, Row)] => Unit) = {
 
     val pid = utils.randomUUID()
     val candidatePairsWithId = candidatePairs.map((pid, _))
@@ -37,6 +40,7 @@ case class ActiveLearningStrategy(featureVector: FeatureVector,
       var mergedLabeledData: RDD[(String, Double)] = modelLabeledData
 
       val crowdLabeledData = trainingFuture.getLabeledData
+      crowdLabeledData.foreach(println)
       crowdLabeledData match {
         case None => // do nothing
         case Some(crowdLabeledData) => {
@@ -50,7 +54,10 @@ case class ActiveLearningStrategy(featureVector: FeatureVector,
       assert(mergedLabeledData.count() == candidatePairsWithId.count())
 
       val duplicatePairs = mergedLabeledData.filter(_._2 < 0.5).join(candidatePairsWithId).map(_._2._2) // 0: duplicate; 1: non-duplicate
-      onUpdateDupCount(duplicatePairs)
+      onUpdateDupCounts(duplicatePairs)
+      
+      // wait for training to complete
+      Await.ready(trainingFuture, Duration.Inf)
     }
   }
 

@@ -135,10 +135,11 @@ object SCDriver {
     val saqp = new SampleCleanAQP();
     val hiveContext = new HiveContext(sc);
 
-    hiveContext.hql("CREATE TABLE IF NOT EXISTS restaurant (id STRING,entity_id STRING,name STRING,address STRING,city STRING,type STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
-    hiveContext.hql("LOAD DATA LOCAL INPATH 'restaurant.csv' OVERWRITE INTO TABLE restaurant")
+    //hiveContext.hql("CREATE TABLE IF NOT EXISTS restaurant (id STRING,entity_id STRING,name STRING,address STRING,city STRING,type STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
+    hiveContext.hql("CREATE TABLE IF NOT EXISTS restaurant (id STRING,entity_id STRING,name STRING,address STRING,city STRING,type STRING) ")
+    hiveContext.hql("LOAD DATA LOCAL INPATH '/home/ubuntu/sampleclean-async/restaurant.csv' OVERWRITE INTO TABLE restaurant")
     scc.closeHiveSession()
-    scc.initializeHive("restaurant","restaurant_sample",1)
+    scc.initializeHive("restaurant","restaurant_sample",0.1)
     hiveContext.hql("select count(*) from restaurant").collect().foreach(println)
 
     hiveContext.hql("select * from restaurant_sample_clean").collect().foreach(println)
@@ -147,7 +148,7 @@ object SCDriver {
     //println(saqp.normalizedSCQuery(scc, "dblp_sample", "value", "count","true", 0.001)) // To Sanjay: predicate cannot be empty
     //p.clean("src_sample", "key", 1)
 
-
+/*
     val d = new Deduplication(scc);
     val sampleKey = new BlockingKey(Seq(4,5,6,7),WordTokenizer())
     val fullKey = new BlockingKey(Seq(2,3,4,5),WordTokenizer())
@@ -196,6 +197,7 @@ object SCDriver {
       println(x._4)
       println
     }
+    */
 
 
 
@@ -227,7 +229,7 @@ object SCDriver {
 
   }
 
-  def maindup(args: Array[String]) {
+  def maindblp(args: Array[String]) {
 
     val conf = new SparkConf();
     conf.setAppName("SampleClean Materialized View Experiments");
