@@ -4,7 +4,7 @@ package sampleclean.clean.dedup
 
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.SchemaRDD
-import org.apache.spark.rdd.RDD
+import org.apache.spark.rdd._
 import org.apache.spark.sql.Row
 import scala.collection.Seq
 import scala.List

@@ -22,14 +22,18 @@ class Feature (cols1: Seq[Int],
   }*/
 }
 
-case class FeatureVectorStrategy (features: Seq[Feature], lowerCase: Boolean = true){
+case class FeatureVector (features: Seq[Feature], lowerCase: Boolean = true){
 
-  def toFeatureVectors(recordPairs: RDD[(Row, Row)]): RDD[Array[Float]] = {
-    recordPairs.map(x => toFeatureVector(x._1, x._2))
+  def toFeatureVectors(rowPairs: RDD[(Row, Row)]): RDD[Array[Double]] = {
+    rowPairs.map(x => toFeatureVector(x._1, x._2))
+  }
+
+  def toFeatureVector(rowPair: (Row, Row)): Array[Double] = {
+    toFeatureVector(rowPair._1, rowPair._2)
   }
 
   // Returns chosen metrics for two records
-  def toFeatureVector(row1: Row, row2: Row): Array[Float] = {
+  def toFeatureVector(row1: Row, row2: Row): Array[Double] = {
 
     features.map {
       case feature: Feature => {
@@ -52,7 +56,7 @@ case class FeatureVectorStrategy (features: Seq[Feature], lowerCase: Boolean = t
     }.flatten.toArray
   }
 
-  def getSimilarities(s1: String, s2: String, simMeasures: Seq[String]): Seq[Float] = {
+  def getSimilarities(s1: String, s2: String, simMeasures: Seq[String]): Seq[Double] = {
     val measures: Seq[Object] = simMeasures.map(measure =>
       measure match {
         case "BlockDistance" => new BlockDistance
@@ -87,11 +91,11 @@ case class FeatureVectorStrategy (features: Seq[Feature], lowerCase: Boolean = t
         val US_EN_MAP: Array[Char] = "01230120022455012623010202".toCharArray
         val trimmed1 = s1.filter(x => (x.toUpper - 'A') < US_EN_MAP.length)
         val trimmed2 = s2.filter(x => (x.toUpper - 'A') < US_EN_MAP.length)
-        measure.asInstanceOf[AbstractStringMetric].getSimilarity(trimmed1, trimmed2)
+        measure.asInstanceOf[AbstractStringMetric].getSimilarity(trimmed1, trimmed2).toDouble
       }
       else
-        measure.asInstanceOf[AbstractStringMetric].getSimilarity(s1, s2)
-    }).toVector
+        measure.asInstanceOf[AbstractStringMetric].getSimilarity(s1, s2).toDouble
+    })
   }
 
 }

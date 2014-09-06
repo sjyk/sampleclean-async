@@ -18,6 +18,8 @@ libraryDependencies += "com.twitter" %% "finagle-http" % "6.2.0"
 
 libraryDependencies += "org.json4s" %% "json4s-jackson" % "3.2.10"
 
+libraryDependencies += "org.json4s" %% "json4s-native" % "3.2.10"
+
 libraryDependencies += "org.apache.spark" %% "spark-hive" % "1.0.0"
 
 libraryDependencies += "org.apache.hive" % "hive" % "0.13.1"
