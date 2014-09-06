@@ -123,7 +123,7 @@ object SCDriver {
 
   }
 
-  def maindup(args: Array[String]) {
+  def main(args: Array[String]) {
 
     val conf = new SparkConf();
     conf.setAppName("SampleClean Materialized View Experiments");
@@ -189,7 +189,7 @@ object SCDriver {
           flag = "nodup"
         (flag, rowstr1, rowstr2, featurestr)
 
-    }.foreach{ case x=>
+    }.collect.foreach{ case x=>
       println(x._1)
       println(x._2)
       println(x._3)
@@ -227,7 +227,7 @@ object SCDriver {
 
   }
 
-  def main(args: Array[String]) {
+  def maindup(args: Array[String]) {
 
     val conf = new SparkConf();
     conf.setAppName("SampleClean Materialized View Experiments");
