@@ -15,10 +15,11 @@ import org.apache.spark.sql.{Row}
 
 class Deduplication(@transient scc: SampleCleanContext) {
   case class Record(hash: String, dup: Integer)
-  def onUpdateDupPairs(dupPairs: RDD[(Row, Row)]): RDD[(String, Int)] = {
+  def onUpdateDupCounts(sampleTableName: String, dupPairs: RDD[(Row, Row)]) {
     // Need to discuss with Sanjay. The code may not work if he changes the position of hash
 
-    dupPairs.map(x => (x._1.getString(0),1)).reduceByKey(_ + _)
+    val dupCounts = dupPairs.map(x => (x._1.getString(0),1)).reduceByKey(_ + _)
+    scc.updateTableDuplicateCounts(sampleTableName, dupCounts)
   }
 
 
@@ -32,7 +33,7 @@ class Deduplication(@transient scc: SampleCleanContext) {
     val candidatePairs = blockingStrategy.blocking(scc.getSparkContext(), sampleTable, fullTable)
 
     val emptyLabeledRDD = scc.getSparkContext().parallelize(new Array[(String, LabeledPoint)](0))
-    activeLearningStrategy.run(emptyLabeledRDD, candidatePairs, onUpdateDupPairs)
+    activeLearningStrategy.asyncRun(emptyLabeledRDD, candidatePairs, onUpdateDupCounts(sampleTableName,_: RDD[(Row,Row)]))
 
 
       //featureVectors.map(println(_))
@@ -52,7 +53,6 @@ class Deduplication(@transient scc: SampleCleanContext) {
     val fullTable = scc.getFullTable(sampleTableName)
 
     val similarPairs = blockingStrategy.blocking(scc.getSparkContext(), sampleTable, fullTable)
-    onUpdateDupPairs(similarPairs)
     similarPairs
   }
 
