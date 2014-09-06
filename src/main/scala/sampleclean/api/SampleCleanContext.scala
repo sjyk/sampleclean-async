@@ -170,9 +170,9 @@ class SampleCleanContext(sc: SparkContext) {
 		for (field <- getHiveTableSchema(tableNameClean))
 		{
 			if (field.equals("dup"))
-				selectionString = typeSafeHQL("dup",1) :: selectionString
+				selectionString = typeSafeHQL(makeExpressionExplicit("dup",tmpNameClean),1) :: selectionString
 			else
-				selectionString = field :: selectionString
+				selectionString = makeExpressionExplicit(field,tableNameClean) :: selectionString
 		}
 
 		selectionString = selectionString.reverse

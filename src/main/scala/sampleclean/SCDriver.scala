@@ -68,12 +68,11 @@ object SCDriver {
     val scc = new SampleCleanContext(sc);
     val saqp = new SampleCleanAQP();
     val hiveContext = new HiveContext(sc);
-    val p = new ParametricOutlier(scc);
+    //val p = new ParametricOutlier(scc);
     scc.closeHiveSession()
     scc.initializeHive("src","src_sample",0.01)
     /*p.clean("src_sample", "key", 1.8)
     println(saqp.normalizedSCQuery(scc, "src_sample", "key", "sum","true", 0.01))
-    println(saqp.rawSCQuery(scc, "src_sample", "key", "sum","true", 0.01))
     p.clean("src_sample", "key", 1.0)
     println(saqp.normalizedSCQuery(scc, "src_sample", "key", "sum","true", 0.01))
      println(saqp.rawSCQuery(scc, "src_sample", "key", "sum","true", 0.01))*/
@@ -96,10 +95,8 @@ object SCDriver {
     val sampleKey = new BlockingKey(Seq(2),WordTokenizer())
     val fullKey = new BlockingKey(Seq(0),WordTokenizer())
 
-    //val f1 = new Feature(Seq(2), Seq(0), Seq("Jaro", "JaccardSimilarity"))
-    //val f2 = new Feature(Seq(2), Seq(0), Seq("Levenshtein"))
-
-    //d.clean("dblp_sample", BlockingStrategy("Jaccard", 0.8, sampleKey, fullKey), ActiveLearningStrategy(Seq(f1,f2)))
+    val f1 = new Feature(Seq(2), Seq(0), Seq("Jaro", "JaccardSimilarity"))
+    d.clean("dblp_sample", BlockingStrategy("Jaccard", 0.8, sampleKey, fullKey), FeatureVectorStrategy(Seq(f1)))
     println(saqp.normalizedSCQuery(scc, "dblp_sample", "value", "count","true", 0.001))
     
     //println(saqp.rawSCQuery(scc, scc.updateTableDuplicateCounts("src_sample", hiveContext.hql("select src_sample_clean.hash as hash, 2 as dup from src_sample_clean limit 10")), "key", "count","key > 300", 0.01))

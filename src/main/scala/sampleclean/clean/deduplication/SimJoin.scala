@@ -2,7 +2,7 @@
  * Created by jnwang on 3/25/14.
  */
 
-package sampleclean.clean.dedup
+package sampleclean.clean.deduplication
 
 
 import org.apache.spark.rdd.RDD

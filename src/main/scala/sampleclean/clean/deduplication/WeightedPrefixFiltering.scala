@@ -1,4 +1,4 @@
-package org.amplab.sampleclean.cleaning
+package sampleclean.clean.deduplication
 
 import scala.collection.immutable.Map
 import scala.reflect.ClassTag
@@ -9,8 +9,6 @@ import org.apache.spark.SparkContext._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql._
-import sampleclean.clean.dedup.BlockingKey
-import sampleclean.clean.dedup.BlockingKey
 
 
 
