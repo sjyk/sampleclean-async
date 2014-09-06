@@ -10,14 +10,14 @@ import sampleclean.api.SampleCleanContext;
 import sampleclean.api.SampleCleanAQP;
 import sampleclean.parse.SampleCleanParser;
 //import sampleclean.parse.SampleCleanParser._;
-import sampleclean.clean.ParametricOutlier;
-import sampleclean.clean.dedup._
+import sampleclean.clean.outlier.ParametricOutlier;
+import sampleclean.clean.deduplication._
 
 import org.apache.spark.sql.hive.HiveContext
-import sampleclean.clean.dedup.WordTokenizer
-import sampleclean.clean.dedup.BlockingStrategy
-import sampleclean.clean.dedup.BlockingKey
-import sampleclean.clean.dedup.ActiveLearningStrategy
+import sampleclean.clean.deduplication.WordTokenizer
+import sampleclean.clean.deduplication.BlockingStrategy
+import sampleclean.clean.deduplication.BlockingKey
+import sampleclean.clean.deduplication.ActiveLearningStrategy
 
 /*This class provides the main driver for the SampleClean
 * application. We execute commands read from the command 
@@ -96,7 +96,7 @@ object SCDriver {
     val fullKey = new BlockingKey(Seq(0),WordTokenizer())
 
     val f1 = new Feature(Seq(2), Seq(0), Seq("Jaro", "JaccardSimilarity"))
-    d.clean("dblp_sample", BlockingStrategy("Jaccard", 0.8, sampleKey, fullKey), FeatureVectorStrategy(Seq(f1)))
+    //d.clean("dblp_sample", BlockingStrategy("Jaccard", 0.8, sampleKey, fullKey), FeatureVectorStrategy(Seq(f1)))
     println(saqp.normalizedSCQuery(scc, "dblp_sample", "value", "count","true", 0.001))
     
     //println(saqp.rawSCQuery(scc, scc.updateTableDuplicateCounts("src_sample", hiveContext.hql("select src_sample_clean.hash as hash, 2 as dup from src_sample_clean limit 10")), "key", "count","key > 300", 0.01))
