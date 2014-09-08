@@ -1,0 +1,12 @@
+""" Private settings for the amt_server project.
+
+Everything in this file will be available under django.conf.settings, and will
+overwrite settings in the settings.py file. Use this file for settings like web
+service credentials that shouldn't be publicly visible.
+
+NEVER CHECK THIS FILE INTO VERSION CONTROL.
+"""
+
+# Settings for the AMT app:
+AMT_ACCESS_KEY = 'CHANGEME'
+AMT_SECRET_KEY = 'CHANGEME'

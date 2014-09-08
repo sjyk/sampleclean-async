@@ -1,0 +1,153 @@
+
+
+<html>
+	<head>
+		<script type='text/javascript' src='//code.jquery.com/jquery-1.11.0.js'></script>
+		<script type='text/javascript' src='https://s3.amazonaws.com/mturk-public/externalHIT_v1.js'></script>
+		<script type="text/javascript">	
+			
+			function submit_results()
+			{
+				//Extract the tasks and the answers
+				var div_elements = document.getElementsByTagName('div');
+				var input_elements = document.getElementsByTagName('input');
+
+				var comparisons = []
+				var labels = []
+				for (var i = 0; i < div_elements.length; i ++)
+					if (div_elements[i].id.substring(0, 7) == "compare")
+						comparisons[comparisons.length] = div_elements[i].id.substring(8);
+				for (var i = 0; i < input_elements.length; i ++)
+					if (input_elements[i].type == "radio" && input_elements[i].checked == true)
+						labels[labels.length] = input_elements[i].value; 
+
+				//check if the worker has finished all the work
+				if (labels.length != comparisons.length)
+				{
+					alert("Please select on every task before submitting. Thanks!");
+					return ;
+				}
+				
+				//Extract the HITId
+				var paramstr = window.location.search.substring(1);
+				var parampairs = paramstr.split("&");
+				var HITId;
+				var workerId;
+				var assignmentId; 
+
+				for (i in parampairs)
+				{
+					var pair = parampairs[i].split("=");
+					if (pair[0] == "hitId")
+						HITId = pair[1];
+					else if (pair[0] == "assignmentId")
+						assignmentId = pair[1];
+					else if (pair[0] == "workerId")
+						workerId = pair[1]
+				}
+				
+				//make answer dictionary
+				answers = {}
+				for (var i = 0; i < input_elements.length; i ++)
+					if (input_elements[i].type == "radio" && input_elements[i].checked == true)
+						answers[input_elements[i].id] = input_elements[i].value;
+								
+				//Send a post request
+				$.post("/amt/responses/",
+						{
+							answers : JSON.stringify(answers),
+							HITId : HITId,
+							workerId : workerId,
+							assignmentId : assignmentId
+						},
+						
+						function(data, status)
+						{
+							var submitForm = $("#submitForm");
+							submitForm.off('submit');
+							submitForm.submit();
+				 		});	
+			} 
+			$(document).ready(function()
+			{
+				$("#submitButton").click(function(event)
+				{
+					event.preventDefault();
+					submit_results();
+				});
+			});	
+		</script>
+
+	</head>
+	
+	<body>
+		<form method="post" id="submitForm" action="https://workersandbox.mturk.com/mturk/externalSubmit">
+			<input type="hidden" value="" name="assignmentId" id="assignmentId" />	
+			<title>HIT</title>
+			<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+			<link href="https://s3.amazonaws.com/mturk-public/bs30/css/bootstrap.min.css" rel="stylesheet" />
+			<section class="container" id="DataCollection" style="margin-bottom:15px; padding: 10px 10px; font-family: Verdana, Geneva, sans-serif; color:#333333; font-size:0.9em;">
+				<font size = 2>
+				<div class="row col-xs-12 col-md-12">
+					<div class="panel panel-primary">
+						<div class="panel-heading"><strong><font size = 3> Instructions </font></strong></div>
+						<div class="panel-body">
+							<p>Decide whether the two records in each group refer to the same entity or not.</p>							
+						</div>
+					</div>
+					
+					{% for id, comparison in content.items %}
+					<div class="panel panel-primary">
+						<div class="panel-title"><strong><font size = 3>Group {{forloop.counter}}</font></strong></div>
+						<div class="panel-body">	
+								<table id="hit" border="1" cellspacing="0" cellpadding="3">
+									<div style="width:100%; background-color:#F8F5D8" id = "compare_{{id}}">
+										<thead>
+											<tr>
+											{% for field in group_context.fields %}
+												<th>{{field}}</th>
+											{% endfor %}
+											</tr>
+										</thead>
+									</div>
+									<tbody>
+										{% for record in comparison %}
+										<tr>
+											{% for attribute in record %}
+												<td>{{attribute}}</td>
+											{% endfor %}
+										</tr>
+										{% endfor %}
+									</tbody>
+								</table>
+
+								<input type="radio" id = {{id}} name = "{{forloop.counter}}" value="1.0"> They're the same <br/>
+								<input type="radio" id = {{id}} name = "{{forloop.counter}}" value="0.0"> They're different <br/>
+							  
+						</div>
+					</div>
+					{% endfor %}
+					
+					<div>
+						<label>Additional Comments</label> 
+						
+						<input class="form-control" id="comment" name="comment" placeholder="Say something ..." type="text" />
+					</div>
+				</div>
+
+				</font>
+			</section>
+			
+			{% if allow_submission %}
+				<p class="text-center">
+					<input type="submit" id="submitButton" class="btn btn-primary" value="Submit" />
+				</p>		
+			{% else %}
+				<p class="text-center">
+					<input type="submit" id="submitButton" class="btn btn-primary" disabled value="You must ACCEPT the HIT before you can submit the results." />
+				</p>
+			{% endif %}
+		</form>
+		<script language="Javascript">turkSetAssignmentID();</script>
+	</body>
+</html>
