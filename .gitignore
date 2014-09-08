@@ -1,0 +1,27 @@
+# Java/Scala specific
+*.class
+*.log
+
+# Emacs specific
+*~
+
+# IntelliJ specific
+.idea
+
+# Eclipse specific
+.classpath
+.project
+
+# sbt specific
+target/
+dist/*
+lib_managed/
+src_managed/
+project/boot/
+project/plugins/project/
+
+# Python compiled byte code
+*.pyc
+
+# Celery pid file
+*.pid
