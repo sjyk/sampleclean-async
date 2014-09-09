@@ -253,16 +253,16 @@ object SCDriver {
     //p.clean("src_sample", "key", 1)
 
 
-    val d = new Deduplication(scc);
+    val d = new Deduplication(scc)
     val sampleKey = new BlockingKey(Seq(2),WordTokenizer())
     val fullKey = new BlockingKey(Seq(0),WordTokenizer())
 
 
     def toPointLabelingContext(sampleRow1: Row, fullRow2: Row): PointLabelingContext = {
-      DeduplicationPointLabelingContext(List(List(sampleRow1.getString(2)), List(sampleRow1.getString(0))))
+      DeduplicationPointLabelingContext(List(List(sampleRow1.getString(2)), List(fullRow2.getString(0))))
     }
 
-    val throwawayGroupContext = new DeduplicationGroupLabelingContext("er", Map("fields" -> List("paper")))
+    val groupContext = new DeduplicationGroupLabelingContext("er", Map("fields" -> List("paper")))
 
 
     val f1 = new Feature(Seq(2), Seq(0), Seq("Jaro", "JaccardSimilarity"))
@@ -271,7 +271,7 @@ object SCDriver {
 
     d.clean("dblp_sample",
       BlockingStrategy("Jaccard", 0.8, sampleKey, fullKey),
-      ActiveLearningStrategy(new FeatureVector(Seq(f1,f2)), toPointLabelingContext, throwawayGroupContext))
+      ActiveLearningStrategy(new FeatureVector(Seq(f1,f2)), toPointLabelingContext, groupContext))
 
     //println(saqp.normalizedSCQuery(scc, "dblp_sample", "value", "count","true", 0.001))
 

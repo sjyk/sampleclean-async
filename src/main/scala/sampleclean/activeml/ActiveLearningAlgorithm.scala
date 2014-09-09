@@ -31,7 +31,7 @@ abstract class ActivePointSelector[M, C] extends Serializable {
   * @param bootstrapSize number of labeled points required to train the initial model.
   */
 case class ActiveLearningParameters(budget: Int=10,
-                                    batchSize: Int=1,
+                                    batchSize: Int=5,
                                     bootstrapSize: Int=10)
 
 /**

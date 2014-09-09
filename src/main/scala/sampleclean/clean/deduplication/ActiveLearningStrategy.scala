@@ -20,20 +20,17 @@ case class ActiveLearningStrategy(featureVector: FeatureVector,
 
   def asyncRun(labeledInput: RDD[(String, LabeledPoint)], candidatePairs: RDD[(Row, Row)], onUpdateDupCounts: RDD[(Row, Row)] => Unit) = {
 
-    val pid = utils.randomUUID()
-    val candidatePairsWithId = candidatePairs.map((pid, _))
+    val candidatePairsWithId = candidatePairs.map((utils.randomUUID(), _))
 
-    val labelGetterParameters = CrowdLabelGetterParameters()
     val unlabeledInput = candidatePairsWithId.map(p => (p._1, Vectors.dense(featureVector.toFeatureVector(p._2._1, p._2._2)), toPointLabelingContext(p._2._1, p._2._2)))
     val trainingFuture = ActiveSVMWithSGD.train(
       labeledInput,
       unlabeledInput,
       groupLabelingContext,
       SVMParameters(),
-      new CrowdLabelGetter(labelGetterParameters),
+      ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10),
+      new CrowdLabelGetter(CrowdLabelGetterParameters()),
       SVMMarginDistanceFilter)
-
-    trainingFuture.onNewModel(processNewModel)
 
     def processNewModel(model:SVMModel, modelN: Long) {
       val modelLabeledData: RDD[(String, Double)] = unlabeledInput.map(p => (p._1, model.predict(p._2)))
@@ -43,22 +40,23 @@ case class ActiveLearningStrategy(featureVector: FeatureVector,
       crowdLabeledData.foreach(println)
       crowdLabeledData match {
         case None => // do nothing
-        case Some(crowdLabeledData) => {
-          val mergedLabeledData = modelLabeledData.leftOuterJoin(crowdLabeledData).map{
+        case Some(crowdData) =>
+          mergedLabeledData = modelLabeledData.leftOuterJoin(crowdData).map{
             case (pid, (modelLabel, None)) => (pid, modelLabel)
             case (pid, (modelLabel, Some(crowdLabel))) => (pid, crowdLabel)
-          }
         }
       }
       assert(mergedLabeledData.count() == modelLabeledData.count())
       assert(mergedLabeledData.count() == candidatePairsWithId.count())
 
-      val duplicatePairs = mergedLabeledData.filter(_._2 < 0.5).join(candidatePairsWithId).map(_._2._2) // 0: duplicate; 1: non-duplicate
+      val duplicatePairs = mergedLabeledData.filter(_._2 > 0.5).join(candidatePairsWithId).map(_._2._2) // 1: duplicate; 0: non-duplicate
       onUpdateDupCounts(duplicatePairs)
-      
-      // wait for training to complete
-      Await.ready(trainingFuture, Duration.Inf)
     }
+
+    trainingFuture.onNewModel(processNewModel)
+
+    // wait for training to complete
+    Await.ready(trainingFuture, Duration.Inf)
   }
 
 
