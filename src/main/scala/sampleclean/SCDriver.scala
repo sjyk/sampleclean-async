@@ -14,6 +14,7 @@ import sampleclean.clean.outlier.ParametricOutlier;
 import sampleclean.clean.deduplication._
 
 import org.apache.spark.sql.hive.HiveContext
+import sampleclean.clean.algorithm.AlgorithmParameters
 import sampleclean.clean.deduplication.WordTokenizer
 import sampleclean.clean.deduplication.BlockingStrategy
 import sampleclean.clean.deduplication.BlockingKey
@@ -91,13 +92,13 @@ object SCDriver {
     //p.clean("src_sample", "key", 1)
 
 
-    val d = new Deduplication(scc);
+    /*val d = new Deduplication(scc);
     val sampleKey = new BlockingKey(Seq(2),WordTokenizer())
     val fullKey = new BlockingKey(Seq(0),WordTokenizer())
 
     val f1 = new Feature(Seq(2), Seq(0), Seq("Jaro", "JaccardSimilarity"))
     //d.clean("dblp_sample", BlockingStrategy("Jaccard", 0.8, sampleKey, fullKey), FeatureVectorStrategy(Seq(f1)))
-    println(saqp.normalizedSCQuery(scc, "dblp_sample", "value", "count","true", 0.001))
+    println(saqp.normalizedSCQuery(scc, "dblp_sample", "value", "count","true", 0.001))*/
     
     //println(saqp.rawSCQuery(scc, scc.updateTableDuplicateCounts("src_sample", hiveContext.hql("select src_sample_clean.hash as hash, 2 as dup from src_sample_clean limit 10")), "key", "count","key > 300", 0.01))
     /*hiveContext.hql("select * from src_sample_clean").collect().foreach(println)*/
@@ -252,8 +253,8 @@ object SCDriver {
     //println(saqp.normalizedSCQuery(scc, "dblp_sample", "value", "count","true", 0.001)) // To Sanjay: predicate cannot be empty
     //p.clean("src_sample", "key", 1)
 
+   
 
-    val d = new Deduplication(scc)
     val sampleKey = new BlockingKey(Seq(2),WordTokenizer())
     val fullKey = new BlockingKey(Seq(0),WordTokenizer())
 
@@ -268,10 +269,17 @@ object SCDriver {
     val f1 = new Feature(Seq(2), Seq(0), Seq("Jaro", "JaccardSimilarity"))
     val f2 = new Feature(Seq(2), Seq(0), Seq("Levenshtein"))
 
+    val algoPara = new AlgorithmParameters()
+    algoPara.put("blockingStrategy", BlockingStrategy("Jaccard", 0.8, sampleKey, fullKey))
+    algoPara.put("activeLearningStrategy", ActiveLearningStrategy(new FeatureVector(Seq(f1,f2)), toPointLabelingContext, groupContext))
 
-    d.clean("dblp_sample",
+    val d = new Deduplication(algoPara, scc)
+
+    d.exec("dblp_sample")
+
+    /*d.clean("dblp_sample",
       BlockingStrategy("Jaccard", 0.8, sampleKey, fullKey),
-      ActiveLearningStrategy(new FeatureVector(Seq(f1,f2)), toPointLabelingContext, groupContext))
+      ActiveLearningStrategy(new FeatureVector(Seq(f1,f2)), toPointLabelingContext, groupContext))*/
 
     //println(saqp.normalizedSCQuery(scc, "dblp_sample", "value", "count","true", 0.001))
 
