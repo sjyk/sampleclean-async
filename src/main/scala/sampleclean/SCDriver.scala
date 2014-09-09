@@ -123,7 +123,7 @@ object SCDriver {
 
   }
 
-  def main(args: Array[String]) {
+  def mainback(args: Array[String]) {
 
     val conf = new SparkConf();
     conf.setAppName("SampleClean Materialized View Experiments");
@@ -229,12 +229,12 @@ object SCDriver {
 
   }
 
-  def maindblp(args: Array[String]) {
+  def main(args: Array[String]) {
 
     val conf = new SparkConf();
     conf.setAppName("SampleClean Materialized View Experiments");
     conf.setMaster("local[4]");
-    conf.set("spark.executor.memory", "4g");
+    conf.set("spark.executor.memory", "3g");
 
     val sc = new SparkContext(conf);
     val scc = new SampleCleanContext(sc);
