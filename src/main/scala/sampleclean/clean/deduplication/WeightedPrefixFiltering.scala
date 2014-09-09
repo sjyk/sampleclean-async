@@ -12,6 +12,8 @@ import org.apache.spark.sql._
 
 
 
+
+
 //  also supports regular Prefix Filtering
 trait WeightedPrefixFiltering extends Serializable {
 
@@ -87,7 +89,7 @@ trait WeightedPrefixFiltering extends Serializable {
 
     val tokenRankMap: Map[String, Int] = tokenCountMap.toArray.sortBy(_._2).map(_._1).zipWithIndex.toMap
     val tableSize = sampleTable.count()
-    val tokenWeightMap = tokenCountMap.map(x => (x._1, math.log10(tableSize / x._2)))
+    val tokenWeightMap = tokenCountMap.map(x => (x._1, math.log10(tableSize.toDouble / x._2)))
 
 
     val broadcastRank = sc.broadcast(tokenRankMap)
@@ -115,11 +117,13 @@ trait WeightedPrefixFiltering extends Serializable {
         val broadcastIndexValue = broadcastIndex.value
 
         val key2 = fullKey.tokenSet(row2)
-        val removedSize = getRemovedSize(key2, threshold, weightsValue)
-        val sorted: Seq[String] = sortTokenSet(key2, broadcastRank).dropRight(removedSize)
+        val sorted: Seq[String] = sortTokenSet(key2, broadcastRank)
+        val removedSize = getRemovedSize(sorted, threshold, weightsValue)
+        val filtered = sorted.dropRight(removedSize)
 
 
-        sorted.foldLeft(Seq[Long]()) {
+
+        filtered.foldLeft(Seq[Long]()) {
           case (a, b) =>
               a ++ broadcastIndexValue.getOrElse(b, Seq())
         }.distinct.map {

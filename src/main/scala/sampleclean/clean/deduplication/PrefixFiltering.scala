@@ -68,7 +68,6 @@ trait PrefixFiltering extends Serializable {
     */
 
     // Set a global order to all tokens based on their frequencies
-    // ??: We may optimize this phase by first collecting as map, and then sort the map
     val tokenRankMap: Map[String, Int] = computeTokenCount(sampleTableWithId.map(_._2._1)).toSeq
       .sortBy(_._2).map(_._1).zipWithIndex.toMap
 
@@ -107,8 +106,6 @@ trait PrefixFiltering extends Serializable {
         val removedSize = getRemovedSize(key2.size, threshold)
         val sorted: Seq[String] = sortTokenSet(key2, broadcastRank).dropRight(removedSize)
 
-        //val sorted = tokens2.map(token => (token, broadcastRank.get(token).get)).sortBy(_._2).map(_._1)
-        //for (i <- 1 to 10) yield ((tokens2, tokens2, 1), (value2, value2))
 
        sorted.foldLeft(Seq[Long]()) {
           case (a, b) =>
