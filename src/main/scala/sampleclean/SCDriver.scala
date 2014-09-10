@@ -20,6 +20,9 @@ import sampleclean.clean.deduplication.BlockingStrategy
 import sampleclean.clean.deduplication.BlockingKey
 import sampleclean.clean.deduplication.ActiveLearningStrategy
 
+import sampleclean.clean.algorithm.SampleCleanPipeline
+import sampleclean.clean.algorithm.SampleCleanPipeline._
+
 /*This class provides the main driver for the SampleClean
 * application. We execute commands read from the command 
 * line
@@ -242,40 +245,67 @@ object SCDriver {
     val saqp = new SampleCleanAQP();
     val hiveContext = new HiveContext(sc);
 
-    hiveContext.hql("CREATE TABLE IF NOT EXISTS dblp (value STRING)")
-    hiveContext.hql("LOAD DATA LOCAL INPATH 'dblp.txt' OVERWRITE INTO TABLE dblp")
+    hiveContext.hql("DROP TABLE restaurant")
+    hiveContext.hql("CREATE TABLE IF NOT EXISTS restaurant (id STRING,entityval STRING,name STRING,address STRING,city STRING,type STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
+    hiveContext.hql("LOAD DATA LOCAL INPATH 'restaurant.csv' OVERWRITE INTO TABLE restaurant")
+    //hiveContext.hql("select * from restaurant_sample_clean").collect().foreach(println)
+
+    //System.exit(0)
+
     scc.closeHiveSession()
-    scc.initializeHive("dblp","dblp_sample",0.001)
-    hiveContext.hql("select count(*) from dblp").collect().foreach(println)
-    hiveContext.hql("select count(*) from dblp_sample_clean").collect().foreach(println)
+    scc.initializeHive("restaurant","restaurant_sample",0.1)
+    hiveContext.hql("select count(*) from restaurant").collect().foreach(println)
+    hiveContext.hql("select count(*) from restaurant_sample_clean").collect().foreach(println)
 
     //println(saqp.rawSCQuery(scc, "src_sample", "key", "count","key > 300", 0.1))
     //println(saqp.normalizedSCQuery(scc, "dblp_sample", "value", "count","true", 0.001)) // To Sanjay: predicate cannot be empty
     //p.clean("src_sample", "key", 1)
 
-   
-
-    val sampleKey = new BlockingKey(Seq(2),WordTokenizer())
-    val fullKey = new BlockingKey(Seq(0),WordTokenizer())
-
+    val sampleKey = new BlockingKey(Seq(4,5,6,7),WordTokenizer())
+    val fullKey = new BlockingKey(Seq(2,3,4,5),WordTokenizer())
 
     def toPointLabelingContext(sampleRow1: Row, fullRow2: Row): PointLabelingContext = {
-      DeduplicationPointLabelingContext(List(List(sampleRow1.getString(2)), List(fullRow2.getString(0))))
+      val sampleData = List(sampleRow1.getString(2),
+                            sampleRow1.getString(3),
+                            sampleRow1.getString(4),
+                            sampleRow1.getString(5),
+                            sampleRow1.getString(6),
+                            sampleRow1.getString(7))
+
+      val fullData = List(  fullRow2.getString(0),
+                            fullRow2.getString(1),
+                            fullRow2.getString(2),
+                            fullRow2.getString(3),
+                            fullRow2.getString(4),
+                            fullRow2.getString(5))
+
+      DeduplicationPointLabelingContext(List(sampleData,fullData)) 
     }
 
-    val groupContext = new DeduplicationGroupLabelingContext("er", Map("fields" -> List("paper")))
+    val groupContext = new DeduplicationGroupLabelingContext("er", Map("fields" -> List("id","entity_id","name","address","city","type")))
 
+    val f1 = new Feature(Seq(4), Seq(2), Seq("Levenshtein", "CosineSimilarity"))
+    val f2 = new Feature(Seq(5), Seq(3), Seq("Levenshtein", "CosineSimilarity"))
+    val f3 = new Feature(Seq(6), Seq(4), Seq("Levenshtein", "CosineSimilarity"))
+    val f4 = new Feature(Seq(7), Seq(5), Seq("Levenshtein", "CosineSimilarity"))
 
-    val f1 = new Feature(Seq(2), Seq(0), Seq("Jaro", "JaccardSimilarity"))
-    val f2 = new Feature(Seq(2), Seq(0), Seq("Levenshtein"))
+    val featureVector = new FeatureVector(Seq(f1,f2,f3,f4))
 
     val algoPara = new AlgorithmParameters()
-    algoPara.put("blockingStrategy", BlockingStrategy("Jaccard", 0.8, sampleKey, fullKey))
-    algoPara.put("activeLearningStrategy", ActiveLearningStrategy(new FeatureVector(Seq(f1,f2)), toPointLabelingContext, groupContext))
+    algoPara.put("blockingStrategy", BlockingStrategy("Jaccard", 0.35, sampleKey, fullKey))
+    algoPara.put("activeLearningStrategy", ActiveLearningStrategy(featureVector, toPointLabelingContext, groupContext))
 
     val d = new Deduplication(algoPara, scc)
+    d.blocking = false
 
-    d.exec("dblp_sample")
+    val pp = new SampleCleanPipeline(saqp,List(d))
+    pp.exec("restaurant_sample")
+    for(time <- List(0,100000,200000,300000, 400000))
+    { 
+      println(time+"s Result:")
+      println(saqp.rawSCQuery(scc, "restaurant_sample", "id", "count","true", 0.1))
+      Thread.sleep(100000)
+    }
 
     /*d.clean("dblp_sample",
       BlockingStrategy("Jaccard", 0.8, sampleKey, fullKey),

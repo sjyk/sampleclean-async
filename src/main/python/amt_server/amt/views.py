@@ -84,7 +84,10 @@ def hits_del(request) :
 
     hit_set = HIT.objects.all()
     for hit in hit_set :
-        disable_hit(hit.HITId)
+        try:
+            disable_hit(hit.HITId)
+        except:
+            pass
     HIT.objects.all().delete()
     return HttpResponse('ok')
 
