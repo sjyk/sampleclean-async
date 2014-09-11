@@ -170,7 +170,7 @@ class SampleCleanContext(sc: SparkContext) {
 		for (field <- getHiveTableSchema(tableNameClean))
 		{
 			if (field.equals("dup"))
-				selectionString = typeSafeHQL(makeExpressionExplicit("dup",tableNameClean),1) :: selectionString // To Sanjay: It was tmpNameClean before. Since it failed to compile, I changed it to tableNameClean
+				selectionString = typeSafeHQL(makeExpressionExplicit("dup",tmpTableName),1) :: selectionString // To Sanjay: It was tmpNameClean before. Since it failed to compile, I changed it to tableNameClean
 			else
 				selectionString = makeExpressionExplicit(field,tableNameClean) :: selectionString
 		}
@@ -180,6 +180,12 @@ class SampleCleanContext(sc: SparkContext) {
    		//applies hive query to update the data
    		if(persist){
    		    hiveContext.hql(overwriteTable(tableNameClean) +
+   		    				buildSelectQuery(selectionString,
+   		    					             tableNameClean,
+   		    					             "true",tmpTableName,
+   		    					             "hash"))
+   		    println("Persist Query")
+   		    println(overwriteTable(tableNameClean) +
    		    				buildSelectQuery(selectionString,
    		    					             tableNameClean,
    		    					             "true",tmpTableName,

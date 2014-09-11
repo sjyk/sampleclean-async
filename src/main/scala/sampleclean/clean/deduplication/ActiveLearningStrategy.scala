@@ -20,7 +20,7 @@ case class ActiveLearningStrategy(featureVector: FeatureVector,
 
   def asyncRun(labeledInput: RDD[(String, LabeledPoint)], candidatePairs: RDD[(Row, Row)], onUpdateDupCounts: RDD[(Row, Row)] => Unit) = {
 
-    val candidatePairsWithId = candidatePairs.map((utils.randomUUID(), _))
+    val candidatePairsWithId = candidatePairs.map((utils.randomUUID(), _)).cache()
 
     val unlabeledInput = candidatePairsWithId.map(p => (p._1, Vectors.dense(featureVector.toFeatureVector(p._2._1, p._2._2)), toPointLabelingContext(p._2._1, p._2._2)))
     val trainingFuture = ActiveSVMWithSGD.train(
@@ -29,7 +29,7 @@ case class ActiveLearningStrategy(featureVector: FeatureVector,
       groupLabelingContext,
       SVMParameters(),
       ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10),
-      new CrowdLabelGetter(CrowdLabelGetterParameters()),
+      new CrowdLabelGetter(CrowdLabelGetterParameters(maxPointsPerHIT = 100)),
       SVMMarginDistanceFilter)
 
     def processNewModel(model:SVMModel, modelN: Long) {
@@ -37,19 +37,26 @@ case class ActiveLearningStrategy(featureVector: FeatureVector,
       var mergedLabeledData: RDD[(String, Double)] = modelLabeledData
 
       val crowdLabeledData = trainingFuture.getLabeledData
-      crowdLabeledData.foreach(println)
+      println("crowdLabeledData")
       crowdLabeledData match {
         case None => // do nothing
         case Some(crowdData) =>
+            //crowdData.collect().foreach(println)
+            //println("modelLabeledData")
+            //mergedLabeledData.collect().foreach(println)
           mergedLabeledData = modelLabeledData.leftOuterJoin(crowdData).map{
             case (pid, (modelLabel, None)) => (pid, modelLabel)
             case (pid, (modelLabel, Some(crowdLabel))) => (pid, crowdLabel)
         }
       }
+      //println("mergedLabeledData")
+      //mergedLabeledData.collect().foreach(println)
       assert(mergedLabeledData.count() == modelLabeledData.count())
       assert(mergedLabeledData.count() == candidatePairsWithId.count())
 
       val duplicatePairs = mergedLabeledData.filter(_._2 > 0.5).join(candidatePairsWithId).map(_._2._2) // 1: duplicate; 0: non-duplicate
+      //println("DuplicatePairs")
+      //duplicatePairs.collect().foreach(println)
       onUpdateDupCounts(duplicatePairs)
     }
 
