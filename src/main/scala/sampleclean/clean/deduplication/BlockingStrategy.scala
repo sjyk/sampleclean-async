@@ -11,12 +11,18 @@ import scala.collection.mutable.ArrayBuffer
 //import org.amplab.sampleclean.cleaning.{WeightedCosineJoin, WeightedDiceJoin, WeightedOverlapJoin, WeightedJaccardJoin}
 
 
-
+/**
+ * This is a tokenizer super-class.
+ */
 trait Tokenizer extends Serializable {
   def tokenSet(text: String): List[String]
 }
 
 // Use | to separate multiple delimiters
+/**
+ * This class tokenizes a string based on user-specified delimiters.
+ * @param delimiters string of delimiters to be used for splitting. Accepts regex expressions.
+ */
 case class DelimiterTokenizer(delimiters: String = ".,?!\t ") extends Tokenizer {
 
   def tokenSet(str: String) = {
@@ -29,19 +35,33 @@ case class DelimiterTokenizer(delimiters: String = ".,?!\t ") extends Tokenizer 
   }
 }
 
-
+/**
+ * This class tokenizes a string based on words.
+ */
 case class WordTokenizer() extends Tokenizer {
   def tokenSet(str: String) = str.split("\\W+").toList.filter(_!="")
 }
 
+/**
+ * This class tokenizes a string based on white spaces.
+ */
 case class WhiteSpaceTokenizer() extends Tokenizer {
   def tokenSet(str: String) = str.split("\\s+").toList.filter(_!="")
 }
 
+/**
+ * This class tokenizes a string based on grams.
+ */
 case class GramTokenizer(gramSize: Int) extends Tokenizer {
   def tokenSet(str: String) =  str.sliding(gramSize).toList
 }
 
+/**
+ * This class builds a method to tokenize rows of data.
+ * @param cols columns to be tokenized.
+ * @param tokenizer chosen tokenizer to be used.
+ * @param lowerCase if true, convert all characters to lower case.
+ */
 case class BlockingKey(cols: Seq[Int], tokenizer: Tokenizer, lowerCase: Boolean = true) {
 
   def tokenSet(row: Row): Seq[String] = {
@@ -54,12 +74,26 @@ case class BlockingKey(cols: Seq[Int], tokenizer: Tokenizer, lowerCase: Boolean 
   }
 }
 
-
+/**
+ * This class builds a blocking strategy for two data sets.
+ * Blocking keys are created for each record and then compared against
+ * the opposite data set in order to perform a similarity join.
+ * @param simFunc similarity algorithm to be used for blocking key comparison.
+ * @param threshold specified threshold.
+ * @param sampleKey blocking method for the first data set.
+ * @param fullKey blocking method for the second data set.
+ */
 case class BlockingStrategy(simFunc: String,
                        threshold: Double,
                        sampleKey: BlockingKey,
                        fullKey: BlockingKey) {
 
+  /**
+   * Runs a blocking algorithm on two data sets. Uses Spark SQL.
+   * @param sc spark context
+   * @param sampleTable first data set; smallest (e.g. a sample of the full data set).
+   * @param fullTable second data set; largest (e.g. full data set).
+   */
   def blocking(@transient sc: SparkContext,
                sampleTable: SchemaRDD,
                fullTable: SchemaRDD): RDD[(Row, Row)] = {

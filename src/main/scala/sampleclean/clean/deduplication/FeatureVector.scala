@@ -7,7 +7,13 @@ import org.apache.spark.{SparkConf, SparkContext}
 import uk.ac.shef.wit.simmetrics.similaritymetrics._
 
 
-// Class used to create a valid strategy.
+/**
+ * Class used to create a valid strategy. A valid strategy may imply
+ * one or more feature values, depending on the number of chosen metrics to be used.
+ * @param cols1 indices of columns from first record to be concatenated.
+ * @param cols2 indices of columns from second record to be concatenated.
+ * @param simMeasures list of valid names of similarity measures as per simmetrics library
+ */
 class Feature (cols1: Seq[Int],
                  cols2: Seq[Int],
                  simMeasures: Seq[String]) extends Serializable {
@@ -22,12 +28,19 @@ class Feature (cols1: Seq[Int],
   }*/
 }
 
+/**
+ * This class defines the Feature Vector of a pair of records.
+ * @param features list of valid strategies to be combined into the vector.
+ * @param lowerCase if true, converts all characters to lower case.
+ */
 case class FeatureVector (features: Seq[Feature], lowerCase: Boolean = true){
 
+  // Transforms pairs of records into feature vectors.
   def toFeatureVectors(rowPairs: RDD[(Row, Row)]): RDD[Array[Double]] = {
     rowPairs.map(x => toFeatureVector(x._1, x._2))
   }
 
+  // Transforms a pair of records into a feature vector.
   def toFeatureVector(rowPair: (Row, Row)): Array[Double] = {
     toFeatureVector(rowPair._1, rowPair._2)
   }
@@ -56,6 +69,12 @@ case class FeatureVector (features: Seq[Feature], lowerCase: Boolean = true){
     }.flatten.toArray
   }
 
+  /**
+   * Returns a list of similarity measures for two strings.
+   * @param s1 first string
+   * @param s2 second string
+   * @param simMeasures list of valid similarity measures. Names are based on simmetrics library.
+   */
   def getSimilarities(s1: String, s2: String, simMeasures: Seq[String]): Seq[Double] = {
     val measures: Seq[Object] = simMeasures.map(measure =>
       measure match {
@@ -85,6 +104,7 @@ case class FeatureVector (features: Seq[Feature], lowerCase: Boolean = true){
       }
     )
 
+    // Fix for similarity measures that have issues with special characters
     measures.map(measure => {
       if (measure.isInstanceOf[Soundex] || measure.isInstanceOf[ChapmanMatchingSoundex] || measure.isInstanceOf[ChapmanOrderedNameCompoundSimilarity]){
         // functions implemented only support US_EN alphabet; non-valid characters are omitted
@@ -100,74 +120,6 @@ case class FeatureVector (features: Seq[Feature], lowerCase: Boolean = true){
 
 }
 
-/*
-object FeatureVectorStrategy {
-  def main(args: Array[String]) {
-
-    val conf = new SparkConf()
-      .setAppName("FeatureMatrix")
-      .setMaster("local[4]")
-
-    val sc = new SparkContext(conf)
-
-    // RDD[((Seq[K], Seq[K]), (V, V))] output of SimJoin
-    val joined: RDD[((Seq[String], Seq[String]), (Int, Int))] = sc.textFile("/Users/juanmanuelsanchez/Documents/joined_clean.txt", 8).map(x => {
-
-      val seqs = x.split(":::")(0).split("::")
-      ((seqs(0).split(",").toSeq, seqs(1).split(",").toSeq), (1,1))
-
-    })
-
-
-    val simMeasures: Seq[String] = Seq(
-      "ChapmanLengthDeviation", "BlockDistance",
-      "ChapmanMeanLength",//ok
-      "ChapmanOrderedNameCompoundSimilarity", //character prob
-      "CosineSimilarity", "DiceSimilarity", //ok
-      "EuclideanDistance", "JaccardSimilarity",
-      "Jaro", "JaroWinkler", "Levenshtein", //ok
-      "MatchingCoefficient", "MongeElkan",
-      "NeedlemanWunch", "OverlapCoefficient",
-      "QGramsDistance", "SmithWaterman" ,// ok
-      "SmithWatermanGotoh" , //performance prob
-      "SmithWatermanGotohWindowedAffine" , //performance prob
-      "TagLinkToken", //ok
-      "Soundex", "ChapmanMatchingSoundex" //character prob
-    )
-    val sim1 = Seq(simMeasures(20),simMeasures(1))
-    val sim2 = Seq(simMeasures(1), simMeasures(2))
-    val sim3 = Seq(simMeasures(3))
-
-
-
-    val vec1 = Seq("Í", "a c b", "c c c", "abc")
-    val vec2 = Seq("a b c", "a b c", "cc c", "abc ab1")
-    val vec3 = Seq("aaa", "ssa aa", "bbb", "abaa ab c")
-
-
-
-    // Data is RDD[((Seq[K], Seq[K]), (V, V))]
-    val pair1: ((Seq[String], Seq[String]), (Int, Int)) = ((vec1, vec2), (1,1))
-    val pair2 = ((vec2, vec3), (1,1))
-    val pair3 = ((vec3, vec1), (1,1))
-    val data: RDD[((Seq[String], Seq[String]), (Int, Int))] = sc.parallelize(Seq(pair1, pair2, pair3))
-
-    val m1 = new Measurement(Seq(1,2), Seq(1), sim1)
-    val m2 = new Measurement(Seq(1),Seq(1,2), sim2)
-    val m3 = new Measurement(Seq(3),Seq(2,3,0), sim3)
-    val m4 = new Measurement(sim1)
-
-    val fvStrategy = FeatureVectorStrategy(Seq(m4))
-    val matrix = fvStrategy.toFeatureVectors(joined)
-    println(joined.first())
-    println(matrix.first())
-    println(matrix.count())
-
-    sc.stop()
-
-  }
-
-}*/
 
 
 
