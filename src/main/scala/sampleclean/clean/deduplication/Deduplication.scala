@@ -22,12 +22,9 @@ class Deduplication(params:AlgorithmParameters, scc: SampleCleanContext)
 
   def onUpdateDupCounts(sampleTableName: String, dupPairs: RDD[(Row, Row)]) {
     // Need to discuss with Sanjay. The code may not work if he changes the position of hash
-    println("On dup count executed")
     val dupCounts = dupPairs.map(x => (x._1.getString(0),1)).reduceByKey(_ + _).map(x => (x._1,x._2+1))
-    dupCounts.collect().foreach(println)
-    val result = scc.updateTableDuplicateCounts(sampleTableName, dupCounts)
-    println("Joined Table")
-    result.collect().foreach(println)
+    println("[SampleClean] Updating Sample Using Predicted Counts")
+    scc.updateTableDuplicateCounts(sampleTableName, dupCounts)
   }
 
 
@@ -45,31 +42,11 @@ class Deduplication(params:AlgorithmParameters, scc: SampleCleanContext)
 
     val emptyLabeledRDD = scc.getSparkContext().parallelize(new Array[(String, LabeledPoint)](0))
     activeLearningStrategy.asyncRun(emptyLabeledRDD, candidatePairs, onUpdateDupCounts(sampleTableName,_: RDD[(Row,Row)]))
-      //featureVectors.map(println(_))
-
-    //candidatePairs.map(println(_))
-    /*val updateDupCount = duplicateCount(candidatePairs).filter(_._2 > 1)
-    scc.updateHiveTableDuplicateCounts(sampleTableName, updateDupCount)
-    println(sampleTable.count())
-    println(candidatePairs.count())
-    println(candidatePairs.first())*/
   }
 
   
   def defer(sampleTableName:String):RDD[(String,Int)] = {
       return null
   }
-
-
-  /*def clean(sampleTableName:String, blockingStrategy: BlockingStrategy): RDD[(Row, Row)] = {
-
-    val sampleTable = scc.getCleanSample(sampleTableName)
-    val fullTable = scc.getFullTable(sampleTableName)
-
-    val similarPairs = blockingStrategy.blocking(scc.getSparkContext(), sampleTable, fullTable)
-    similarPairs
-  }*/
-
-
 
   }

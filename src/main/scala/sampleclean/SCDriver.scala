@@ -246,20 +246,11 @@ object SCDriver {
     val hiveContext = new HiveContext(sc);
 
     hiveContext.hql("DROP TABLE restaurant")
-    hiveContext.hql("CREATE TABLE IF NOT EXISTS restaurant (id STRING,entityval STRING,name STRING,address STRING,city STRING,type STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
+    hiveContext.hql("CREATE TABLE IF NOT EXISTS restaurant (id STRING, entityval STRING, name STRING, address STRING,city STRING,type STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
     hiveContext.hql("LOAD DATA LOCAL INPATH 'restaurant.csv' OVERWRITE INTO TABLE restaurant")
-    //hiveContext.hql("select * from restaurant_sample_clean").collect().foreach(println)
-
-    //System.exit(0)
-
     scc.closeHiveSession()
     scc.initializeHive("restaurant","restaurant_sample",0.1)
-    hiveContext.hql("select count(*) from restaurant").collect().foreach(println)
-    hiveContext.hql("select count(*) from restaurant_sample_clean").collect().foreach(println)
-
-    //println(saqp.rawSCQuery(scc, "src_sample", "key", "count","key > 300", 0.1))
-    //println(saqp.normalizedSCQuery(scc, "dblp_sample", "value", "count","true", 0.001)) // To Sanjay: predicate cannot be empty
-    //p.clean("src_sample", "key", 1)
+    println("[SampleClean] Data Loaded and 10% Sample Created")
 
     val sampleKey = new BlockingKey(Seq(4,5,6,7),WordTokenizer())
     val fullKey = new BlockingKey(Seq(2,3,4,5),WordTokenizer())
@@ -297,14 +288,16 @@ object SCDriver {
 
     val d = new Deduplication(algoPara, scc)
     d.blocking = false
+    d.name = "ActiveLearningDeduplication"
 
     val pp = new SampleCleanPipeline(saqp,List(d))
     pp.exec("restaurant_sample")
-    for(time <- List(0,100000,200000,300000, 400000))
+
+    for(time <- 1 until 20)
     { 
-      println(time+"s Result:")
-      println(saqp.rawSCQuery(scc, "restaurant_sample", "id", "count","true", 0.1))
-      Thread.sleep(100000)
+      print("[SampleClean] Query "+time+". \'SELECT COUNT(1) FROM restaurant_sample\':")
+      println(saqp.rawSCQuery(scc, "restaurant_sample", "id", "count","true", 0.1)._1)
+      Thread.sleep(50000)
     }
 
     /*d.clean("dblp_sample",

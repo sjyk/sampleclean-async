@@ -38,9 +38,10 @@ object CrowdHTTPServer {
       // parse the request JSON
       implicit val formats = DefaultFormats
       val rawJSON = req.getParam("data")
-      println("GOT DATA FROM THE CROWD! Data: " + rawJSON)
+      println("[SampleClean] Received CrowdLabels")
+     // println("GOT DATA FROM THE CROWD! Data: " + rawJSON)
       val result = parse(rawJSON).extract[CrowdResult]
-      println("Parsed: " + result)
+      //println("Parsed: " + result)
 
       // send it to the callback function
       if (callback != null) callback(result)

@@ -99,19 +99,19 @@ abstract class ActiveLearningAlgorithm[M, A, C, G, P] extends Serializable {
       var unlabeledInputLocal = unlabeledInput
       var numLabeled = labeledInputLocal.count()
       var numUnlabeled = unlabeledInputLocal.count()
-      println(numLabeled + " labeled points given. " + numUnlabeled + " unlabeled points given.")
+      //println(numLabeled + " labeled points given. " + numUnlabeled + " unlabeled points given.")
 
       // bootstrap labels if necessary
       if (numLabeled < frameworkParams.bootstrapSize) {
         val numLabelsMissing = (frameworkParams.bootstrapSize - numLabeled).toDouble
-        println("not enough labeled points--bootstrapping with a random sample.")
-        println(numLabelsMissing + " missing labels.")
+        //println("not enough labeled points--bootstrapping with a random sample.")
+        //println(numLabelsMissing + " missing labels.")
 
         // split points to get the set that needs labeling
         val newLabelSplit = unlabeledInputLocal.randomSplit(Array(numLabelsMissing, numUnlabeled))
         val pointsToLabel = newLabelSplit(0)
         unlabeledInputLocal = newLabelSplit(1)
-        println("split unlabeled points: " + pointsToLabel.count() + " to label, " + unlabeledInputLocal.count() + " still unlabeled")
+        //println("split unlabeled points: " + pointsToLabel.count() + " to label, " + unlabeledInputLocal.count() + " still unlabeled")
 
         // get the labels
         val newLabeledPoints = labelGetter.addLabels(pointsToLabel, groupContext)
@@ -119,8 +119,8 @@ abstract class ActiveLearningAlgorithm[M, A, C, G, P] extends Serializable {
         numLabeled = labeledInputLocal.count()
         numUnlabeled = unlabeledInputLocal.count()
         spent += pointsToLabel.count().toInt
-        println("After bootstrap: " + numLabeled + " labeled points, " + numUnlabeled + " unlabeled points.")
-        println("Remaining budget: " + (frameworkParams.budget - spent))
+        //println("After bootstrap: " + numLabeled + " labeled points, " + numUnlabeled + " unlabeled points.")
+        //println("Remaining budget: " + (frameworkParams.budget - spent))
 
         // update the training state with the new labeled data
         trainingState.addLabeledData(newLabeledPoints.map(p => (p._1, p._2.label)))
@@ -128,9 +128,9 @@ abstract class ActiveLearningAlgorithm[M, A, C, G, P] extends Serializable {
 
       // train an initial model
       System.out.flush()
-      println("Training initial model...")
+      //println("Training initial model...")
       var model = trainModel(labeledInputLocal.map(p => p._2), algParams)
-      println("Done. Train Error=" + trainError(model, labeledInputLocal.map(p => p._2), numLabeled))
+      //println("Done. Train Error=" + trainError(model, labeledInputLocal.map(p => p._2), numLabeled))
 
       // update the training state with the new model
       trainingState.addModel(model, numLabeled)
@@ -138,7 +138,7 @@ abstract class ActiveLearningAlgorithm[M, A, C, G, P] extends Serializable {
       while (spent < frameworkParams.budget) {
         // decide on the next points to label
         var batchSize = math.min(frameworkParams.batchSize, frameworkParams.budget - spent)
-        println("Getting labels for " + batchSize + " new points...")
+        //println("Getting labels for " + batchSize + " new points...")
         val nextPoints = pointSelector.selectPoints(unlabeledInputLocal, batchSize, model)
 
         // get the labels
@@ -148,16 +148,16 @@ abstract class ActiveLearningAlgorithm[M, A, C, G, P] extends Serializable {
         numLabeled = labeledInputLocal.count()
         numUnlabeled = unlabeledInputLocal.count()
         spent += batchSize
-        println("Done. Now " + numLabeled + " labeled points, " + numUnlabeled + " unlabeled points.")
+        //println("Done. Now " + numLabeled + " labeled points, " + numUnlabeled + " unlabeled points.")
 
         // update the training state with the new labeled data
         trainingState.addLabeledData(newLabeledPoints.map(p => (p._1, p._2.label)))
 
         // retrain the model
-        println("Retraining model...")
+        //println("Retraining model...")
         model = trainModel(labeledInputLocal.map(p => p._2), algParams)
-        println("Done. Train Error=" + trainError(model, labeledInputLocal.map(p => p._2), numLabeled))
-        println(frameworkParams.budget - spent + " labels left in budget.")
+        //println("Done. Train Error=" + trainError(model, labeledInputLocal.map(p => p._2), numLabeled))
+        //println(frameworkParams.budget - spent + " labels left in budget.")
 
         // update the training state with the new model
         trainingState.addModel(model, numLabeled)

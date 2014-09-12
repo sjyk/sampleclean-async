@@ -184,12 +184,12 @@ class SampleCleanContext(sc: SparkContext) {
    		    					             tableNameClean,
    		    					             "true",tmpTableName,
    		    					             "hash"))
-   		    println("Persist Query")
+   		    /*println("Persist Query")
    		    println(overwriteTable(tableNameClean) +
    		    				buildSelectQuery(selectionString,
    		    					             tableNameClean,
    		    					             "true",tmpTableName,
-   		    					             "hash"))
+   		    					             "hash"))*/
    	   }
 
    		return hiveContext.hql(buildSelectQuery(selectionString, 

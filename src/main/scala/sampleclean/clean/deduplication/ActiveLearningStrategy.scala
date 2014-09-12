@@ -37,26 +37,19 @@ case class ActiveLearningStrategy(featureVector: FeatureVector,
       var mergedLabeledData: RDD[(String, Double)] = modelLabeledData
 
       val crowdLabeledData = trainingFuture.getLabeledData
-      println("crowdLabeledData")
       crowdLabeledData match {
         case None => // do nothing
         case Some(crowdData) =>
-            //crowdData.collect().foreach(println)
-            //println("modelLabeledData")
-            //mergedLabeledData.collect().foreach(println)
           mergedLabeledData = modelLabeledData.leftOuterJoin(crowdData).map{
             case (pid, (modelLabel, None)) => (pid, modelLabel)
             case (pid, (modelLabel, Some(crowdLabel))) => (pid, crowdLabel)
         }
       }
-      //println("mergedLabeledData")
-      //mergedLabeledData.collect().foreach(println)
+
       assert(mergedLabeledData.count() == modelLabeledData.count())
       assert(mergedLabeledData.count() == candidatePairsWithId.count())
 
       val duplicatePairs = mergedLabeledData.filter(_._2 > 0.5).join(candidatePairsWithId).map(_._2._2) // 1: duplicate; 0: non-duplicate
-      //println("DuplicatePairs")
-      //duplicatePairs.collect().foreach(println)
       onUpdateDupCounts(duplicatePairs)
     }
 

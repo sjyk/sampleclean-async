@@ -72,13 +72,13 @@ class SampleCleanPipeline(saqp: SampleCleanAQP,
 				stageName = l.name
 
 			if(l.blocking){
-					println("Queued " + stageName)
+					println("[SampleClean] Added " + stageName + " to the Pipeline")
 					l.exec(sampleName)
 					println("Completed " + stageName)
 				}
 			else{
 					val f = Future{
-						println("Queued " + stageName)
+						println("[SampleClean] Added " + stageName + " to the Pipeline")
 						l.exec(sampleName)
 					}
 

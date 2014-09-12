@@ -112,13 +112,13 @@ object CrowdLabelGetter {
       if (labelPromise != null) {
         labelPromise success newResults
       } else {
-        println("Invalid group id: " + groupId)
+        //println("Invalid group id: " + groupId)
       }
       // Clean up groupMap and intermediateResults.
       groupMap.remove(groupId)
       intermediateResults.remove(groupId)
     } else {
-      println("Not done with group yet! Awaiting " + (groupMap.getOrElse(groupId, null).size - newResults.answers.size) + " labels.")
+      //println("Not done with group yet! Awaiting " + (groupMap.getOrElse(groupId, null).size - newResults.answers.size) + " labels.")
     }
   }
   CrowdHTTPServer.setCallback(storeCrowdResult)
@@ -155,10 +155,10 @@ class CrowdLabelGetter(parameters: CrowdLabelGetterParameters) extends LabelGett
         ("group_id" -> groupId) ~
         ("group_context" -> groupContextJSON) ~
         ("content" -> pointsJSON)))
-    println("Request JSON: " + requestData)
+    //println("Request JSON: " + requestData)
 
     // Send the request to the crowd server.
-    println("Issuing request...")
+    //println("Issuing request...")
     val client: Service[HttpRequest, HttpResponse] = ClientBuilder()
       .codec(Http())
       .hosts(parameters.crowdServerHost + ":" + parameters.crowdServerPort)
@@ -179,7 +179,7 @@ class CrowdLabelGetter(parameters: CrowdLabelGetterParameters) extends LabelGett
         case HttpResponseStatus.OK =>
           implicit val formats = DefaultFormats
           (parse(responseData) \ "status").extract[String] match {
-            case "ok" =>  println("Success! Got 200 response: " + responseData)
+            case "ok" =>  println("[SampleClean] Created AMT HIT")
             case other: String => println("Error! Bad request: " + other)
           }
         case other: HttpResponseStatus =>
@@ -203,7 +203,7 @@ class CrowdLabelGetter(parameters: CrowdLabelGetterParameters) extends LabelGett
 
     // generate an id for this group of points
     val groupId = utils.randomUUID()
-    println("NEW ACTIVE LEARNING BATCH: id=" + groupId)
+    //println("NEW ACTIVE LEARNING BATCH: id=" + groupId)
     System.out.flush()
 
     // gather the points and store their vectors, since the number should be small
@@ -223,7 +223,7 @@ class CrowdLabelGetter(parameters: CrowdLabelGetterParameters) extends LabelGett
 
     // Block until the group is ready.
     val crowdResult = Await.result(crowdFuture, Duration.Inf)
-    println("REQUEST COMPLETE: id=" + groupId)
+    //println("REQUEST COMPLETE: id=" + groupId)
     System.out.flush()
 
     // Extract and return the labeled points as an RDD
