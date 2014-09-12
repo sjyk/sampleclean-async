@@ -4,7 +4,6 @@
 
 package sampleclean.clean.deduplication
 
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.SparkContext._
@@ -14,19 +13,28 @@ import scala.reflect.ClassTag
 
 import java.io._
 
-class JaccardJoin extends PrefixFiltering{
 
-  // return true if tokenSet1 and tokenSet2 are similar; otherwise, return false
-  def isSimilar(tokenSet1: Seq[String], tokenSet2: Seq[String], threshold: Double): Boolean = {
+/**
+ * This class represents a similarity join based on the Jaccard similarity measure
+ */
+class JaccardJoin extends PrefixFiltering{ 
+
+  /**
+   * Returns true if two token lists are similar; otherwise, return false
+   * @param tokens1 first token list.
+   * @param tokens2 second token list.
+   * @param threshold specified threshold.
+   */
+  def isSimilar(tokens1: Seq[String], tokens2: Seq[String], threshold: Double): Boolean = {
 
     //Length Filtering
-    if (tokenSet1.size < tokenSet2.size)
-      if (tokenSet1.size < tokenSet2.size*threshold) false
+    if (tokens1.size < tokens2.size)
+      if (tokens1.size < tokens2.size*threshold) false
     else
-      if (tokenSet2.size < tokenSet1.size*threshold) false
+      if (tokens2.size < tokens1.size*threshold) false
 
-    val intersectionSize = tokenSet1.intersect(tokenSet2).size
-    val unionSize = tokenSet1.size + tokenSet2.size - intersectionSize
+    val intersectionSize = tokens1.intersect(tokens2).size
+    val unionSize = tokens1.size + tokens2.size - intersectionSize
 
     if (unionSize == 0)
       false
@@ -34,7 +42,11 @@ class JaccardJoin extends PrefixFiltering{
       intersectionSize.toDouble / unionSize + 1e-6 >= threshold
   }
 
-  // compute the number of tokens that can be removed from the tokenSet
+  /**
+   * Computes the number of tokens that can be removed from the token list.
+   * @param tokenSetSize  size of the token list.
+   * @param threshold specified threshold.
+   */
   def getRemovedSize(tokenSetSize: Int, threshold: Double): Int = {
     val removedSize = (tokenSetSize*threshold - 1e-6).ceil.toInt-1
     if (removedSize > tokenSetSize )
@@ -46,23 +58,32 @@ class JaccardJoin extends PrefixFiltering{
   }
 }
 
+/**
+ * This class represents a similarity join based on the overlap between the two lists
+ */
 class OverlapJoin extends PrefixFiltering{
 
-  // return true if tokenSet1 and tokenSet2 are similar; otherwise, return false
-  def isSimilar(tokenSet1: Seq[String], tokenSet2: Seq[String], threshold: Double): Boolean = {
+  /**
+   * Returns true if two token lists are similar; otherwise, return false
+   * @param tokens1 first token list.
+   * @param tokens2 second token list.
+   * @param threshold specified threshold.
+   */
+  def isSimilar(tokens1: Seq[String], tokens2: Seq[String], threshold: Double): Boolean = {
 
-    //Length Filtering
-    if (tokenSet1.size < tokenSet2.size)
-      if (tokenSet1.size < threshold) false
+    // Length Filtering
+    if (tokens1.size < tokens2.size)
+      if (tokens1.size < threshold) false
     else
-      if (tokenSet2.size < threshold) false
-
-
-    tokenSet1.intersect(tokenSet2).size >= threshold
-
+      if (tokens2.size < threshold) false
+    tokens1.intersect(tokens2).size >= threshold
   }
 
-  // compute the number of tokens that can be removed from the tokenSet
+  /**
+   * Computes the number of tokens that can be removed from the token list.
+   * @param tokenSetSize  size of the token list.
+   * @param threshold specified threshold.
+   */
   def getRemovedSize(tokenSetSize: Int, threshold: Double): Int = {
     val removedSize = (threshold - 1e-6).ceil.toInt-1
     if (removedSize > tokenSetSize)
@@ -74,19 +95,27 @@ class OverlapJoin extends PrefixFiltering{
   }
 }
 
+/**
+ * This class represents a similarity join based on the Dice similarity measure
+ */
 class DiceJoin extends PrefixFiltering{
 
-  // return true if tokenSet1 and tokenSet2 are similar; otherwise, return false
-  def isSimilar(tokenSet1: Seq[String], tokenSet2: Seq[String], threshold: Double): Boolean = {
-    val sumLen = tokenSet1.size+tokenSet2.size
+  /**
+   * Returns true if two token lists are similar; otherwise, returns false
+   * @param tokens1 first token list.
+   * @param tokens2 second token list.
+   * @param threshold specified threshold.
+   */
+  def isSimilar(tokens1: Seq[String], tokens2: Seq[String], threshold: Double): Boolean = {
+    val sumLen = tokens1.size+tokens2.size
 
     //Length Filtering
-    if (tokenSet1.size < tokenSet2.size)
-      if (2*tokenSet1.size < sumLen*threshold) false
+    if (tokens1.size < tokens2.size)
+      if (2*tokens1.size < sumLen*threshold) false
     else
-      if (2*tokenSet2.size < sumLen*threshold) false
+      if (2*tokens2.size < sumLen*threshold) false
 
-    val intersectionSize = tokenSet1.intersect(tokenSet2).size
+    val intersectionSize = tokens1.intersect(tokens2).size
 
     if (sumLen == 0)
       false
@@ -95,7 +124,11 @@ class DiceJoin extends PrefixFiltering{
 
   }
 
-  // compute the number of tokens that can be removed from the tokenSet
+  /**
+   * Computes the number of tokens that can be removed from the token list.
+   * @param tokenSetSize  size of the token list.
+   * @param threshold specified threshold.
+   */
   def getRemovedSize(tokenSetSize: Int, threshold: Double): Int = {
     if (threshold == 2)
       0
@@ -111,20 +144,28 @@ class DiceJoin extends PrefixFiltering{
   }
 }
 
+/**
+ * This class represents a similarity join based on the Cosine similarity measure
+ */
 class CosineJoin extends PrefixFiltering{
 
-  // return true if tokenSet1 and tokenSet2 are similar; otherwise, return false
-  def isSimilar(tokenSet1: Seq[String], tokenSet2: Seq[String], threshold: Double): Boolean = {
+  /**
+   * Returns true if tokenSet1 and tokenSet2 are similar; otherwise, returns false
+   * @param tokens1 first token list.
+   * @param tokens2 second token list.
+   * @param threshold specified threshold.
+   */
+  def isSimilar(tokens1: Seq[String], tokens2: Seq[String], threshold: Double): Boolean = {
 
-    val sqrtLen = math.sqrt(tokenSet1.size * tokenSet2.size)
+    val sqrtLen = math.sqrt(tokens1.size * tokens2.size)
 
     //Length Filtering
-    if (tokenSet1.size < tokenSet2.size)
-      if (tokenSet1.size < sqrtLen*threshold) false
+    if (tokens1.size < tokens2.size)
+      if (tokens1.size < sqrtLen*threshold) false
     else
-      if (tokenSet2.size < sqrtLen*threshold) false
+      if (tokens2.size < sqrtLen*threshold) false
 
-    val intersectionSize = tokenSet1.intersect(tokenSet2).size
+    val intersectionSize = tokens1.intersect(tokens2).size
 
     if (sqrtLen == 0)
       false
@@ -132,7 +173,12 @@ class CosineJoin extends PrefixFiltering{
       intersectionSize.toDouble / sqrtLen >= threshold
   }
 
-  // compute the number of tokens that can be removed from the tokenSet
+  /**
+   * Computes the number of tokens that can be removed from the token list.
+   * @param tokenSetSize  size of the token list.
+   * @param threshold specified threshold.
+   * @return
+   */
   def getRemovedSize(tokenSetSize: Int, threshold: Double): Int = {
     val removedSize = (tokenSetSize * math.pow(threshold, 2) - 1e-6).ceil.toInt - 1
     if (removedSize > tokenSetSize)

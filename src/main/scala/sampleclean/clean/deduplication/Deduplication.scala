@@ -13,8 +13,11 @@ import sampleclean.clean.algorithm.AlgorithmParameters
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Row}
 
-
-
+/**
+ * This class executes a deduplication algorithm on a data set.
+ * @param params algorithm parameters
+ * @param scc SampleClean context
+ */
 class Deduplication(params:AlgorithmParameters, scc: SampleCleanContext)
       extends SampleCleanDeduplicationAlgorithm(params,scc) {
 

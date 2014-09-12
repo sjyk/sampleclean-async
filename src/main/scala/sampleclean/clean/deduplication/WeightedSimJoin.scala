@@ -8,17 +8,26 @@ import org.apache.spark.rdd.RDD
 import scala.collection.Seq
 import scala.reflect.ClassTag
 
-
+/**
+ * This class represents a similarity join based on the Jaccard similarity measure.
+ * Token global weights are taken into account.
+ */
 class WeightedJaccardJoin extends WeightedPrefixFiltering{
 
-  // return true if tokenSet1 and tokenSet2 are similar; otherwise, return false
-  def isSimilar (tokenSet1: Seq[String],
-                 tokenSet2: Seq[String],
+  /**
+   * Returns true if two token lists are similar; otherwise, returns false
+   * @param tokens1 first token list.
+   * @param tokens2 second token list.
+   * @param threshold specified threshold.
+   * @param tokenWeights token-to-weight map
+   */
+  def isSimilar (tokens1: Seq[String],
+                 tokens2: Seq[String],
                  threshold: Double,
                  tokenWeights: collection.Map[String, Double]): Boolean = {
 
-    val weight1 = sumWeight(tokenSet1, tokenWeights)
-    val weight2 = sumWeight(tokenSet2, tokenWeights)
+    val weight1 = sumWeight(tokens1, tokenWeights)
+    val weight2 = sumWeight(tokens2, tokenWeights)
 
     //Length Filtering
     if (weight1 < weight2)
@@ -26,7 +35,7 @@ class WeightedJaccardJoin extends WeightedPrefixFiltering{
     else
       if (weight2 < weight1*threshold) false
 
-    val intersectionWeight = sumWeight(tokenSet1.intersect(tokenSet2), tokenWeights)
+    val intersectionWeight = sumWeight(tokens1.intersect(tokens2), tokenWeights)
     val unionWeight = weight1 + weight2 - intersectionWeight
 
     if (unionWeight == 0)
@@ -35,25 +44,41 @@ class WeightedJaccardJoin extends WeightedPrefixFiltering{
       intersectionWeight.toDouble / unionWeight + 1e-6 >= threshold
   }
 
+  /**
+   * Calls getRemovedSize method with Jaccard-based parameters
+   * @param tokens token list.
+   * @param threshold specified threshold.
+   * @param tokenWeights token-to-weight map
+   */
   @Override
-  override def getRemovedSize(tokenSet: Seq[String], threshold: Double, tokenWeights: collection.Map[String, Double]): Int ={
-    val weight = sumWeight(tokenSet, tokenWeights)
-    super.getRemovedSize(tokenSet, threshold * weight, tokenWeights)
+  override def getRemovedSize(tokens: Seq[String], threshold: Double, tokenWeights: collection.Map[String, Double]): Int ={
+    val weight = sumWeight(tokens, tokenWeights)
+    super.getRemovedSize(tokens, threshold * weight, tokenWeights)
   }
 
 }
 
+/**
+ * This class represents a similarity join based on the overlap between two lists.
+ * Token global weights are taken into account.
+ */
 class WeightedOverlapJoin extends WeightedPrefixFiltering{
 
-  // return true if tokenSet1 and tokenSet2 are similar; otherwise, return false
-  def isSimilar(tokenSet1: Seq[String],
-                tokenSet2: Seq[String],
+  /**
+   * Returns true if two token lists are similar; otherwise, returns false
+   * @param tokens1 first token list.
+   * @param tokens2 second token list.
+   * @param threshold specified threshold.
+   * @param tokenWeights token-to-weight map         
+   * @return
+   */
+  def isSimilar(tokens1: Seq[String],
+                tokens2: Seq[String],
                 threshold: Double,
                 tokenWeights: collection.Map[String, Double]): Boolean = {
 
-
-    val weight1 = sumWeight(tokenSet1, tokenWeights)
-    val weight2 = sumWeight(tokenSet2, tokenWeights)
+    val weight1 = sumWeight(tokens1, tokenWeights)
+    val weight2 = sumWeight(tokens2, tokenWeights)
 
     //Length Filtering
     if (weight1 < weight2)
@@ -61,27 +86,42 @@ class WeightedOverlapJoin extends WeightedPrefixFiltering{
     else
       if (weight2 < threshold) false
 
-      sumWeight(tokenSet1.intersect(tokenSet2), tokenWeights) >= threshold
+      sumWeight(tokens1.intersect(tokens2), tokenWeights) >= threshold
   }
 
+  /**
+   * Calls getRemovedSize method with overlap-based parameters
+   * @param tokens token list.
+   * @param threshold specified threshold.
+   * @param tokenWeights token-to-weight map
+   */
   @Override
-  override def getRemovedSize(tokenSet: Seq[String], threshold: Double, tokenWeights: collection.Map[String, Double]): Int ={
-    super.getRemovedSize(tokenSet, threshold, tokenWeights)
+  override def getRemovedSize(tokens: Seq[String], threshold: Double, tokenWeights: collection.Map[String, Double]): Int ={
+    super.getRemovedSize(tokens, threshold, tokenWeights)
   }
 
 }
 
+/**
+ * This class represents a similarity join based on the Dice similarity measure.
+ * Token global weights are taken into account.
+ */
 class WeightedDiceJoin extends WeightedPrefixFiltering {
 
-  // return true if tokenSet1 and tokenSet2 are similar; otherwise, return false
-  def isSimilar(tokenSet1: Seq[String],
-                tokenSet2: Seq[String],
+  /**
+   * Returns true if two token lists are similar; otherwise, returns false
+   * @param tokens1 first token list.
+   * @param tokens2 second token list.
+   * @param threshold specified threshold.
+   * @param tokenWeights token-to-weight map         
+   */
+  def isSimilar(tokens1: Seq[String],
+                tokens2: Seq[String],
                 threshold: Double,
                 tokenWeights: collection.Map[String, Double]): Boolean = {
 
-
-    val weight1 = sumWeight(tokenSet1, tokenWeights)
-    val weight2 = sumWeight(tokenSet2, tokenWeights)
+    val weight1 = sumWeight(tokens1, tokenWeights)
+    val weight2 = sumWeight(tokens2, tokenWeights)
 
     //Length Filtering
     val weightSum = weight1 + weight2
@@ -90,8 +130,7 @@ class WeightedDiceJoin extends WeightedPrefixFiltering {
     else
       if (2*weight2 < weightSum*threshold) false
 
-
-    val intersectionWeight = sumWeight(tokenSet1.intersect(tokenSet2), tokenWeights)
+    val intersectionWeight = sumWeight(tokens1.intersect(tokens2), tokenWeights)
 
     if (weightSum == 0)
       false
@@ -100,26 +139,41 @@ class WeightedDiceJoin extends WeightedPrefixFiltering {
 
   }
 
+ /**
+   * Calls getRemovedSize method with Dice-based parameters
+   * @param tokens token list.
+   * @param threshold specified threshold.
+   * @param tokenWeights token-to-weight map
+   */
   @Override
-  override def getRemovedSize(tokenSet: Seq[String], threshold: Double, tokenWeights: collection.Map[String, Double]): Int ={
-    val weight = sumWeight(tokenSet, tokenWeights)
-    super.getRemovedSize(tokenSet, threshold * weight / (2 - threshold), tokenWeights)
+  override def getRemovedSize(tokens: Seq[String], threshold: Double, tokenWeights: collection.Map[String, Double]): Int ={
+    val weight = sumWeight(tokens, tokenWeights)
+    super.getRemovedSize(tokens, threshold * weight / (2 - threshold), tokenWeights)
   }
 
 
 }
 
+/**
+ * This class represents a similarity join based on the Cosine similarity measure.
+ * Token global weights are taken into account.
+ */
 class WeightedCosineJoin extends WeightedPrefixFiltering{
 
-
-  // return true if tokenSet1 and tokenSet2 are similar; otherwise, return false
-  def isSimilar(tokenSet1: Seq[String],
-                tokenSet2: Seq[String],
+  /**
+   * Returns true if two token lists are similar; otherwise, returns false
+   * @param tokens1 first token list.
+   * @param tokens2 second token list.
+   * @param threshold specified threshold.
+   * @param tokenWeights token-to-weight map         
+   */
+  def isSimilar(tokens1: Seq[String],
+                tokens2: Seq[String],
                 threshold: Double,
                 tokenWeights: collection.Map[String, Double]): Boolean = {
 
-    val weight1 = sumWeight(tokenSet1, tokenWeights)
-    val weight2 = sumWeight(tokenSet2, tokenWeights)
+    val weight1 = sumWeight(tokens1, tokenWeights)
+    val weight2 = sumWeight(tokens2, tokenWeights)
 
     //Length Filtering
     val weightSqrt = math.sqrt(weight1 * weight2)
@@ -128,7 +182,7 @@ class WeightedCosineJoin extends WeightedPrefixFiltering{
     else
       if (weight2 < weightSqrt*threshold) false
 
-    val intersectionWeight = sumWeight(tokenSet1.intersect(tokenSet2), tokenWeights)
+    val intersectionWeight = sumWeight(tokens1.intersect(tokens2), tokenWeights)
 
     if (weightSqrt == 0)
       false
@@ -137,10 +191,16 @@ class WeightedCosineJoin extends WeightedPrefixFiltering{
 
   }
 
+  /**
+   * Calls getRemovedSize method with Cosine-based parameters
+   * @param tokens token list.
+   * @param threshold specified threshold.
+   * @param tokenWeights token-to-weight map
+   */
   @Override
-  override def getRemovedSize(tokenSet: Seq[String], threshold: Double, tokenWeights: collection.Map[String, Double]): Int ={
-    val weight = sumWeight(tokenSet, tokenWeights)
-    super.getRemovedSize(tokenSet, weight * math.pow(threshold, 2), tokenWeights)
+  override def getRemovedSize(tokens: Seq[String], threshold: Double, tokenWeights: collection.Map[String, Double]): Int ={
+    val weight = sumWeight(tokens, tokenWeights)
+    super.getRemovedSize(tokens, weight * math.pow(threshold, 2), tokenWeights)
   }
 
 }
