@@ -148,7 +148,7 @@ object QueryBuilder {
 		var resultString = " "
 		for (i <- 0 until expr.length)
 		{
-			if(expr(i).isLetterOrDigit)
+			if(expr(i).isLetterOrDigit || expr(i) == '_')
 				resultString = resultString + expr(i)
 			else
 				resultString = resultString + ' ' + expr(i) + ' '
@@ -163,7 +163,7 @@ object QueryBuilder {
 	def makeExpressionExplicit(expr:String, 
 		                       sampleExpName:String):String = {
 
-		var resultExpr = punctuationParseString(expr.toLowerCase)
+		var resultExpr = " "+punctuationParseString(expr.toLowerCase)
 		for(col <- getHiveTableSchema(sampleExpName))
 		{
 			resultExpr = resultExpr.replaceAll(' ' + col.toLowerCase + ' ', ' ' + sampleExpName+'.'+col + ' ')
