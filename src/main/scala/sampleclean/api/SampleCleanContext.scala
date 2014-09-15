@@ -3,6 +3,7 @@ package sampleclean.api
 import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.SchemaRDD
+import org.apache.spark.sql.Row
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SQLContext
 import scala.util.Random
@@ -251,6 +252,28 @@ object SampleCleanContext {
 
 		return schemaList.reverse
 	}
+
+    def getColAsString(row:Row, sampleName:String, colName:String):String=
+    {
+    	val tableNameClean = getCleanSampleName(sampleName)
+    	val schemaString = getHiveTableSchema(tableNameClean)
+    	val index = schemaString.indexOf(colName.toLowerCase)
+    	if(index >= 0)
+    		return row.getString(index)
+    	else
+    		return null
+    }
+
+    def getColAsDouble(row:Row, sampleName:String, colName:String):Double=
+    {
+    	val tableNameClean = getCleanSampleName(sampleName)
+    	val schemaString = getHiveTableSchema(tableNameClean)
+    	val index = schemaString.indexOf(colName.toLowerCase)
+    	if(index >= 0)
+    		return row.getDouble(index)
+    	else
+    		return Double.NaN
+    }
 
 	/** This function returns all the tables we have created in this session
 	as temporary tables.
