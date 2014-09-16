@@ -264,6 +264,17 @@ object SampleCleanContext {
     		return null
     }
 
+    def getColAsStringFromBaseTable(row:Row, sampleName:String, colName:String):String=
+    {
+    	val tableNameClean = getParentTable(getCleanSampleName(sampleName))
+    	val schemaString = getHiveTableSchema(tableNameClean)
+    	val index = schemaString.indexOf(colName.toLowerCase)
+    	if(index >= 0)
+    		return row.getString(index)
+    	else
+    		return null
+    }
+
     def getColAsDouble(row:Row, sampleName:String, colName:String):Double=
     {
     	val tableNameClean = getCleanSampleName(sampleName)
