@@ -179,10 +179,10 @@ class SampleCleanAQP() {
 	  				  attr: String, expr: String, 
 	  				  pred:String,
 	  				  group: String, 
-	  				  sampleRatio: Double): List[(String, (Double, Double))]=
+	  				  sampleRatio: Double): (Long, List[(String, (Double, Double))])=
 	  {
 	  	  	val hc:HiveContext = scc.getHiveContext()
-	  	  	val hiveTableName = getCleanSampleName(sampleName)
+	  	  	val hiveTableName = getDirtySampleName(sampleName)
 
 	  	  	val distinctKeys = hc.hql(buildSelectDistinctQuery(List(group),
 	  	  													   hiveTableName, 
@@ -198,7 +198,7 @@ class SampleCleanAQP() {
 	  							   sampleRatio)) :: result
 	  			}
 
-	  		return result
+	  		return (System.nanoTime, result)
 	  }
 
 	  /*This query executes rawSC given an attribute to aggregate, expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
@@ -290,5 +290,31 @@ class SampleCleanAQP() {
 	  			}
 
 	  		return result
-	  }	 
+	  }
+
+
+	///fix
+	def compareQueryResults(qr1:(Long, List[(String, (Double, Double))]),
+							qr2:(Long, List[(String, (Double, Double))])): (Long, List[(String, Double)]) = {
+
+		val timeStamp = Math.max(qr1._1,qr2._1)
+		var result = List[(String, Double)]()
+		for(k1 <- qr1._2)
+		{
+			for(k2 <- qr2._2)
+			{
+				
+				if(k1._1.equals(k2._1))
+				{
+					val diff = k2._2._1 - k1._2._1
+					//val std = 2*k2._2._2
+
+					if(Math.abs(diff) > 0.0)
+						result = (k1._1, k2._2._1 - k1._2._1) :: result
+				}
+			}
+		}
+
+		return (timeStamp, result)
+	} 
 }
