@@ -192,7 +192,6 @@ class SampleCleanAQP() {
 	  		var result = List[(String, (Double, Double))]()
 	  		for(t <- distinctKeys)
 	  			{ 
-	  				println(t)
 	  				result = (t, rawSCQuery(scc, sampleName, 
 	  							   attr, expr, 
 	  							   appendToPredicate(pred, attrEquals(group,t)),
@@ -274,7 +273,7 @@ class SampleCleanAQP() {
 	  				  sampleRatio: Double): List[(String, (Double, Double))]=
 	  {
 	  	  	val hc:HiveContext = scc.getHiveContext()
-	  	  	val hiveTableName = getCleanSampleName(sampleName)
+	  	  	val hiveTableName = getDirtySampleName(sampleName)
 
 	  	  	val distinctKeys = hc.hql(buildSelectDistinctQuery(List(group),
 	  	  													   hiveTableName, 

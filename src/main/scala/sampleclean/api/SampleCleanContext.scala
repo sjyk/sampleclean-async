@@ -29,7 +29,7 @@ import sampleclean.util.TypeUtils._
 *in memory as an RDD. 
 */
 @serializable
-class SampleCleanContext(sc: SparkContext) {
+class SampleCleanContext(@transient sc: SparkContext) {
 
 	//Use these functions to access the Spark
 	//and Hive contexts in API calls.
@@ -180,7 +180,7 @@ class SampleCleanContext(sc: SparkContext) {
 		for (field <- getHiveTableSchema(tableNameClean))
 		{
 			if (field.equals(attr))
-				selectionString = makeExpressionExplicit(attr,tmpTableName) :: selectionString // To Sanjay: It was tmpNameClean before. Since it failed to compile, I changed it to tableNameClean
+				selectionString = makeExpressionExplicit("updateAttr",tmpTableName) :: selectionString // To Sanjay: It was tmpNameClean before. Since it failed to compile, I changed it to tableNameClean
 			else
 				selectionString = makeExpressionExplicit(field,tableNameClean) :: selectionString
 		}
@@ -276,32 +276,7 @@ class SampleCleanContext(sc: SparkContext) {
 
 	}
 
-}
-
-//This object provides some helper methods from the SampleCleanContext
-@serializable
-object SampleCleanContext {
-
-	/**Given a table name, this retrieves the schema as a list
-	* from the Hive Catalog
-	*/
-	def getHiveTableSchema(tableName:String):List[String] = {
-		var schemaList = List[String]()
-		try{
-			val msc:HiveMetaStoreClient = new HiveMetaStoreClient(new HiveConf());
-			val sd:StorageDescriptor = msc.getTable(tableName).getSd();
-			val fieldSchema = sd.getCols();
-			for (field <- fieldSchema)
-				schemaList = field.getName() :: schemaList 
-		}
-		catch {
-     		case e: Exception => 0
-   		}
-
-		return schemaList.reverse
-	}
-
-    def getColAsString(row:Row, sampleName:String, colName:String):String=
+	def getColAsString(row:Row, sampleName:String, colName:String):String=
     {
     	val tableNameClean = getCleanSampleName(sampleName)
     	val schemaString = getHiveTableSchema(tableNameClean)
@@ -333,6 +308,31 @@ object SampleCleanContext {
     	else
     		return Double.NaN
     }
+
+}
+
+//This object provides some helper methods from the SampleCleanContext
+@serializable
+object SampleCleanContext {
+
+	/**Given a table name, this retrieves the schema as a list
+	* from the Hive Catalog
+	*/
+	def getHiveTableSchema(tableName:String):List[String] = {
+		var schemaList = List[String]()
+		try{
+			val msc:HiveMetaStoreClient = new HiveMetaStoreClient(new HiveConf());
+			val sd:StorageDescriptor = msc.getTable(tableName).getSd();
+			val fieldSchema = sd.getCols();
+			for (field <- fieldSchema)
+				schemaList = field.getName() :: schemaList 
+		}
+		catch {
+     		case e: Exception => 0
+   		}
+
+		return schemaList.reverse
+	}
 
 	/** This function returns all the tables we have created in this session
 	as temporary tables.
@@ -384,8 +384,8 @@ object SampleCleanContext {
 	//two case clases that can help force typing
 	case class FilterTuple(hash: String)
 	case class DupTuple(hash: String, dup: Int)
-	case class SSTuple(hash: String, v:String)
-	case class SDTuple(hash: String, v:Double)
+	case class SSTuple(hash: String, updateAttr:String)
+	case class SDTuple(hash: String, updateAttr:Double)
 
 	//These methods take un-named cols in RDDs and force them
 	//into named cols.
