@@ -189,7 +189,7 @@ object QueryBuilder {
 	}
 
 	def appendToPredicate(pred:String, expr:String): String = {
-		return pred + " AND " + expr
+		return parenthesize(pred) + " AND " + parenthesize(expr)
 	}
 
 	def attrEquals(attr:String, value:String):String = {

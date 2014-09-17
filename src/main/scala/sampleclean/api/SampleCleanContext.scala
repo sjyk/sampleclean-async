@@ -154,6 +154,54 @@ class SampleCleanContext(sc: SparkContext) {
 		return hiveContext.hql(buildSelectQuery(List("hash",attr),getCleanSampleName(tableName)))
 	}
 
+	/* Returns an RDD which points to a sample 
+	 * of a full table. This method returns a tuple
+	 * of the hash and the requested attribute
+	 */
+	def getCleanSampleAttr(tableName: String, attr: String, pred:String):SchemaRDD = {
+		val hiveContext = new HiveContext(sc)
+		return hiveContext.hql(buildSelectQuery(List("hash",attr),getCleanSampleName(tableName), pred))
+	}
+
+		/**This function takes a sample and a rdd of (Hash, Val) and updates those records in the RDD.
+	 * it returns a new updated SchemaRDD, and there is a persist flag to write these results to HIVE.
+	 */
+	def updateTableAttrValue(tableName: String, attr:String, rdd:RDD[(String, String)], persist:Boolean = true): SchemaRDD= {
+		val hiveContext = new HiveContext(sc)
+		val sqlContext = new SQLContext(sc)
+		val tableNameClean = getCleanSampleName(tableName)
+		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
+		hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceSSSchema(rdd)),"tmp")
+		hiveContext.hql(createTableAs(tmpTableName) +buildSelectQuery(List("*"),"tmp"))
+
+		//Uses the hive API to get the schema of the table.
+		var selectionString = List[String]()
+
+		for (field <- getHiveTableSchema(tableNameClean))
+		{
+			if (field.equals(attr))
+				selectionString = makeExpressionExplicit(attr,tmpTableName) :: selectionString // To Sanjay: It was tmpNameClean before. Since it failed to compile, I changed it to tableNameClean
+			else
+				selectionString = makeExpressionExplicit(field,tableNameClean) :: selectionString
+		}
+
+		selectionString = selectionString.reverse
+
+   		//applies hive query to update the data
+   		if(persist){
+   		    hiveContext.hql(overwriteTable(tableNameClean) +
+   		    				buildSelectQuery(selectionString,
+   		    					             tableNameClean,
+   		    					             "true",tmpTableName,
+   		    					             "hash"))
+   	   }
+
+   		return hiveContext.hql(buildSelectQuery(selectionString, 
+   			                   tableNameClean, 
+   			                   "true",tmpTableName,"hash"))
+
+	}
+
 	/**This function takes a sample and a rdd of (Hash, Dup) and updates those records in the RDD.
 	 * it returns a new updated SchemaRDD, and there is a persist flag to write these results to HIVE.
 	 */
@@ -336,6 +384,8 @@ object SampleCleanContext {
 	//two case clases that can help force typing
 	case class FilterTuple(hash: String)
 	case class DupTuple(hash: String, dup: Int)
+	case class SSTuple(hash: String, v:String)
+	case class SDTuple(hash: String, v:Double)
 
 	//These methods take un-named cols in RDDs and force them
 	//into named cols.
@@ -352,7 +402,23 @@ object SampleCleanContext {
 	}
 
 	def enforceDupSchema(rdd:SchemaRDD): RDD[DupTuple] = {
-		return rdd.map( x => DupTuple(x(0).asInstanceOf[String],x(2).asInstanceOf[Int]))
+		return rdd.map( x => DupTuple(x(0).asInstanceOf[String],x(1).asInstanceOf[Int]))
+	}
+
+	def enforceSSSchema(rdd:RDD[(String, String)]): RDD[SSTuple] = {
+		return rdd.map( x => SSTuple(x._1.asInstanceOf[String],x._2.asInstanceOf[String]))
+	}
+
+	def enforceSSSchema(rdd:SchemaRDD): RDD[SSTuple] = {
+		return rdd.map( x => SSTuple(x(0).asInstanceOf[String],x(1).asInstanceOf[String]))
+	}
+
+	def enforceSDSchema(rdd:RDD[(String, Double)]): RDD[SDTuple] = {
+		return rdd.map( x => SDTuple(x._1.asInstanceOf[String],x._2.asInstanceOf[Double]))
+	}
+
+	def enforceSDSchema(rdd:SchemaRDD): RDD[SDTuple] = {
+		return rdd.map( x => SDTuple(x(0).asInstanceOf[String],x(1).asInstanceOf[Int]))
 	}
 
 }
