@@ -49,11 +49,13 @@ class SampleCleanAQP() {
 	  private def approxCount(rdd:SchemaRDD, sampleRatio:Double):(Double, Double)=
 	  {
 
-	  	  val partitionResults = rdd.map(row => aqpPartitionMap(row,x => x))
+	  	  val partitionResults = rdd.coalesce(4,true).map(row => aqpPartitionMap(row,x => x))
 	  	  							.mapPartitions(aqpPartitionAgg, true).collect()
 	  	  var count:Double = 0.0
 	  	  var variance:Double = 0.0
 	  	  var emptyPartitions = 0
+	  	  var k = 0.0
+
 	  	  for(p <- partitionResults)
 	  	  {
 	  	  	count = count + p._1.asInstanceOf[Double]
@@ -61,6 +63,7 @@ class SampleCleanAQP() {
 	  	  	
 	  	  	if (p._3.asInstanceOf[Double] == 0.0)
 	  	  		emptyPartitions = emptyPartitions + 1
+
 	  	  }
 	  	  val splitSize = partitionResults.length - emptyPartitions
 	  	  return (rdd.count()*count/(splitSize*sampleRatio),
@@ -74,7 +77,7 @@ class SampleCleanAQP() {
 	  private def approxSum(rdd:SchemaRDD, sampleRatio:Double):(Double, Double)=
 	  {
 
-	  	  val partitionResults = rdd.map(row => aqpPartitionMap(row,x => x))
+	  	  val partitionResults = rdd.coalesce(4,true).map(row => aqpPartitionMap(row,x => x))
 	  	  							.mapPartitions(aqpPartitionAgg, true).collect()
 	  	  var sum:Double = 0.0
 	  	  var variance:Double = 0.0
@@ -97,7 +100,7 @@ class SampleCleanAQP() {
 	  */
 	  private def approxAvg(rdd:SchemaRDD, sampleRatio:Double):(Double, Double)=
 	  {
-	  	  val partitionResults = rdd.map(row => aqpPartitionMap(row,x => x))
+	  	  val partitionResults = rdd.coalesce(4,true).map(row => aqpPartitionMap(row,x => x))//todo fix
 	  	  							.mapPartitions(aqpPartitionAgg, true).collect()
 	  	  var sum:Double = 0.0
 	  	  var variance:Double = 0.0
@@ -188,7 +191,8 @@ class SampleCleanAQP() {
 
 	  		var result = List[(String, (Double, Double))]()
 	  		for(t <- distinctKeys)
-	  			{
+	  			{ 
+	  				println(t)
 	  				result = (t, rawSCQuery(scc, sampleName, 
 	  							   attr, expr, 
 	  							   appendToPredicate(pred, attrEquals(group,t)),
