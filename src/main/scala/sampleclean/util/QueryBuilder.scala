@@ -68,6 +68,16 @@ object QueryBuilder {
 			return "SELECT " + attrsToSelectionList(attrs) + " FROM " + table + " WHERE " + pred  
 	}
 
+	/** This builds a select distinct query with an attribute list, a table, and a predicate
+	* if the predicate is blank there is no where clause.
+	*/
+	def buildSelectDistinctQuery(attrs:List[String],table:String,pred:String):String = {
+		if (pred == "")
+			return buildSelectQuery(attrs,table)
+		else
+			return "SELECT DISTINCT " + attrsToSelectionList(attrs) + " FROM " + table + " WHERE " + pred  
+	}
+
 	/** This builds a select query that joins with a larger table. Same syntax as above just specifying
 	* an additional table and join key
 	*/
@@ -176,6 +186,14 @@ object QueryBuilder {
 	*/
 	def parenthesize(expr:String):String = {
 		return "(" + expr + ")"
+	}
+
+	def appendToPredicate(pred:String, expr:String): String = {
+		return pred + " AND " + expr
+	}
+
+	def attrEquals(attr:String, value:String):String = {
+		return attr + " = '" + value+"'"
 	}
 
 }

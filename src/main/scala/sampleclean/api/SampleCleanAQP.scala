@@ -165,6 +165,39 @@ class SampleCleanAQP() {
 
 	  }
 
+	 /*This query executes rawSC with a group given an attribute to aggregate, 
+	  * expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
+	  * It returns a tuple of the estimate, and the variance of the estimate (EST, VAR_EST)
+
+	  *Args (SampleCleanContext, Name of Sample to Query, 
+	  *Attr to Query, Agg Function to Use, Predicate, Sampling Ratio)
+	  */
+	 def rawSCQueryGroup(scc:SampleCleanContext, sampleName: String, 
+	  				  attr: String, expr: String, 
+	  				  pred:String,
+	  				  group: String, 
+	  				  sampleRatio: Double): List[(String, (Double, Double))]=
+	  {
+	  	  	val hc:HiveContext = scc.getHiveContext()
+	  	  	val hiveTableName = getCleanSampleName(sampleName)
+
+	  	  	val distinctKeys = hc.hql(buildSelectDistinctQuery(List(group),
+	  	  													   hiveTableName, 
+	  	  													   "true"))
+	  	  						 .map(x => x.getString(0)).collect()
+
+	  		var result = List[(String, (Double, Double))]()
+	  		for(t <- distinctKeys)
+	  			{
+	  				result = (t, rawSCQuery(scc, sampleName, 
+	  							   attr, expr, 
+	  							   appendToPredicate(pred, attrEquals(group,t)),
+	  							   sampleRatio)) :: result
+	  			}
+
+	  		return result
+	  }
+
 	  /*This query executes rawSC given an attribute to aggregate, expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
 	  * It returns a tuple of the estimate, and the variance of the estimate (EST, VAR_EST)
 	  *
@@ -221,5 +254,38 @@ class SampleCleanAQP() {
 	  	  	 return approxSum(hc.hql(buildQuery),sampleRatio)
 	  	  }
 
+	  }
+
+	  	 /*This query executes normalizedSC with a group given an attribute to aggregate, 
+	  * expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
+	  * It returns a tuple of the estimate, and the variance of the estimate (EST, VAR_EST)
+
+	  *Args (SampleCleanContext, Name of Sample to Query, 
+	  *Attr to Query, Agg Function to Use, Predicate, Sampling Ratio)
+	  */
+	 def normalizedSCQueryGroup(scc:SampleCleanContext, sampleName: String, 
+	  				  attr: String, expr: String, 
+	  				  pred:String,
+	  				  group: String, 
+	  				  sampleRatio: Double): List[(String, (Double, Double))]=
+	  {
+	  	  	val hc:HiveContext = scc.getHiveContext()
+	  	  	val hiveTableName = getCleanSampleName(sampleName)
+
+	  	  	val distinctKeys = hc.hql(buildSelectDistinctQuery(List(group),
+	  	  													   hiveTableName, 
+	  	  													   "true"))
+	  	  						 .map(x => x.getString(0)).collect()
+
+	  		var result = List[(String, (Double, Double))]()
+	  		for(t <- distinctKeys)
+	  			{
+	  				result = (t, normalizedSCQuery(scc, sampleName, 
+	  							   attr, expr, 
+	  							   appendToPredicate(pred, attrEquals(group,t)),
+	  							   sampleRatio)) :: result
+	  			}
+
+	  		return result
 	  }	 
 }
