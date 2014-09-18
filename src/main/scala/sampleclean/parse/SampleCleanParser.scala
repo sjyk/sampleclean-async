@@ -51,7 +51,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   				stringSignal >= 0)
   			{
   				if(i.indexOf("'",stringSignal+1) >= 0)
-  					result = i :: result
+  					result = i.replaceAll("'","") :: result
   				else
   					mergeBuffer = mergeBuffer + " " + i
   			}
@@ -59,7 +59,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   				stringSignal >= 0)
   			{
   				mergeBuffer = mergeBuffer + " " + i
-  				result = mergeBuffer :: result
+  				result = mergeBuffer.replaceAll("'","") :: result
   				mergeBuffer = ""
   			}
   			else {
@@ -151,7 +151,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   	}
   	else if(command.substring(0,4).equals("init"))
   	{
-  		val comps = command.split(" ")
+   		val comps = reservedCommandTokenizer(command)
   		val name = comps(1)
   		val bt = comps(2)
   		val samplingRatio = comps(3).toDouble
@@ -160,11 +160,11 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   	}
   	else if(command.substring(0,5).equals("merge"))
   	{
-  		val comps = command.split(" ")
-  		val name = "restaurant_sample"
-  		val attr = "city"
-  		val key1 = "new york"
-  		val key2 = "new york city"
+  		val comps = reservedCommandTokenizer(command)
+  		val name = comps(1)
+  		val attr = comps(2)
+  		val key1 = comps(3)
+  		val key2 = comps(4)
 
   		val algoPara = new AlgorithmParameters()
     	algoPara.put("attr", attr)
@@ -231,6 +231,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   	}
   	else if(command.indexOf("watch") >= 0)//todo fix
   	{
+  		/*TODO
   		val f = Future{ 
   						var prev:(Long,List[(String, (Double, Double))]) = null
   						var output:(Long,List[(String, (Double, Double))]) = null
@@ -255,7 +256,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   			f.onComplete {
 						case Success(value) => println("")
 						case Failure(e) => e.printStackTrace
-					}
+					}*/
 
   		return ("Complete", (System.nanoTime - now)/1000000)
   	}
