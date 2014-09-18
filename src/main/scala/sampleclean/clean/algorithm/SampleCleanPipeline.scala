@@ -1,10 +1,9 @@
 package sampleclean.clean.algorithm
 
 import sampleclean.api.SampleCleanContext
-
 import sampleclean.api.SampleCleanAQP;
+import sampleclean.api.SampleCleanQuery;
 
-import SampleCleanPipeline._
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -25,39 +24,6 @@ class SampleCleanPipeline(saqp: SampleCleanAQP,
 		for (l <- execList)
 		{
 			l.pipeline = this
-		}
-	}
-
-	/**Executes all queries associated with the pipeline
-	*/
-	def execAllQueries(name:String=null)={
-
-		if(name != null)
-			println("Inside Algorithm: " + name)
-
-		var query = 1
-		for(q <- queryList)
-		{
-			if(q.rawSC)
-			{   
-				println("Query " + query + " result: " +
-					saqp.rawSCQuery(q.scc,
-					q.sampleName,
-					q.attr,
-					q.expr,
-					q.pred,
-					q.sampleRatio))
-			}
-			else{
-
-				println("Query " + query + " result: " +
-					saqp.normalizedSCQuery(q.scc,
-					q.sampleName,
-					q.attr,
-					q.expr,
-					q.pred,
-					q.sampleRatio))
-			}
 		}
 	}
 
@@ -89,17 +55,5 @@ class SampleCleanPipeline(saqp: SampleCleanAQP,
 				}
 		}
 	}
-
-}
-
-object SampleCleanPipeline{
-
-	case class SampleCleanQuery(scc:SampleCleanContext, 
-		              sampleName: String, 
-	  				  attr: String, 
-	  				  expr: String, 
-	  				  pred:String, 
-	  				  sampleRatio: Double,
-	  				  rawSC:Boolean = true)
 
 }

@@ -1,15 +1,12 @@
 package sampleclean.util
 
 import sampleclean.api.SampleCleanContext;
-import sampleclean.api.SampleCleanContext._
 
 /** The QueryBuilder Class provides a set 
 * of methods to manipulate HIVEQL queries.
 */
+@serializable
 class QueryBuilder(scc: SampleCleanContext) {
-}
-
-object QueryBuilder {
 
 	//some common templates
 	val CTAS_TEMPLATE = "CREATE TABLE %s AS "
@@ -174,7 +171,7 @@ object QueryBuilder {
 		                       sampleExpName:String):String = {
 
 		var resultExpr = " "+punctuationParseString(expr.toLowerCase)
-		for(col <- getHiveTableSchema(sampleExpName))
+		for(col <- scc.getHiveTableSchema(sampleExpName))
 		{
 			resultExpr = resultExpr.replaceAll(' ' + col.toLowerCase + ' ', ' ' + sampleExpName+'.'+col + ' ')
 		}
