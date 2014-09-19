@@ -30,3 +30,6 @@ sbt/*.jar
 
 # Hive db files
 metastore_db
+
+# OSX junk
+.DS_Store
