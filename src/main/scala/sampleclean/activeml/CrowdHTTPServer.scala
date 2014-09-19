@@ -35,7 +35,7 @@ case class CrowdResult(group_id: String, answers: List[CrowdResultItem])
 
 /** A webserver that requests data from the crowd and waits for results asynchronously */
 object CrowdHTTPServer {
-  private val crowdJobURL = "amt/hitsgen/"
+  private val crowdJobURL = "crowds/%s/tasks/"
 
   // Remember which point ids were in which group.
   private val groupMap = new mutable.HashMap[String, Set[String]]()
@@ -103,8 +103,8 @@ object CrowdHTTPServer {
     val groupContextJSON = parse(swrite(groupContext.data))
     val requestData = compact(render(
       ("configuration" ->
-        ("type" -> groupContext.taskType) ~
-          ("hit_batch_size" -> parameters.maxPointsPerHIT) ~
+        ("task_type" -> groupContext.taskType) ~
+          ("task_batch_size" -> parameters.maxPointsPerHIT) ~
           ("num_assignments" -> parameters.maxVotesPerPoint) ~
           ("callback_url" -> ("http://" + parameters.responseServerHost + ":" + parameters.responseServerPort))) ~
         ("group_id" -> groupId) ~
@@ -121,7 +121,7 @@ object CrowdHTTPServer {
       .tlsWithoutValidation() // TODO: ONLY IN DEVELOPMENT
       .build()
     val request = RequestBuilder()
-      .url("https://" + parameters.crowdServerHost + ":" + parameters.crowdServerPort + "/" + crowdJobURL)
+      .url("https://" + parameters.crowdServerHost + ":" + parameters.crowdServerPort + "/" + crowdJobURL format parameters.crowdName)
       .addHeader("Charset", "UTF-8")
       .addFormElement(("data", requestData))
       .buildFormPost()

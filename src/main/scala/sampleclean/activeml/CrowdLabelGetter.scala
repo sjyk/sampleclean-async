@@ -62,6 +62,7 @@ case class CrowdLabelGetterParameters
 (
   responseServerPort: Int=8080,
   responseServerHost: String="127.0.0.1",
+  crowdName: String="internal",
   crowdServerPort: Int=8000,
   crowdServerHost: String="127.0.0.1",
   maxPointsPerHIT: Int=5,

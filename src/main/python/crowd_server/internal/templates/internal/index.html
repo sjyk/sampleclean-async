@@ -1,0 +1,111 @@
+<html>
+<head>
+    {% block jslibraries %}
+        <script type='text/javascript' src='//code.jquery.com/jquery-1.11.0.js'></script>
+    {% endblock jslibraries %}
+
+    {% block customjs %}
+        <script type="text/javascript">
+            {% block ready_func %}
+                $(document).ready(function()
+                {
+                });
+            {% endblock ready_func %}
+        </script>
+    {% endblock customjs %}
+
+    {% block css_includes %}
+        <link href="https://s3.amazonaws.com/mturk-public/bs30/css/bootstrap.min.css" rel="stylesheet" />
+    {%  endblock css_includes %}
+
+    {% block custom_css %}
+        <style>
+            .task-container {
+                margin-top: 20px;
+                font-family: Verdana, Geneva, sans-serif;
+            }
+            .empty-progress-bar {
+                color: black;
+                padding-left: 10px;
+            }
+        </style>
+    {% endblock custom_css %}
+
+    {% block misc_head_tags %}
+        <title>Internal Crowd Home</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    {% endblock misc_head_tags %}
+</head>
+
+<body>
+<div class="container">
+    <div class="row task-container">
+        {% block page_header %}
+            <div class="jumbotron">
+                <h1>AMP Crowd</h1>
+                <p>Take on the role of a crowd like Amazon's Mechanical Turk and help us complete data cleaning tasks! Click
+                    on a task type below to get started.</p>
+            </div>
+        {% endblock page_header %}
+    </div>
+    <div class="row">
+        {% block main_panel %}
+            <div class="panel panel-primary">
+                <div class="panel-heading"><strong class="lead">Available Tasks:</strong></div>
+                <div class="panel-body">
+                    <div class="list-group">
+                        {%  for task_type, t_context in task_types.iteritems %}
+                            {% if t_context.remaining_tasks != 0 %}
+                                <a href="{{ t_context.assignment_url }}" class="list-group-item" style="padding-bottom:30px">
+                            {% else %}
+                                <div href="{{ t_context.assignment_url }}" class="list-group-item disabled" style="padding-bottom:30px">
+                            {% endif %}
+                        <h4 class="list-group-item-heading">{{ t_context.full_name }}</h4>
+                        <div class="progress">
+                            {% if t_context.percent_complete == 0 %}
+                                <div class="" role="progressbar" aria-valuenow="{{ t_context.percent_complete }}"
+                                     aria-valuemin="0" aria-valuemax="100" style="width:100%">
+                                    <span class="empty-progress-bar">{{ t_context.percent_complete|floatformat:"0" }}% Complete.</span>
+                                </div>
+                            {% elif t_context.percent_complete < 10 %}
+                                <div class="progress-bar progress-bar-danger" role="progressbar" aria-valuenow="{{ t_context.percent_complete }}"
+                                     aria-valuemin="0" aria-valuemax="100" style="width:{{ t_context.percent_complete }}%"></div>
+                                <span class="empty-progress-bar pull-left">{{ t_context.percent_complete|floatformat:"0" }}% Complete.</span>
+
+                            {% elif t_context.percent_complete < 40 %}
+                                <div class="progress-bar progress-bar-danger" role="progressbar" aria-valuenow="{{ t_context.percent_complete }}"
+                                     aria-valuemin="0" aria-valuemax="100" style="width:{{ t_context.percent_complete }}%">
+                                    <span>{{ t_context.percent_complete|floatformat:"0" }}% Complete.</span>
+                                </div>
+                            {% elif t_context.percent_complete < 80 %}
+                                <div class="progress-bar progress-bar-warning" role="progressbar" aria-valuenow="{{ t_context.percent_complete }}"
+                                     aria-valuemin="0" aria-valuemax="100" style="width:{{ t_context.percent_complete }}%;">
+                                    <span>{{ t_context.percent_complete|floatformat:"0" }}% Complete.</span>
+                                </div>
+                            {% else %}
+                                <div class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="{{ t_context.percent_complete }}"
+                                     aria-valuemin="0" aria-valuemax="100" style="width:{{ t_context.percent_complete }}%">
+                                    <span>{{ t_context.percent_complete|floatformat:"0" }}% Complete.</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div >
+                            <span>{{ t_context.remaining_tasks }} Tasks Remaining.</span>
+                        {% if t_context.remaining_tasks != 0 %}
+                            <button type="button" class="btn btn-primary btn-lg pull-right">Work on a Task!</button>
+                            </div>
+                            </a>
+                        {% else %}
+                            <button type="button" class="btn btn-default btn-lg pull-right" disabled="disabled">No more work available!</button>
+                            </div>
+                            </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endblock main_panel %}
+    </div>
+</div>
+</body>
+</html>

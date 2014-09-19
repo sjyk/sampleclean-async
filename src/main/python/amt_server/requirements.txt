@@ -1,8 +1,0 @@
-Django==1.6.5
-boto==2.29.1
-django-sslserver==0.12
-gunicorn==19.0.0
-psycopg2==2.5.3
-pytz==2014.4
-wsgiref==0.1.2
-django-celery==3.1.10

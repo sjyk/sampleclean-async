@@ -1,0 +1,38 @@
+{% extends "basecrowd/base.html" %}
+
+{% block jslibraries %}
+    {{ block.super }}
+    <script type='text/javascript' src='https://s3.amazonaws.com/mturk-public/externalHIT_v1.js'></script>
+{% endblock jslibraries %}
+
+{% block get_submit_context_func %}
+            function get_submit_context(urlParamStrings)
+            {
+                var HITId;
+                var workerId;
+                var assignmentId;
+
+                for (var i = 0; i < urlParamStrings.length; i++)
+                {
+                    var pair = urlParamStrings[i].split("=");
+                    if (pair[0] == "hitId")
+                        HITId = pair[1];
+                    else if (pair[0] == "assignmentId")
+                        assignmentId = pair[1];
+                    else if (pair[0] == "workerId")
+                        workerId = pair[1];
+                }
+
+                return {
+                    HITId: HITId,
+                    workerId: workerId,
+                    assignmentId: assignmentId
+                }
+
+            }
+{% endblock get_submit_context_func %}
+
+
+{% block inline_js %}
+    <script language="Javascript">turkSetAssignmentID();</script>
+{% endblock inline_js %}
