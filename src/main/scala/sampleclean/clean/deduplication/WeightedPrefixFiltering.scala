@@ -161,5 +161,75 @@ trait WeightedPrefixFiltering extends Serializable {
         }
     })
   }
+
+  /**
+   * Performs a self-join using Prefix Filtering, a similarity measure, IDF weights and a broadcasting procedure.
+   * Broadcast variables may be too heavy for the driver to accept,
+   * so adjusting driver memory accordingly is recommended.
+   * @param sc given spark context.
+   * @param fullTable second data set (e.g. full table)
+   * @param fullKey second blocking method that will be used to calculate similarities between records.
+   * @param threshold specified threshold.
+   */
+  def broadcastSelfJoin[K: ClassTag, V:ClassTag] (@transient sc: SparkContext,
+                                                  fullTable: SchemaRDD,
+                                                  fullKey: BlockingKey,
+                                                  threshold: Double) : RDD[(Row,Row)] = {
+
+    // Add record ID into sampleData: RDD[(Id, (Seq[K], Value))]
+    val fullTableId: RDD[(Long, (Seq[String], Row))] = fullTable.zipWithUniqueId()
+      .map(x => (x._2, (fullKey.tokenSet(x._1), x._1))).cache()
+
+    val tokenCountMap = computeTokenCount(fullTableId.map(_._2._1))
+
+    // Set a global order to all tokens based on their frequencies
+    val tokenRankMap: Map[String, Int] = tokenCountMap.toArray.sortBy(_._2).map(_._1).zipWithIndex.toMap
+    val broadcastRank = sc.broadcast(tokenRankMap)
+
+    // Build a token-to-IDF map
+    val tableSize = fullTable.count()
+    val tokenWeightMap = tokenCountMap.map(x => (x._1, math.log10(tableSize.toDouble / x._2)))
+
+    // Build an inverted index for the prefixes of sample data
+    val invertedIndex: RDD[(String, Seq[Long])] = fullTableId.flatMap {
+      case (id, (tokens, value)) =>
+        val sorted = sortTokenSet(tokens, broadcastRank)
+        for (x <- sorted)
+        yield (x, id)
+    }.groupByKey().map(x => (x._1, x._2.toSeq.distinct))
+
+    //Broadcast data to all nodes
+    val broadcastIndex: Broadcast[collection.Map[String, Seq[Long]]] = sc.broadcast(invertedIndex.collectAsMap())
+    val broadcastData: Broadcast[collection.Map[Long, (Seq[String], Row)]] = sc.broadcast(fullTableId.collectAsMap())
+    val broadcastWeights: Broadcast[collection.Map[String, Double]] =  sc.broadcast(tokenWeightMap)
+
+    //Generate the candidates whose prefixes have overlap, and then verify their overlap similarity
+    fullTableId.flatMap({
+      case (id2, (key2, row2)) =>
+        val weightsValue = broadcastWeights.value
+        val broadcastDataValue = broadcastData.value
+        val broadcastIndexValue = broadcastIndex.value
+
+        val sorted: Seq[String] = sortTokenSet(key2, broadcastRank)
+        val removedSize = getRemovedSize(sorted, threshold, weightsValue)
+        val filtered = sorted.dropRight(removedSize)
+
+        filtered.foldLeft(Seq[Long]()) {
+          case (a, b) =>
+            a ++ broadcastIndexValue.getOrElse(b, Seq())
+        }.distinct.map {
+          case id1 =>
+            // Avoid double checking
+            if (id1 >= id2) (null, null, false)
+            else {
+              val (key1, row1) = broadcastDataValue(id1)
+              val similar: Boolean = isSimilar(key1, key2, threshold, weightsValue)
+              (key1, row1, similar)
+            }
+        }.withFilter(_._3).map {
+          case (key1, row1, similar) => (row1, row2)
+        }
+    })
+  }
 }
 

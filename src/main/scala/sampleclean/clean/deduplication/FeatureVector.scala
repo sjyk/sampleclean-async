@@ -10,15 +10,28 @@ import uk.ac.shef.wit.simmetrics.similaritymetrics._
 /**
  * Class used to create a valid strategy. A valid strategy may imply
  * one or more feature values, depending on the number of chosen metrics to be used.
- * @param cols1 indices of columns from first record to be concatenated.
- * @param cols2 indices of columns from second record to be concatenated.
+ * @param colsLarge indices of columns from largest table to be concatenated.
+ * @param colsSmall indices of columns from smallest table to be concatenated.
  * @param simMeasures list of valid names of similarity measures as per simmetrics library
  */
-class Feature (cols1: Seq[Int],
-                 cols2: Seq[Int],
-                 simMeasures: Seq[String]) extends Serializable {
+class Feature (colsLarge: Seq[String],
+                 colsSmall: Seq[String],
+                 simMeasures: Seq[String],
+                 getColFromLarge: (Row, String) => String,
+                 getColFromSmall: (Row, String) => String
+                 ) extends Serializable {
 
-  def getColsPair: (Seq[Int],Seq[Int]) = {(cols1, cols2)}
+  /**
+   * 
+   * @param rowLarge
+   * @param rowSmall
+   * @return
+   */
+  def getColsPair(rowLarge: Row, rowSmall: Row): (Seq[String],Seq[String]) = {
+    val list1 = colsLarge.map(col => getColFromLarge(rowLarge, col))
+    val list2 = colsSmall.map(col => getColFromSmall(rowSmall, col))
+    (list1, list2)
+  }
   def getMeasures: Seq[String] = { simMeasures }
 
   // After we figure out a simple way to iterate over the attributes of a row, we can uncomment the following codes.
@@ -50,7 +63,7 @@ case class FeatureVector (features: Seq[Feature], lowerCase: Boolean = true){
 
     features.map {
       case feature: Feature => {
-        val (cols1, cols2) = feature.getColsPair
+        val (cols1, cols2) = feature.getColsPair(row1, row2)
         val simMeasures = feature.getMeasures
         // if there are no indices as input, assume all indices will be considered
 
@@ -58,8 +71,8 @@ case class FeatureVector (features: Seq[Feature], lowerCase: Boolean = true){
         //val indicesRecord1 = if (pair._1 == null) Range(0,vec1.length) else pair._1
         //val indicesRecord2 = if (pair._2 == null) Range(0,vec2.length) else pair._2
         // If index is out of range, assume string = ""; this could change
-        var concatenateCols1 = cols1.foldLeft("")((result, current) => result + " " + (if (row1.isDefinedAt(current)) row1(current).toString else ""))
-        var concatenateCols2 = cols2.foldLeft("")((result, current) => result + " " + (if (row2.isDefinedAt(current)) row2(current).toString else ""))
+        var concatenateCols1 = cols1.mkString(" ")
+        var concatenateCols2 = cols2.mkString(" ")
         if (lowerCase) {
           concatenateCols1 = concatenateCols1.toLowerCase()
           concatenateCols2 = concatenateCols2.toLowerCase()

@@ -4,12 +4,14 @@ import org.apache.spark.SparkContext
 import org.apache.spark.sql.SchemaRDD
 import org.apache.spark.rdd._
 import org.apache.spark.sql.Row
+import sampleclean.activeml.{DeduplicationGroupLabelingContext, DeduplicationPointLabelingContext, PointLabelingContext}
+import sampleclean.util.QueryBuilder._
 import scala.collection.Seq
 import scala.List
 import java.util.StringTokenizer
 import scala.collection.mutable.ArrayBuffer
+import sampleclean.api.SampleCleanContext
 //import org.amplab.sampleclean.cleaning.{WeightedCosineJoin, WeightedDiceJoin, WeightedOverlapJoin, WeightedJaccardJoin}
-
 
 /**
  * This is a tokenizer super-class.
@@ -62,11 +64,14 @@ case class GramTokenizer(gramSize: Int) extends Tokenizer {
  * @param tokenizer chosen tokenizer to be used.
  * @param lowerCase if true, convert all characters to lower case.
  */
-case class BlockingKey(cols: Seq[Int], tokenizer: Tokenizer, lowerCase: Boolean = true) {
+case class BlockingKey(cols: Seq[String],
+                       tokenizer: Tokenizer,
+                       getCol: (Row, String) => String,
+                       lowerCase: Boolean = true) {
 
   def tokenSet(row: Row): Seq[String] = {
-    cols.flatMap{ case x =>
-      var value = row(x).toString()
+    cols.flatMap{x =>
+      var value = getCol(row,x)
       if (lowerCase)
         value = value.toLowerCase()
       tokenizer.tokenSet(value)
@@ -80,74 +85,69 @@ case class BlockingKey(cols: Seq[Int], tokenizer: Tokenizer, lowerCase: Boolean 
  * the opposite data set in order to perform a similarity join.
  * @param simFunc similarity algorithm to be used for blocking key comparison.
  * @param threshold specified threshold.
- * @param sampleKey blocking method for the first data set.
- * @param fullKey blocking method for the second data set.
+ * @param genKeySmallTable blocking method for the smaller data set.
+ * @param genKeyLargeTable blocking method for the larger data set.
+ * @param joinType type of join: "sampleJoin", "selfJoin" or standard similarity join ("stJoin").
  */
 case class BlockingStrategy(simFunc: String,
                        threshold: Double,
-                       sampleKey: BlockingKey,
-                       fullKey: BlockingKey) {
+                       joinType: String,
+                       genKeyLargeTable: BlockingKey,
+                       genKeySmallTable: BlockingKey = null
+                       ){
+
+  val gKLarge = genKeyLargeTable
+  val gKSmall = Option(genKeySmallTable).getOrElse(genKeyLargeTable)
+  
+  def getJoinType = joinType
 
   /**
    * Runs a blocking algorithm on two data sets. Uses Spark SQL.
    * @param sc spark context
-   * @param sampleTable first data set; smallest (e.g. a sample of the full data set).
-   * @param fullTable second data set; largest (e.g. full data set).
+   * @param smallTable smallest data set (e.g. a sample of the full data set).
+   * @param largeTable largest data set (e.g. full data set).
    */
   def blocking(@transient sc: SparkContext,
-               sampleTable: SchemaRDD,
-               fullTable: SchemaRDD): RDD[(Row, Row)] = {
+               largeTable: SchemaRDD,
+               smallTable: SchemaRDD
+               ): RDD[(Row, Row)] = {
 
-    simFunc match {
-      case "Jaccard" =>
-        new JaccardJoin().broadcastJoin(sc, sampleTable, fullTable, sampleKey, fullKey, threshold)
-      case "Overlap" =>
-        new OverlapJoin().broadcastJoin(sc, sampleTable, fullTable, sampleKey, fullKey, threshold)
-      case "Dice" =>
-        new DiceJoin().broadcastJoin(sc, sampleTable, fullTable, sampleKey, fullKey, threshold)
-      case "Cosine" =>
-        new CosineJoin().broadcastJoin(sc, sampleTable, fullTable, sampleKey, fullKey, threshold)
-      case "WJaccard" =>
-        new WeightedJaccardJoin().broadcastJoin(sc, sampleTable, fullTable, sampleKey, fullKey, threshold)
-      case "WOverlap" =>
-        new WeightedOverlapJoin().broadcastJoin(sc, sampleTable, fullTable, sampleKey, fullKey, threshold)
-      case "WDice" =>
-        new WeightedDiceJoin().broadcastJoin(sc, sampleTable, fullTable, sampleKey, fullKey, threshold)
-      case "WCosine" =>
-        new WeightedCosineJoin().broadcastJoin(sc, sampleTable, fullTable, sampleKey, fullKey, threshold)
+    (simFunc, joinType, Option(smallTable).isEmpty) match {
+      case ("Jaccard", "sampleJoin", false) =>
+        new JaccardJoin().broadcastJoin(sc, smallTable, largeTable, gKSmall, gKLarge, threshold)
+      case ("Overlap", "sampleJoin", false) =>
+        new OverlapJoin().broadcastJoin(sc, smallTable, largeTable, gKSmall, gKLarge, threshold)
+      case ("Dice", "sampleJoin", false) =>
+        new DiceJoin().broadcastJoin(sc, smallTable, largeTable, gKSmall, gKLarge, threshold)
+      case ("Cosine", "sampleJoin", false) =>
+        new CosineJoin().broadcastJoin(sc, smallTable, largeTable, gKSmall, gKLarge, threshold)
+      case ("WJaccard", "sampleJoin", false) =>
+        new WeightedJaccardJoin().broadcastJoin(sc, smallTable, largeTable, gKSmall, gKLarge, threshold)
+      case ("WOverlap", "sampleJoin", false) =>
+        new WeightedOverlapJoin().broadcastJoin(sc, smallTable, largeTable, gKSmall, gKLarge, threshold)
+      case ("WDice", "sampleJoin", false) =>
+        new WeightedDiceJoin().broadcastJoin(sc, smallTable, largeTable, gKSmall, gKLarge, threshold)
+      case ("WCosine", "sampleJoin", false) =>
+        new WeightedCosineJoin().broadcastJoin(sc, smallTable, largeTable, gKSmall, gKLarge, threshold)
+      // cases for self-joins
+      case ("Jaccard", "selfJoin", true) =>
+        new JaccardJoin().broadcastSelfJoin(sc, largeTable, gKLarge, threshold)
+      case ("Overlap", "selfJoin", true) =>
+        new OverlapJoin().broadcastSelfJoin(sc, largeTable, gKLarge, threshold)
+      case ("Dice", "selfJoin", true) =>
+        new DiceJoin().broadcastSelfJoin(sc, largeTable, gKLarge, threshold)
+      case ("Cosine", "selfJoin", true) =>
+        new CosineJoin().broadcastSelfJoin(sc, largeTable, gKLarge, threshold)
+      case ("WJaccard", "selfJoin", true) =>
+        new WeightedJaccardJoin().broadcastSelfJoin(sc, largeTable, gKLarge, threshold)
+      case ("WOverlap", "selfJoin", true) =>
+        new WeightedOverlapJoin().broadcastSelfJoin(sc, largeTable, gKLarge, threshold)
+      case ("WDice", "selfJoin", true) =>
+        new WeightedDiceJoin().broadcastSelfJoin(sc, largeTable, gKLarge, threshold)
+      case ("WCosine", "selfJoin", true) =>
+        new WeightedCosineJoin().broadcastSelfJoin(sc, largeTable, gKLarge, threshold)
+      case _ => null
     }
   }
 }
-
-
- /* def blocking[K: ClassTag, V:ClassTag](SampleCleanContext scc,
-                                     sampleData: SchemaRDD,
-                                     fullData: SchemaRDD,
-                                     simfunc: String)
-  : RDD[((Long,Long),(Seq[K], Seq[K]), (V, V))] = {
-
-
-    simfunc match {
-      case "Jaccard" =>
-        if (broadcast)
-          new JaccardJoin().broadcastJoin(sc, sampleData, fullData, threshold)
-        else
-          new JaccardJoin().broadcastJoin(sc, sampleData, fullData, threshold)
-      case "Overlap" =>
-        if (broadcast)
-          new OverlapJoin().broadcastJoin(sc, sampleData, fullData, threshold)
-        else
-          new OverlapJoin().broadcastJoin(sc, sampleData, fullData, threshold)
-      case "Dice" =>
-        if (broadcast)
-          new DiceJoin().broadcastJoin(sc, sampleData, fullData, threshold)
-        else
-          new DiceJoin().broadcastJoin(sc, sampleData, fullData, threshold)
-      case "Cosine" =>
-        if (broadcast)
-          new CosineJoin().broadcastJoin(sc, sampleData, fullData, threshold)
-        else
-          new CosineJoin().broadcastJoin(sc, sampleData, fullData, threshold)
-
-*/
 

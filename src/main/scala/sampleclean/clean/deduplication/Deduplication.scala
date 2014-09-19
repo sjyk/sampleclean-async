@@ -1,5 +1,6 @@
 package sampleclean.clean.deduplication
 
+import org.apache.spark.sql.catalyst.expressions.Ascending
 import sampleclean.activeml._
 import sampleclean.api.SampleCleanContext
 import org.apache.spark.SparkContext._
@@ -11,7 +12,7 @@ import sampleclean.clean.algorithm.AlgorithmParameters
 
 // To Sanjay: add this into sampleclean.api.SampleCleanContext
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{Row}
+import org.apache.spark.sql.{SchemaRDD, Row}
 
 /**
  * This class executes a deduplication algorithm on a data set.
@@ -23,33 +24,60 @@ class Deduplication(params:AlgorithmParameters, scc: SampleCleanContext)
 
   case class Record(hash: String, dup: Integer)
 
-  def onUpdateDupCounts(sampleTableName: String, dupPairs: RDD[(Row, Row)]) {
-    // Need to discuss with Sanjay. The code may not work if he changes the position of hash
-    val dupCounts = dupPairs.map(x => (x._1.getString(0),1)).reduceByKey(_ + _).map(x => (x._1,x._2+1))
+  def exec(smallTableName:String) = {
+
+
+    val rowId = params.get("dedupParams").asInstanceOf[Row => String]
+    val cp =
+      candidatePairs(smallTableName, rowId)
+
+
+    val emptyLabeledRDD = scc.getSparkContext().parallelize(new Array[(String, LabeledPoint)](0))
+    val joinType = params.get("blockingStrategy").asInstanceOf[BlockingStrategy].getJoinType
+    val activeLearningStrategy = params.get("activeLearningStrategy").asInstanceOf[ActiveLearningStrategy]
+    activeLearningStrategy.asyncRun(emptyLabeledRDD,
+                                    cp,
+                                    onUpdateDupCounts(smallTableName,_: RDD[(Row,Row)],joinType, rowId))
+  }
+
+  def onUpdateDupCounts(smallTable: String, dupPairs: RDD[(Row, Row)], joinType: String, rowId: Row => String) {
+    val dupCounts = dupPairs.flatMap(pair => {
+      Seq((rowId(pair._1),1), (rowId(pair._2),1))
+    }).reduceByKey(_ + _)
+
+    val offset = joinType match {
+      case "sampleJoin" => counts: RDD[(String, Int)] => counts.map(x => (x._1,(x._2 / 2) + 1))
+      case "selfJoin" => counts: RDD[(String, Int)] => counts.map(x => (x._1,x._2 + 1))
+    }
     println("[SampleClean] Updating Sample Using Predicted Counts")
-    scc.updateTableDuplicateCounts(sampleTableName, dupCounts)
+    scc.updateTableDuplicateCounts(smallTable, offset(dupCounts))
   }
 
 
-  def exec(sampleTableName:String) ={//,
-            //blockingStrategy: BlockingStrategy,
-            //activeLearningStrategy: ActiveLearningStrategy) {
-
-    val sampleTable = scc.getCleanSample(sampleTableName)
-    val fullTable = scc.getFullTable(sampleTableName)
+  def candidatePairs(smallTableName:String, rowId: Row => String) = {
     val blockingStrategy = params.get("blockingStrategy").asInstanceOf[BlockingStrategy]
-    val activeLearningStrategy = params.get("activeLearningStrategy").asInstanceOf[ActiveLearningStrategy]
+    val joinType = blockingStrategy.getJoinType
 
-    val candidatePairs = blockingStrategy.blocking(scc.getSparkContext(), sampleTable, fullTable)
-                                          .filter(kv => kv._1.getString(2) != kv._2.getString(0))
+    val smallTableRDD = joinType match {
+      case "sampleJoin" => scc.getCleanSample(smallTableName)
+      case "selfJoin" => null
+    }
+    val largeTableRDD = scc.getFullTable(smallTableName)
 
-    val emptyLabeledRDD = scc.getSparkContext().parallelize(new Array[(String, LabeledPoint)](0))
-    activeLearningStrategy.asyncRun(emptyLabeledRDD, candidatePairs, onUpdateDupCounts(sampleTableName,_: RDD[(Row,Row)]))
+    val candidatePairs = blockingStrategy.blocking(scc.getSparkContext(), largeTableRDD, smallTableRDD)
+
+    // filtering
+    joinType match {
+      case "selfJoin" => candidatePairs
+      case "sampleJoin" => candidatePairs.filter(kv => rowId(kv._1) != rowId(kv._2))
+    }
+
   }
 
   
   def defer(sampleTableName:String):RDD[(String,Int)] = {
       return null
   }
+
 
   }
