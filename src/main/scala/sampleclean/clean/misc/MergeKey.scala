@@ -29,6 +29,8 @@ class MergeKey(params:AlgorithmParameters,scc: SampleCleanContext)
 		val update_rdd = scc.getCleanSample(tableName).map(x =>(scc.getColAsString(x,tableName,"hash"),
 																  replaceIfEqual(scc.getColAsString(x,tableName,attr),key1,key2)))
 		scc.updateTableAttrValue(tableName, attr, update_rdd)
+
+		this.onUpdateNotify()
 	}
 
 }

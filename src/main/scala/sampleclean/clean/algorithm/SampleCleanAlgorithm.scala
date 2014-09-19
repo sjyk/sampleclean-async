@@ -26,4 +26,15 @@ abstract class SampleCleanAlgorithm(params:AlgorithmParameters, scc: SampleClean
 	*/
 	def exec(sampleName: String)
 
+	/**
+	 * This function is called by the algorithm designer to notify the 
+	 * pipeline that the model has been updated.
+	 */
+	def onUpdateNotify()={
+
+		if(pipeline != null)
+			pipeline.notification()
+
+	}
+
 }

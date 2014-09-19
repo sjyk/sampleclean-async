@@ -220,6 +220,8 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
    def execLibraryRoutine(command:String) = {
       val comps = reservedCommandTokenizer(command)
 
+      println(comps)
+
       val classData = functionRegistry.get(comps(0)).get
 
       if(comps.length != classData._2.length + 2)

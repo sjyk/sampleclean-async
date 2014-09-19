@@ -18,6 +18,9 @@ class SampleCleanPipeline(saqp: SampleCleanAQP,
 						  var execList:List[SampleCleanAlgorithm]=List[SampleCleanAlgorithm](),
 	                      var queryList:List[SampleCleanQuery]=List[SampleCleanQuery]()) {
 
+	//execute this on construction
+	setPipelineOnQueries()
+
 	/**This associates the current object with the pipeline algorithms
 	*/
 	def setPipelineOnQueries()={
@@ -25,6 +28,13 @@ class SampleCleanPipeline(saqp: SampleCleanAQP,
 		{
 			l.pipeline = this
 		}
+	}
+
+	/**
+	 * This notifies the pipeline of an update
+	 */
+	def notification()={
+		
 	}
 
 	/**Executes the algorithms in the pipeline

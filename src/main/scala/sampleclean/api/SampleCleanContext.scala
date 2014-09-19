@@ -81,10 +81,10 @@ class SampleCleanContext(@transient sc: SparkContext) {
 			hiveContext.hql(query)
 		}
 		
-		return (hiveContext.hql(qb.buildSelectQuery(selectionList,baseTable) +
-					qb.tableSample(samplingRatio)), 
+		return (hiveContext.hql(qb.buildSelectQuery(List("*"),
+								qb.getCleanSampleName(tableName))), 
 				hiveContext.hql(qb.buildSelectQuery(List("*"),
-					qb.getCleanSampleName(tableName))))
+								qb.getDirtySampleName(tableName))))
 	}
 
 	/* This function cleans up after using initializeHive by dropping
