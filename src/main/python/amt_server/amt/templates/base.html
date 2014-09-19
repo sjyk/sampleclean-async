@@ -47,7 +47,7 @@
 				answers = {}
 				for (var i = 0; i < input_elements.length; i ++)
 					if (input_elements[i].type == "radio" && input_elements[i].checked == true)
-						answers[input_elements[i].id.substring(6)] = input_elements[i].value;
+						answers[input_elements[i].id] = input_elements[i].value;
 								
 				//Send a post request
 				$.post("/amt/responses/",

@@ -24,8 +24,8 @@
 
 {% block labels %}
 
-	<input type="radio" id = "radio_{{id}}" name = "{{forloop.counter}}" value="1.0"> Yes <br/>
-	<input type="radio" id = "radio_{{id}}" name = "{{forloop.counter}}" value="0.0"> No <br/>
+	<input type="radio" id = "{{id}}" name = "{{forloop.counter}}" value="1.0"> Yes <br/>
+	<input type="radio" id = "{{id}}" name = "{{forloop.counter}}" value="0.0"> No <br/>
 	
 {% endblock %}
 								
