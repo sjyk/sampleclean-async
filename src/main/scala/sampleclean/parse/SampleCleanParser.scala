@@ -40,9 +40,13 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   //descriptive errors during the parse phase
   case class ParseError(val details: String) extends Throwable
 
-  //function registry
+  val RESERVED_STRING_CHAR = "\""
+
+  //function registry--use the function registry if the system accepts string parameters
   val functionRegistry = Map("merge" -> ("sampleclean.clean.misc.MergeKey",
-                                         List("attr","src","target")))
+                                         List("attr","src","target")),
+                             "filter" -> ("sampleclean.clean.misc.RuleFilter",
+                                         List("attr", "rule")))
 
   /**
    * This command parses SampleClean "reserved" command. Basically these commands 
@@ -66,30 +70,37 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
       //iterate through tokens
   		for(i <- splitComponents)
   		{
-        //is there a string with a single quote
-  			val stringSignal = i.indexOf("'")
+        //is there a string
+  			val stringSignal = i.indexOf(RESERVED_STRING_CHAR)
 
   			if(mergeBuffer.equals("") &&
   				stringSignal >= 0) //we are not already parsing a string
   			{
-  				if(i.indexOf("'",stringSignal+1) >= 0)
-  					result = i.replaceAll("'","") :: result
+  				if(i.indexOf(RESERVED_STRING_CHAR,stringSignal+1) >= 0)
+  					result = i.replaceAll(RESERVED_STRING_CHAR,"") :: result
   				else
   					mergeBuffer = mergeBuffer + " " + i
   			}
   			else if(!mergeBuffer.equals("") &&
-  				stringSignal >= 0) //we are already parsing a string
+  				stringSignal >= 0) //we are already parsing a string and finish
   			{
   				mergeBuffer = mergeBuffer + " " + i
-  				result = mergeBuffer.replaceAll("'","") :: result
+  				result = mergeBuffer.replaceAll(RESERVED_STRING_CHAR,"") :: result
   				mergeBuffer = ""
   			}
+        else if(!mergeBuffer.equals("")) //we are already parsing a string
+        {
+          mergeBuffer = mergeBuffer + " " + i
+        }
   			else {
   				result = i :: result
   			}
   			
   		}
-  		return result.reverse //since we use pre-pending operations reverse
+
+      //println(result)
+  		
+      return result.map(_.trim()).reverse //since we use pre-pending operations reverse
   }
 
    /**
@@ -242,39 +253,48 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   	val command = commandI.replace(";","").toLowerCase().trim()
     val firstToken = command.split("\\s+")(0)
 
-    
-	  if(command.equals("load demo")) {
-  		initDemo()
-  		return ("Demo Initialized", (System.nanoTime - now)/1000000)
-  	}
-  	else if(firstToken.equals("init")) {
-   		initSCTables(command)
-  		return("Create SC Table", (System.nanoTime - now)/1000000)
-  	}
-    else if(firstToken.equals("clear")) {
-      clearSession()
-      return("Removed Temp Tables", (System.nanoTime - now)/1000000)
-    }
-  	else if(functionRegistry.contains(firstToken)){
+    try{
+
+     if(firstToken.equals("quit")){
+        return ("Quit", (System.nanoTime - now)/1000000)
+     }
+	   else if(command.equals("load demo")) {
+  		  initDemo()
+  		  return ("Demo Initialized", (System.nanoTime - now)/1000000)
+  	  }
+  	 else if(firstToken.equals("init")) {
+   		 initSCTables(command)
+  		  return("Create SC Table", (System.nanoTime - now)/1000000)
+  	 }
+     else if(firstToken.equals("clear")) {
+        clearSession()
+        return("Removed Temp Tables", (System.nanoTime - now)/1000000)
+      }
+  	 else if(functionRegistry.contains(firstToken)){
       execLibraryRoutine(command)
   		return ("Lib Routine", (System.nanoTime - now)/1000000)
-  	}
-  	else if(firstToken.equals("dedup"))
-  	{
-      demoDedup()
-  		return ("Dedup", (System.nanoTime - now)/1000000)
-  	}
-  	else if(firstToken.equals("selectrawsc"))
-  	{
-  		println(queryParser(command).execute())
-  		return ("Complete", (System.nanoTime - now)/1000000)
-  	}
-  	else //in the default case pass it to hive
-  	{
-  		val hiveContext = scc.getHiveContext();
-  		hiveContext.hql(command.replace(";","")).collect().foreach(println)
-  		return ("Complete", (System.nanoTime - now)/1000000)
-  	}
+      }
+  	 else if(firstToken.equals("dedup")){
+        demoDedup()
+  		  return ("Dedup", (System.nanoTime - now)/1000000)
+  	  }
+  	 else if(firstToken.equals("selectrawsc")){
+  		  println(queryParser(command).execute())
+  		  return ("Complete", (System.nanoTime - now)/1000000)
+  	  }
+  	 else {//in the default case pass it to hive
+  		  val hiveContext = scc.getHiveContext();
+  		  hiveContext.hql(command.replace(";","")).collect().foreach(println)
+  		  return ("Complete", (System.nanoTime - now)/1000000)
+  	  }
+
+    }
+    catch {
+     case p: ParseError => println(p.details)
+     case e: Exception => println("Execution exception detected")
+   }
+
+    return ("Error", (System.nanoTime - now)/1000000 )
 
   }
 

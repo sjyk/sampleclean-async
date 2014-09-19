@@ -3,8 +3,6 @@ package sampleclean.clean.misc
 import sampleclean.api.SampleCleanContext
 import sampleclean.clean.algorithm.SampleCleanFilterAlgorithm
 import sampleclean.clean.algorithm.AlgorithmParameters
-import org.apache.spark.sql.SchemaRDD
-import org.apache.spark.sql.Row
 import org.apache.spark.rdd.RDD
 
 import sampleclean.util.TypeUtils._
