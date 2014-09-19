@@ -1,34 +1,17 @@
 package sampleclean
 
-import sampleclean.activeml._
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{SchemaRDD, Row}
-
 import sampleclean.api.SampleCleanContext;
-import sampleclean.api.SampleCleanContext._;
 import sampleclean.api.SampleCleanAQP;
 import sampleclean.parse.SampleCleanParser;
-//import sampleclean.parse.SampleCleanParser._;
-import sampleclean.clean.outlier.ParametricOutlier;
-import sampleclean.clean.misc._;
-import sampleclean.clean.deduplication._
-
-
 import org.apache.spark.sql.hive.HiveContext
-import sampleclean.clean.algorithm.AlgorithmParameters
-import sampleclean.clean.deduplication.WordTokenizer
-import sampleclean.clean.deduplication.BlockingStrategy
-import sampleclean.clean.deduplication.BlockingKey
-import sampleclean.clean.deduplication.ActiveLearningStrategy
 
-import sampleclean.clean.algorithm.SampleCleanPipeline
-import sampleclean.clean.algorithm.SampleCleanPipeline._
-
-/*This class provides the main driver for the SampleClean
+/**
+* This object provides the main driver for the SampleClean
 * application. We execute commands read from the command 
-* line
+* line.
 */
 object SCDriver {
 
@@ -43,15 +26,18 @@ object SCDriver {
   val QUIT:Int = 1;
   val ERROR:Int = 2;
   
-  /* This command executes input from the command line
-  *  prompt. The execution returns an exit code which
-  * determines the next action. 
-  */
+  /**
+   * run executes a command and prints the execution time in milliseconds
+   * @param command a string whitch what command the user entered
+   * @param parser a reference to the SampleCleanParser context
+   * @return A status code
+   */
   def run(command:String, parser:SampleCleanParser):Int = {
 
   	//force the string to lower case
   	val commandL = command.toLowerCase(); 
   	
+    //exit
   	if (commandL == QUIT_COMMAND)
   		return 2;
 
@@ -63,17 +49,19 @@ object SCDriver {
   }
 
 
+  /**
+   * Main function
+   */
   def main(args: Array[String]) {
 
     val conf = new SparkConf();
-    conf.setAppName("SampleClean Materialized View Experiments");
+    conf.setAppName("SampleClean Spark Driver");
     conf.setMaster("local[4]");
     conf.set("spark.executor.memory", "4g");
 
     val sc = new SparkContext(conf);
     val scc = new SampleCleanContext(sc);
     val saqp = new SampleCleanAQP();
-    val hiveContext = new HiveContext(sc);
 
     val parser:SampleCleanParser = new SampleCleanParser(scc,saqp);
 
@@ -86,4 +74,5 @@ object SCDriver {
     }
 
   }
+  
 }

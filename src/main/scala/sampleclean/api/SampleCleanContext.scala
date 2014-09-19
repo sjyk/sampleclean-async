@@ -31,8 +31,6 @@ import sampleclean.util.QueryBuilder
 @serializable
 class SampleCleanContext(@transient sc: SparkContext) {
 
-	val qb = new QueryBuilder(this)
-
 	//Use these functions to access the Spark
 	//and Hive contexts in API calls.
 
@@ -48,7 +46,10 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		return sc
 	}
 
-    /*This function initializes the clean and dirty samples as
+	//a refernce to the contexts Query Builder
+	val qb = new QueryBuilder(this)
+
+    /** This function initializes the clean and dirty samples as
     * Schema RDD's in a tuple (Clean, Dirty). There is an additional
     * flag to persist the rdd in HIVE if desired.
     *
@@ -206,12 +207,6 @@ class SampleCleanContext(@transient sc: SparkContext) {
    		    					             tableNameClean,
    		    					             "true",tmpTableName,
    		    					             "hash"))
-   		    /*println("Persist Query")
-   		    println(overwriteTable(tableNameClean) +
-   		    				buildSelectQuery(selectionString,
-   		    					             tableNameClean,
-   		    					             "true",tmpTableName,
-   		    					             "hash"))*/
    	   }
 
    		return hiveContext.hql(qb.buildSelectQuery(selectionString, 
@@ -249,6 +244,14 @@ class SampleCleanContext(@transient sc: SparkContext) {
 
 	}
 
+	/**
+	 * Given a column name, a row, and a sampleName it returns the column as
+	 * a string.
+	 * @param row A row to query
+	 * @param sampleName a sample from which the row comes
+	 * @param colName the name of the col you want to access
+	 * @return string
+	 */
 	def getColAsString(row:Row, sampleName:String, colName:String):String=
     {
     	val tableNameClean = qb.getCleanSampleName(sampleName)
@@ -260,6 +263,14 @@ class SampleCleanContext(@transient sc: SparkContext) {
     		return null
     }
 
+    /**
+	 * Given a column name, a row, and a baseTable it returns the column as
+	 * a string.
+	 * @param row A row to query
+	 * @param sampleName a sample from which the row comes
+	 * @param colName the name of the col you want to access
+	 * @return string
+	 */
     def getColAsStringFromBaseTable(row:Row, sampleName:String, colName:String):String=
     {
     	val tableNameClean = getParentTable(qb.getCleanSampleName(sampleName))
@@ -271,6 +282,14 @@ class SampleCleanContext(@transient sc: SparkContext) {
     		return null
     }
 
+    /**
+	 * Given a column name, a row, and a sampleName it returns the column as
+	 * a double.
+	 * @param row A row to query
+	 * @param sampleName a sample from which the row comes
+	 * @param colName the name of the col you want to access
+	 * @return double
+	 */
     def getColAsDouble(row:Row, sampleName:String, colName:String):Double=
     {
     	val tableNameClean = qb.getCleanSampleName(sampleName)
