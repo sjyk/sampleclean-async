@@ -5,7 +5,6 @@ import org.apache.spark.sql.SchemaRDD
 import org.apache.spark.rdd._
 import org.apache.spark.sql.Row
 import sampleclean.activeml.{DeduplicationGroupLabelingContext, DeduplicationPointLabelingContext, PointLabelingContext}
-import sampleclean.util.QueryBuilder._
 import scala.collection.Seq
 import scala.List
 import java.util.StringTokenizer
@@ -64,16 +63,16 @@ case class GramTokenizer(gramSize: Int) extends Tokenizer {
  * @param tokenizer chosen tokenizer to be used.
  * @param lowerCase if true, convert all characters to lower case.
  */
-case class BlockingKey(cols: Seq[String],
+case class BlockingKey(cols: Seq[Int],
                        tokenizer: Tokenizer,
-                       getCol: (Row, String) => String,
                        lowerCase: Boolean = true) {
 
   def tokenSet(row: Row): Seq[String] = {
     cols.flatMap{x =>
-      var value = getCol(row,x)
+      var value = row.getString(x)
       if (lowerCase)
         value = value.toLowerCase()
+
       tokenizer.tokenSet(value)
     }
   }
@@ -83,23 +82,47 @@ case class BlockingKey(cols: Seq[String],
  * This class builds a blocking strategy for two data sets.
  * Blocking keys are created for each record and then compared against
  * the opposite data set in order to perform a similarity join.
- * @param simFunc similarity algorithm to be used for blocking key comparison.
- * @param threshold specified threshold.
- * @param genKeySmallTable blocking method for the smaller data set.
- * @param genKeyLargeTable blocking method for the larger data set.
- * @param joinType type of join: "sampleJoin", "selfJoin" or standard similarity join ("stJoin").
+ * param simFunc similarity algorithm to be used for blocking key comparison.
+ * param threshold specified threshold.
+ * param genKeySmallTable blocking method for the smaller data set.
+ * param genKeyLargeTable blocking method for the larger data set.
  */
-case class BlockingStrategy(simFunc: String,
-                       threshold: Double,
-                       joinType: String,
-                       genKeyLargeTable: BlockingKey,
-                       genKeySmallTable: BlockingKey = null
-                       ){
+case class BlockingStrategy(blockedColNames: List[String]){
 
-  val gKLarge = genKeyLargeTable
-  val gKSmall = Option(genKeySmallTable).getOrElse(genKeyLargeTable)
-  
-  def getJoinType = joinType
+  // blocking strategy parameters
+  var simFunc: String = "Jaccard"
+  var threshold: Double = 0.7
+  var tokenizer: Tokenizer = WordTokenizer()
+  var lowerCase: Boolean = true
+
+  def setThreshold(threshold: Double): BlockingStrategy = {
+    this.threshold = threshold
+    return this
+  }
+  def getThreshold(): Double = {
+    return this.threshold
+  }
+  def setSimFunc(simFunc: String): BlockingStrategy = {
+    this.simFunc = simFunc
+    return this
+  }
+  def getSimFunc(): String = {
+    return this.simFunc
+  }
+  def setTokenizer(tokenizer: Tokenizer): BlockingStrategy = {
+    this.tokenizer = tokenizer
+    return this
+  }
+  def getTokenizer(): Tokenizer = {
+    return this.tokenizer
+  }
+  def setLowerCase(threshold: Double): BlockingStrategy = {
+    this.lowerCase = lowerCase
+    return this
+  }
+  def getLowerCase(): Boolean = {
+    return this.lowerCase
+  }
 
   /**
    * Runs a blocking algorithm on two data sets. Uses Spark SQL.
@@ -109,43 +132,64 @@ case class BlockingStrategy(simFunc: String,
    */
   def blocking(@transient sc: SparkContext,
                largeTable: SchemaRDD,
-               smallTable: SchemaRDD
+               largeTableColMapper: List[String] => List[Int],
+               smallTable: SchemaRDD,
+               smallTableColMapper: List[String] => List[Int]
                ): RDD[(Row, Row)] = {
 
-    (simFunc, joinType, Option(smallTable).isEmpty) match {
-      case ("Jaccard", "sampleJoin", false) =>
-        new JaccardJoin().broadcastJoin(sc, smallTable, largeTable, gKSmall, gKLarge, threshold)
-      case ("Overlap", "sampleJoin", false) =>
-        new OverlapJoin().broadcastJoin(sc, smallTable, largeTable, gKSmall, gKLarge, threshold)
-      case ("Dice", "sampleJoin", false) =>
-        new DiceJoin().broadcastJoin(sc, smallTable, largeTable, gKSmall, gKLarge, threshold)
-      case ("Cosine", "sampleJoin", false) =>
-        new CosineJoin().broadcastJoin(sc, smallTable, largeTable, gKSmall, gKLarge, threshold)
-      case ("WJaccard", "sampleJoin", false) =>
-        new WeightedJaccardJoin().broadcastJoin(sc, smallTable, largeTable, gKSmall, gKLarge, threshold)
-      case ("WOverlap", "sampleJoin", false) =>
-        new WeightedOverlapJoin().broadcastJoin(sc, smallTable, largeTable, gKSmall, gKLarge, threshold)
-      case ("WDice", "sampleJoin", false) =>
-        new WeightedDiceJoin().broadcastJoin(sc, smallTable, largeTable, gKSmall, gKLarge, threshold)
-      case ("WCosine", "sampleJoin", false) =>
-        new WeightedCosineJoin().broadcastJoin(sc, smallTable, largeTable, gKSmall, gKLarge, threshold)
-      // cases for self-joins
-      case ("Jaccard", "selfJoin", true) =>
-        new JaccardJoin().broadcastSelfJoin(sc, largeTable, gKLarge, threshold)
-      case ("Overlap", "selfJoin", true) =>
-        new OverlapJoin().broadcastSelfJoin(sc, largeTable, gKLarge, threshold)
-      case ("Dice", "selfJoin", true) =>
-        new DiceJoin().broadcastSelfJoin(sc, largeTable, gKLarge, threshold)
-      case ("Cosine", "selfJoin", true) =>
-        new CosineJoin().broadcastSelfJoin(sc, largeTable, gKLarge, threshold)
-      case ("WJaccard", "selfJoin", true) =>
-        new WeightedJaccardJoin().broadcastSelfJoin(sc, largeTable, gKLarge, threshold)
-      case ("WOverlap", "selfJoin", true) =>
-        new WeightedOverlapJoin().broadcastSelfJoin(sc, largeTable, gKLarge, threshold)
-      case ("WDice", "selfJoin", true) =>
-        new WeightedDiceJoin().broadcastSelfJoin(sc, largeTable, gKLarge, threshold)
-      case ("WCosine", "selfJoin", true) =>
-        new WeightedCosineJoin().broadcastSelfJoin(sc, largeTable, gKLarge, threshold)
+    val genKeyLargeTable = BlockingKey(largeTableColMapper(blockedColNames), WordTokenizer())
+    val genKeySmallTable = BlockingKey(smallTableColMapper(blockedColNames), WordTokenizer())
+
+    simFunc match {
+      case "Jaccard" =>
+        new JaccardJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
+      case "Overlap" =>
+        new OverlapJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
+      case "Dice" =>
+        new DiceJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
+      case "Cosine" =>
+        new CosineJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
+      case "WJaccard" =>
+        new WeightedJaccardJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
+      case "WOverlap" =>
+        new WeightedOverlapJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
+      case "WDice" =>
+        new WeightedDiceJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
+      case "WCosine" =>
+        new WeightedCosineJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
+      case _ => null
+    }
+  }
+
+  /**
+   * Runs a blocking algorithm on two data sets. Uses Spark SQL.
+   * @param sc spark context
+   * @param table smallest data set (e.g. a sample of the full data set).
+   * @param colMapper largest data set (e.g. full data set).
+   */
+  def blocking(@transient sc: SparkContext,
+               table: SchemaRDD,
+               colMapper: List[String] => List[Int]): RDD[(Row, Row)] = {
+
+    val genKey = BlockingKey(colMapper(blockedColNames), WordTokenizer())
+
+    simFunc match {
+      case "Jaccard" =>
+        new JaccardJoin().broadcastJoin(sc, threshold, table, genKey)
+      case "Overlap" =>
+        new OverlapJoin().broadcastJoin(sc, threshold, table, genKey)
+      case "Dice" =>
+        new DiceJoin().broadcastJoin(sc, threshold, table, genKey)
+      case "Cosine" =>
+        new CosineJoin().broadcastJoin(sc, threshold, table, genKey)
+      case "WJaccard" =>
+        new WeightedJaccardJoin().broadcastJoin(sc, threshold, table, genKey)
+      case "WOverlap" =>
+        new WeightedOverlapJoin().broadcastJoin(sc, threshold, table, genKey)
+      case "WDice" =>
+        new WeightedDiceJoin().broadcastJoin(sc, threshold, table, genKey)
+      case "WCosine" =>
+        new WeightedCosineJoin().broadcastJoin(sc, threshold, table, genKey)
       case _ => null
     }
   }

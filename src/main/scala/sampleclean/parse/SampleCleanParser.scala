@@ -304,7 +304,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   //Demo functions
 
   def initDemo() = {
-  	val hiveContext = scc.getHiveContext();
+    val hiveContext = scc.getHiveContext();
   	hiveContext.hql("DROP TABLE restaurant")
     hiveContext.hql("CREATE TABLE IF NOT EXISTS restaurant (id STRING, entity_id STRING, name STRING, address STRING,city STRING,type STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
     hiveContext.hql("LOAD DATA LOCAL INPATH 'restaurant.csv' OVERWRITE INTO TABLE restaurant")
@@ -312,46 +312,32 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   }
 
   def demoDedup() = {
-      val sampleKey = new BlockingKey(Seq(4,5,6,7),WordTokenizer())
-      val fullKey = new BlockingKey(Seq(2,3,4,5),WordTokenizer())
 
-      def toPointLabelingContext(sampleRow1: Row, fullRow2: Row): PointLabelingContext = {
-       val sampleData = List(sampleRow1.getString(2),
-                            sampleRow1.getString(3),
-                            sampleRow1.getString(4),
-                            sampleRow1.getString(5),
-                            sampleRow1.getString(6),
-                            sampleRow1.getString(7))
+    val algoPara = new AlgorithmParameters()
 
-        val fullData = List(  fullRow2.getString(0),
-                            fullRow2.getString(1),
-                            fullRow2.getString(2),
-                            fullRow2.getString(3),
-                            fullRow2.getString(4),
-                            fullRow2.getString(5))
+    algoPara.put("id","id")
 
-        DeduplicationPointLabelingContext(List(sampleData,fullData)) 
-      }
+    val blockedCols = List("name", "address", "city", "type")
+    algoPara.put("blockingStrategy", BlockingStrategy(blockedCols))
 
-      val groupContext = new DeduplicationGroupLabelingContext("er", Map("fields" -> List("id","entity_id","name","address","city","type")))
+    val displayedCols = List("id","entity_id", "name", "address", "city", "type")
+    var featureList = List[Feature]()
+    featureList = Feature(List("name"), List("Levenshtein", "JaroWinkler")) :: featureList
+    featureList = Feature(List("address"), List("JaccardSimilarity", "QGramsDistance")) :: featureList
+    featureList = Feature(List("city"), List("Levenshtein", "JaroWinkler")) :: featureList
+    featureList = Feature(List("type"), List("Levenshtein", "JaroWinkler")) :: featureList
 
-      val f1 = new Feature(Seq(4), Seq(2), Seq("Levenshtein", "CosineSimilarity"))
-      val f2 = new Feature(Seq(5), Seq(3), Seq("Levenshtein", "CosineSimilarity"))
-      val f3 = new Feature(Seq(6), Seq(4), Seq("Levenshtein", "CosineSimilarity"))
-      val f4 = new Feature(Seq(7), Seq(5), Seq("Levenshtein", "CosineSimilarity"))
+    algoPara.put("activeLearningStrategy",
+      ActiveLearningStrategy(displayedCols)
+        .setFeatureList(featureList)
+        .setActiveLearningParameters(ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10)))
 
-      val featureVector = new FeatureVector(Seq(f1,f2,f3,f4))
+    val d = new RecordDeduplication(algoPara, scc)
+    d.blocking = false
+    d.name = "ActiveLearningDeduplication"
 
-      val algoPara = new AlgorithmParameters()
-      algoPara.put("blockingStrategy", BlockingStrategy("Jaccard", 0.6, sampleKey, fullKey))
-      algoPara.put("activeLearningStrategy", ActiveLearningStrategy(featureVector, toPointLabelingContext, groupContext))
-
-      val d = new Deduplication(algoPara, scc)
-      d.blocking = false
-      d.name = "ActiveLearningDeduplication"
-
-      val pp = new SampleCleanPipeline(saqp,List(d))
-      pp.exec("restaurant_sample")
+    val pp = new SampleCleanPipeline(saqp, List(d))
+    pp.exec("restaurant_sample")
   }
 
 
