@@ -104,12 +104,12 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
     val schema = List("attr", "count")
     val colMapper = (colNames: List[String]) => colNames.map(schema.indexOf(_))
 
-    val similarParameters = params.get("similarParameters").asInstanceOf[SimilarParameters]
+    val similarityParameters = params.get("similarityParameters").asInstanceOf[SimilarityParameters]
 
     val sc = scc.getSparkContext()
 
     val candidatePairs = BlockingStrategy(List("attr"))
-      .setSimilarParameters(similarParameters)
+      .setSimilarityParameters(similarityParameters)
       .blocking(sc, attrDedup, colMapper)
 
     println("cand count = " + candidatePairs.count())

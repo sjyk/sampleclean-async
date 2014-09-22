@@ -78,7 +78,7 @@ case class BlockingKey(cols: Seq[Int],
   }
 }
 
-case class SimilarParameters(simFunc: String = "WJaccard",
+case class SimilarityParameters(simFunc: String = "WJaccard",
                              threshold: Double = 0.5,
                              tokenizer: Tokenizer = WordTokenizer(),
                              lowerCase: Boolean = true)
@@ -94,54 +94,54 @@ case class SimilarParameters(simFunc: String = "WJaccard",
  */
 case class BlockingStrategy(blockedColNames: List[String]){
 
-  var similarParameters = SimilarParameters()
+  var similarityParameters = SimilarityParameters()
 
 
-  def setSimilarParameters(similarParameters: SimilarParameters): BlockingStrategy = {
-    this.similarParameters = similarParameters
+  def setSimilarityParameters(similarityParameters: SimilarityParameters): BlockingStrategy = {
+    this.similarityParameters = similarityParameters
     return this
   }
 
-  def getSimilarParameters(): SimilarParameters = {
-    return this.similarParameters
+  def getSimilarityParameters(): SimilarityParameters = {
+    return this.similarityParameters
   }
 
   def setThreshold(threshold: Double): BlockingStrategy = {
-    similarParameters
-      = SimilarParameters(similarParameters.simFunc, threshold, similarParameters.tokenizer, similarParameters.lowerCase)
+    similarityParameters
+      = SimilarityParameters(similarityParameters.simFunc, threshold, similarityParameters.tokenizer, similarityParameters.lowerCase)
     return this
   }
 
   def getThreshold(): Double = {
-    return similarParameters.threshold
+    return similarityParameters.threshold
   }
 
   def setSimFunc(simFunc: String): BlockingStrategy = {
-    similarParameters
-      = SimilarParameters(simFunc, similarParameters.threshold, similarParameters.tokenizer, similarParameters.lowerCase)
+    similarityParameters
+      = SimilarityParameters(simFunc, similarityParameters.threshold, similarityParameters.tokenizer, similarityParameters.lowerCase)
     return this
   }
 
   def getSimFunc(): String = {
-    return similarParameters.simFunc
+    return similarityParameters.simFunc
   }
   def setTokenizer(tokenizer: Tokenizer): BlockingStrategy = {
-    similarParameters
-      = SimilarParameters(similarParameters.simFunc, similarParameters.threshold, tokenizer, similarParameters.lowerCase)
+    similarityParameters
+      = SimilarityParameters(similarityParameters.simFunc, similarityParameters.threshold, tokenizer, similarityParameters.lowerCase)
     return this
   }
   def getTokenizer(): Tokenizer = {
-    return similarParameters.tokenizer
+    return similarityParameters.tokenizer
   }
 
   def setLowerCase(lowerCase: Boolean): BlockingStrategy = {
-    similarParameters
-      = SimilarParameters(similarParameters.simFunc, similarParameters.threshold, similarParameters.tokenizer, lowerCase)
+    similarityParameters
+      = SimilarityParameters(similarityParameters.simFunc, similarityParameters.threshold, similarityParameters.tokenizer, lowerCase)
     return this
   }
 
   def getLowerCase(): Boolean = {
-    return similarParameters.lowerCase
+    return similarityParameters.lowerCase
   }
 
   /**
@@ -157,11 +157,11 @@ case class BlockingStrategy(blockedColNames: List[String]){
                smallTableColMapper: List[String] => List[Int]
                ): RDD[(Row, Row)] = {
 
-    val genKeyLargeTable = BlockingKey(largeTableColMapper(blockedColNames), similarParameters.tokenizer)
-    val genKeySmallTable = BlockingKey(smallTableColMapper(blockedColNames), similarParameters.tokenizer)
+    val genKeyLargeTable = BlockingKey(largeTableColMapper(blockedColNames), similarityParameters.tokenizer)
+    val genKeySmallTable = BlockingKey(smallTableColMapper(blockedColNames), similarityParameters.tokenizer)
 
-    val simFunc = similarParameters.simFunc
-    val threshold = similarParameters.threshold
+    val simFunc = similarityParameters.simFunc
+    val threshold = similarityParameters.threshold
     simFunc match {
       case "Jaccard" =>
         new JaccardJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
@@ -193,11 +193,11 @@ case class BlockingStrategy(blockedColNames: List[String]){
                table: SchemaRDD,
                colMapper: List[String] => List[Int]): RDD[(Row, Row)] = {
 
-    val genKey = BlockingKey(colMapper(blockedColNames), similarParameters.tokenizer)
+    val genKey = BlockingKey(colMapper(blockedColNames), similarityParameters.tokenizer)
 
 
-    val simFunc = similarParameters.simFunc
-    val threshold = similarParameters.threshold
+    val simFunc = similarityParameters.simFunc
+    val threshold = similarityParameters.threshold
     println("simFunc = " + simFunc + " threshold = " + threshold.toString)
     simFunc match {
       case "Jaccard" =>

@@ -331,11 +331,11 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     featureList = Feature(List("city"), List("Levenshtein", "JaroWinkler")) :: featureList
     featureList = Feature(List("type"), List("Levenshtein", "JaroWinkler")) :: featureList
 
-   /* algoPara.put("activeLearningStrategy",
+    algoPara.put("activeLearningStrategy",
       ActiveLearningStrategy(displayedCols)
         .setFeatureList(featureList)
         .setActiveLearningParameters(ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10)))
-*/
+
     val d = new RecordDeduplication(algoPara, scc)
     d.blocking = false
     d.name = "ActiveLearningDeduplication"
@@ -350,7 +350,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     val algoPara = new AlgorithmParameters()
 
     algoPara.put("dedupAttr", "city")
-    algoPara.put("similarParameters", SimilarParameters(simFunc = "Jaccard", tokenizer = GramTokenizer(2), threshold = 0.5))
+    algoPara.put("similarParameters", SimilarityParameters(simFunc = "Jaccard", tokenizer = GramTokenizer(2), threshold = 0.5))
 
 
     val d = new AttributeDeduplication(algoPara, scc)
