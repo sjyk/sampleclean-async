@@ -79,9 +79,14 @@ case class AttrDedup(attr: String, count: String)
 class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext)
   extends SampleCleanDeduplicationAlgorithm(params,scc) {
 
+  def replaceIfEqual(x:String, test:String, out:String): String ={
+      if(x.equals(test))
+        return out
+      else
+        return x
+    }
+
   def exec(sampleTableName: String) = {
-
-
 
     val attr = params.get("dedupAttr").asInstanceOf[String]
 
@@ -114,10 +119,26 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
 
     println("cand count = " + candidatePairs.count())
 
-    candidatePairs.foreach{case (row1, row2) =>
-      println(row1.getString(0))
-      println(row2.getString(0))
+    var resultRDD = sampleTableRDD.map(x => 
+                                          (scc.getColAsString(x,sampleTableName,"hash"), 
+                                            scc.getColAsString(x,sampleTableName,attr)))
+
+    
+
+    for(pair <- candidatePairs.collect()){
+        val row1 = pair._1
+        val row2 = pair._2
+
+        resultRDD = resultRDD.map(x => (x._1 ,
+                                        replaceIfEqual(x._2,
+                                                    row1.getString(0),
+                                                    row2.getString(0))
+                                     )
+                                )
     }
+    
+
+    scc.updateTableAttrValue(sampleTableName, attr, resultRDD)
   }
 
   def defer(sampleTableName:String):RDD[(String,Int)] = {
