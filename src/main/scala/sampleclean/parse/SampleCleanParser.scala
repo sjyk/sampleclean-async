@@ -350,7 +350,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     val algoPara = new AlgorithmParameters()
 
     algoPara.put("dedupAttr", "city")
-    algoPara.put("similarityParameters", SimilarityParameters(simFunc = "Jaccard", tokenizer = GramTokenizer(2), threshold = 0.5))
+    algoPara.put("similarityParameters", SimilarityParameters(simFunc = "Jaccard", tokenizer = GramTokenizer(2), threshold = 0.25))
 
 
     val d = new AttributeDeduplication(algoPara, scc)

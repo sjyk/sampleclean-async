@@ -74,7 +74,7 @@ class RecordDeduplication(params:AlgorithmParameters, scc: SampleCleanContext)
 
 }
 
-case class AttrDedup(attr: String, count: String)
+case class AttrDedup(attr: String, count: Int)
 
 class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext)
   extends SampleCleanDeduplicationAlgorithm(params,scc) {
@@ -86,11 +86,14 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
         return x
     }
 
+
+  var graph:Map[Row, Set[Row]] = Map[Row, Set[Row]]()
+
   def exec(sampleTableName: String) = {
 
     val attr = params.get("dedupAttr").asInstanceOf[String]
 
-    println("attr = " + attr)
+    //println("attr = " + attr)
 
     val sampleTableRDD = scc.getCleanSample(sampleTableName)
 
@@ -102,9 +105,9 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
     val attrDedup: SchemaRDD = sampleTableRDD.map(row =>
       (scc.getColAsString(row, sampleTableName, attr).trim, 1)).filter(_._1 != "")
       .reduceByKey(_ + _)
-      .map(x => AttrDedup(x._1, x._2.toString)).cache()
+      .map(x => AttrDedup(x._1, x._2)).cache()
 
-    attrDedup.foreach(row => println(row.getString(0)+" "+row.getString(1)))
+    //attrDedup.foreach(row => println(row.getString(0)+" "+row.getString(1)))
 
     val schema = List("attr", "count")
     val colMapper = (colNames: List[String]) => colNames.map(schema.indexOf(_))
@@ -117,28 +120,87 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
       .setSimilarityParameters(similarityParameters)
       .blocking(sc, attrDedup, colMapper)
 
-    println("cand count = " + candidatePairs.count())
+    //println("cand count = " + candidatePairs.count())
 
     var resultRDD = sampleTableRDD.map(x => 
                                           (scc.getColAsString(x,sampleTableName,"hash"), 
                                             scc.getColAsString(x,sampleTableName,attr)))
 
-    
 
-    for(pair <- candidatePairs.collect()){
-        val row1 = pair._1
-        val row2 = pair._2
 
+    for(pair <- candidatePairs.collect())
+        addToGraphUndirected(pair._1, pair._2)
+
+    //println("Graph " + graph)
+
+    val connectedPairs = connectedComponentsToExecOrder(connectedComponents())
+    for(p <- connectedPairs)
+    {
         resultRDD = resultRDD.map(x => (x._1 ,
                                         replaceIfEqual(x._2,
-                                                    row1.getString(0),
-                                                    row2.getString(0))
-                                     )
-                                )
+                                                    p._1,
+                                                    p._2)))
+
+        //println("Merging " + p._1 + " -> " + p._2)
     }
-    
 
     scc.updateTableAttrValue(sampleTableName, attr, resultRDD)
+  }
+
+  def addToGraphUndirected(vertex:Row, edgeTo:Row) ={
+
+    if(graph contains vertex){
+          graph = graph + (vertex -> (graph(vertex) + edgeTo))
+        }
+        else{
+          graph = graph + (vertex -> Set(edgeTo))
+    }
+
+    if(graph contains edgeTo){
+          graph = graph + (edgeTo -> (graph(edgeTo) + vertex))
+        }
+        else{
+          graph = graph + (edgeTo -> Set(vertex))
+    }
+
+  }
+
+  def dfs(vertex:Row, traverseSet:Set[Row]=Set[Row]()):Set[Row]={
+      if(! (graph contains vertex))
+        return Set()
+
+      var resultSet = Set(vertex)
+      for(neighbor <- graph(vertex)){
+         if(! (traverseSet contains neighbor))
+           resultSet = resultSet ++ (dfs(neighbor, traverseSet + vertex) + vertex)
+      }
+
+      return resultSet
+  }
+
+  def connectedComponentsToExecOrder(comps: Set[Set[Row]]): List[(String, String)] ={
+    
+    def compOperator(row1:Row, row2:Row) = (row1.getInt(1) < row2.getInt(1))
+    var resultList = List[(String, String)]()
+    for(comp <- comps){
+
+      val sortedList = comp.toList.sortWith(compOperator)
+      for(i <- 0 until (sortedList.length - 1) )
+        resultList = (sortedList(i).getString(0),sortedList(sortedList.length - 1).getString(0))  :: resultList 
+
+    }
+
+    return resultList
+
+  }
+
+  def connectedComponents():Set[Set[Row]] = {
+     var resultSet = Set[Set[Row]]()
+     for(v <- graph.keySet){
+        resultSet = resultSet + dfs(v)
+     }
+
+     return resultSet
   }
 
   def defer(sampleTableName:String):RDD[(String,Int)] = {
