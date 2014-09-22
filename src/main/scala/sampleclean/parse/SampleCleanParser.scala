@@ -276,10 +276,14 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
       execLibraryRoutine(command)
   		return ("Lib Routine", (System.nanoTime - now)/1000000)
       }
-  	 else if(firstToken.equals("dedup")){
-        demoDedup()
+  	 else if(firstToken.equals("deduprec")){
+        demoDedupRec()
   		  return ("Dedup", (System.nanoTime - now)/1000000)
-  	  }
+  	 }
+     else if(firstToken.equals("dedupattr")){
+       demoDedupAttr()
+       return ("Dedup", (System.nanoTime - now)/1000000)
+     }
   	 else if(firstToken.equals("selectrawsc")){
   		  println(queryParser(command).execute())
   		  return ("Complete", (System.nanoTime - now)/1000000)
@@ -305,20 +309,20 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
   def initDemo() = {
     val hiveContext = scc.getHiveContext();
-  	hiveContext.hql("DROP TABLE restaurant")
+  	hiveContext.hql("DROP TABLE IF EXISTS restaurant")
     hiveContext.hql("CREATE TABLE IF NOT EXISTS restaurant (id STRING, entity_id STRING, name STRING, address STRING,city STRING,type STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
     hiveContext.hql("LOAD DATA LOCAL INPATH 'restaurant.csv' OVERWRITE INTO TABLE restaurant")
     scc.closeHiveSession()
   }
 
-  def demoDedup() = {
+  def demoDedupRec() = {
 
     val algoPara = new AlgorithmParameters()
 
     algoPara.put("id","id")
 
     val blockedCols = List("name", "address", "city", "type")
-    algoPara.put("blockingStrategy", BlockingStrategy(blockedCols))
+    algoPara.put("blockingStrategy", BlockingStrategy(blockedCols).setThreshold(0.4))
 
     val displayedCols = List("id","entity_id", "name", "address", "city", "type")
     var featureList = List[Feature]()
@@ -327,11 +331,11 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     featureList = Feature(List("city"), List("Levenshtein", "JaroWinkler")) :: featureList
     featureList = Feature(List("type"), List("Levenshtein", "JaroWinkler")) :: featureList
 
-    algoPara.put("activeLearningStrategy",
+   /* algoPara.put("activeLearningStrategy",
       ActiveLearningStrategy(displayedCols)
         .setFeatureList(featureList)
         .setActiveLearningParameters(ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10)))
-
+*/
     val d = new RecordDeduplication(algoPara, scc)
     d.blocking = false
     d.name = "ActiveLearningDeduplication"
@@ -339,6 +343,25 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     val pp = new SampleCleanPipeline(saqp, List(d))
     pp.exec("restaurant_sample")
   }
+
+
+  def demoDedupAttr() = {
+
+    val algoPara = new AlgorithmParameters()
+
+    algoPara.put("dedupAttr", "city")
+    algoPara.put("similarParameters", SimilarParameters(simFunc = "Jaccard", tokenizer = GramTokenizer(2), threshold = 0.5))
+
+
+    val d = new AttributeDeduplication(algoPara, scc)
+    d.blocking = false
+    d.name = "AttributeDeduplication"
+
+    val pp = new SampleCleanPipeline(saqp, List(d))
+    pp.exec("restaurant_sample")
+  }
+
+
 
 
 }

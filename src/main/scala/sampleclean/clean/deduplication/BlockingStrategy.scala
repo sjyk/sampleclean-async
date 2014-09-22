@@ -78,6 +78,11 @@ case class BlockingKey(cols: Seq[Int],
   }
 }
 
+case class SimilarParameters(simFunc: String = "WJaccard",
+                             threshold: Double = 0.5,
+                             tokenizer: Tokenizer = WordTokenizer(),
+                             lowerCase: Boolean = true)
+
 /**
  * This class builds a blocking strategy for two data sets.
  * Blocking keys are created for each record and then compared against
@@ -89,39 +94,54 @@ case class BlockingKey(cols: Seq[Int],
  */
 case class BlockingStrategy(blockedColNames: List[String]){
 
-  // blocking strategy parameters
-  var simFunc: String = "Jaccard"
-  var threshold: Double = 0.7
-  var tokenizer: Tokenizer = WordTokenizer()
-  var lowerCase: Boolean = true
+  var similarParameters = SimilarParameters()
+
+
+  def setSimilarParameters(similarParameters: SimilarParameters): BlockingStrategy = {
+    this.similarParameters = similarParameters
+    return this
+  }
+
+  def getSimilarParameters(): SimilarParameters = {
+    return this.similarParameters
+  }
 
   def setThreshold(threshold: Double): BlockingStrategy = {
-    this.threshold = threshold
+    similarParameters
+      = SimilarParameters(similarParameters.simFunc, threshold, similarParameters.tokenizer, similarParameters.lowerCase)
     return this
   }
+
   def getThreshold(): Double = {
-    return this.threshold
+    return similarParameters.threshold
   }
+
   def setSimFunc(simFunc: String): BlockingStrategy = {
-    this.simFunc = simFunc
+    similarParameters
+      = SimilarParameters(simFunc, similarParameters.threshold, similarParameters.tokenizer, similarParameters.lowerCase)
     return this
   }
+
   def getSimFunc(): String = {
-    return this.simFunc
+    return similarParameters.simFunc
   }
   def setTokenizer(tokenizer: Tokenizer): BlockingStrategy = {
-    this.tokenizer = tokenizer
+    similarParameters
+      = SimilarParameters(similarParameters.simFunc, similarParameters.threshold, tokenizer, similarParameters.lowerCase)
     return this
   }
   def getTokenizer(): Tokenizer = {
-    return this.tokenizer
+    return similarParameters.tokenizer
   }
-  def setLowerCase(threshold: Double): BlockingStrategy = {
-    this.lowerCase = lowerCase
+
+  def setLowerCase(lowerCase: Boolean): BlockingStrategy = {
+    similarParameters
+      = SimilarParameters(similarParameters.simFunc, similarParameters.threshold, similarParameters.tokenizer, lowerCase)
     return this
   }
+
   def getLowerCase(): Boolean = {
-    return this.lowerCase
+    return similarParameters.lowerCase
   }
 
   /**
@@ -137,9 +157,11 @@ case class BlockingStrategy(blockedColNames: List[String]){
                smallTableColMapper: List[String] => List[Int]
                ): RDD[(Row, Row)] = {
 
-    val genKeyLargeTable = BlockingKey(largeTableColMapper(blockedColNames), WordTokenizer())
-    val genKeySmallTable = BlockingKey(smallTableColMapper(blockedColNames), WordTokenizer())
+    val genKeyLargeTable = BlockingKey(largeTableColMapper(blockedColNames), similarParameters.tokenizer)
+    val genKeySmallTable = BlockingKey(smallTableColMapper(blockedColNames), similarParameters.tokenizer)
 
+    val simFunc = similarParameters.simFunc
+    val threshold = similarParameters.threshold
     simFunc match {
       case "Jaccard" =>
         new JaccardJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
@@ -157,7 +179,7 @@ case class BlockingStrategy(blockedColNames: List[String]){
         new WeightedDiceJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
       case "WCosine" =>
         new WeightedCosineJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
-      case _ => null
+      case _ => println("Cannot support "+simFunc); null
     }
   }
 
@@ -171,8 +193,12 @@ case class BlockingStrategy(blockedColNames: List[String]){
                table: SchemaRDD,
                colMapper: List[String] => List[Int]): RDD[(Row, Row)] = {
 
-    val genKey = BlockingKey(colMapper(blockedColNames), WordTokenizer())
+    val genKey = BlockingKey(colMapper(blockedColNames), similarParameters.tokenizer)
 
+
+    val simFunc = similarParameters.simFunc
+    val threshold = similarParameters.threshold
+    println("simFunc = " + simFunc + " threshold = " + threshold.toString)
     simFunc match {
       case "Jaccard" =>
         new JaccardJoin().broadcastJoin(sc, threshold, table, genKey)
@@ -190,7 +216,7 @@ case class BlockingStrategy(blockedColNames: List[String]){
         new WeightedDiceJoin().broadcastJoin(sc, threshold, table, genKey)
       case "WCosine" =>
         new WeightedCosineJoin().broadcastJoin(sc, threshold, table, genKey)
-      case _ => null
+      case _ => println("Cannot support "+simFunc); null
     }
   }
 }
