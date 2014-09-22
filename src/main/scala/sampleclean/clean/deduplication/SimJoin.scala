@@ -192,6 +192,11 @@ class CosineJoin extends PrefixFiltering{
 
 }
 
+class joinType() {
+
+
+}
+
 
 
 /*

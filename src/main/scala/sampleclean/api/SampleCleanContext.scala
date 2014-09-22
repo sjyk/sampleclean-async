@@ -320,7 +320,43 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		return schemaList.reverse
 	}
 
-	/** This function returns all the tables we have created in this session
+  /**Given a table name and col names, this retrieves the indices of these cols in the table
+    * from the Hive Catalog
+    */
+  def getColIndicesByNames(tableName:String, colNames:List[String]):List[Int] = {
+    val schemaList = getHiveTableSchema(tableName)
+    colNames.foldRight(List[Int]())((a, b) => schemaList.indexOf(a) :: b)
+  }
+
+  /**Given a table name and a col name, this retrieves the index of the col in the table
+    * from the Hive Catalog
+    */
+  def getColIndexByName(tableName:String, colName:String):Int = {
+    val schemaList = getHiveTableSchema(tableName)
+    schemaList.indexOf(colName)
+  }
+
+  /**Return a map that is from col names to col indices for the clean sample table
+    */
+  def getSampleTableColMapper(sampleName:String):List[String] => List[Int] = {
+    val cleanSampleName = qb.getCleanSampleName(sampleName)
+    getColIndicesByNames(cleanSampleName, _: List[String])
+  }
+
+  /**Return a map that is from col names to col indices for the full table
+    */
+  def getFullTableColMapper(sampleName:String):List[String] => List[Int] = {
+    val fullTableName = getParentTable(qb.getCleanSampleName(sampleName))
+    getColIndicesByNames(fullTableName, _: List[String])
+  }
+
+
+
+
+
+
+
+  /** This function returns all the tables we have created in this session
 	as temporary tables.
 	*/
 	def getAllTempTables():List[String] = {
