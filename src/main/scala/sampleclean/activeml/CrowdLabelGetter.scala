@@ -1,22 +1,10 @@
 package sampleclean.activeml
 
-import java.util.concurrent.ConcurrentHashMap
-
-import com.twitter.finagle.Service
-import com.twitter.finagle.builder.ClientBuilder
-import com.twitter.finagle.http.{Http, RequestBuilder}
 import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
-import org.jboss.netty.handler.codec.http.{HttpRequest, HttpResponse, HttpResponseStatus}
-import org.json4s.JsonDSL._
-import org.json4s._
-import org.json4s.jackson.JsonMethods._
-import org.json4s.native.Serialization
-import org.json4s.native.Serialization.{read, write => swrite}
 
-import scala.collection.mutable
-import scala.concurrent.{Promise, _}
+import scala.concurrent._
 import scala.concurrent.duration.Duration
 
 /**
@@ -80,49 +68,6 @@ case class CrowdLabelGetterParameters
   maxVotesPerPoint: Int=1
   )
 
-/** Companion object for the crowd label getter. Ensures that the web server is running and the callback is set up. */
-object CrowdLabelGetter {
-  val crowdJobURL = "amt/hitsgen/"
-
-  // Set up a cache for returned crowd labels
-  val groupMap = new mutable.HashMap[String, Set[String]]()
-  val intermediateResults = new ConcurrentHashMap[String, CrowdResult]()
-  val labelCache = new ConcurrentHashMap[String, Promise[CrowdResult]]()
-
-  /**
-    * Stores new crowd labels in the cache and resolves futures once the whole group has been labeled.
-    * @param result new crowd label.
-    */
-  def storeCrowdResult(result: CrowdResult) {
-    // update the intermediate results for this group
-    val groupId = result.group_id
-    var newResults:CrowdResult = null
-    if (!intermediateResults.containsKey(groupId)) {
-      newResults = result
-    } else {
-      val currentResults = intermediateResults.get(groupId)
-      newResults = new CrowdResult(groupId, currentResults.answers ++ result.answers)
-    }
-    intermediateResults.put(groupId, newResults)
-
-    // if we have results for every point in the group, return.
-    // Note: could implement other strategies here (e.g., early return).
-    if (newResults.answers.map(answer => answer.identifier).toSet equals groupMap.getOrElse(groupId, null)) {
-      val labelPromise = labelCache.get(groupId)
-      if (labelPromise != null) {
-        labelPromise success newResults
-      } else {
-        //println("Invalid group id: " + groupId)
-      }
-      // Clean up groupMap and intermediateResults.
-      groupMap.remove(groupId)
-      intermediateResults.remove(groupId)
-    } else {
-      //println("Not done with group yet! Awaiting " + (groupMap.getOrElse(groupId, null).size - newResults.answers.size) + " labels.")
-    }
-  }
-  CrowdHTTPServer.setCallback(storeCrowdResult)
-}
 
 /**
   * Gets labels from the crowd service by posting them as HITs to Amazon Mechanical Turk.
@@ -133,64 +78,6 @@ class CrowdLabelGetter(parameters: CrowdLabelGetterParameters) extends LabelGett
 
   // Make sure the web server has started
   CrowdHTTPServer.start(parameters.responseServerPort)
-
-  /**
-    * Send a group of points to the crowd service for asynchronous labeling.
-    * @param groupId a unique id for the group of points.
-    * @param points the points to label, with enough context to label them.
-    * @param groupContext context shared by all points in the group.
-    */
-  def startLabelRequest(groupId:String, points:Seq[(String, Vector, PointLabelingContext)], groupContext: GroupLabelingContext) {
-
-    // Generate JSON according to the crowd server's API
-    implicit val formats = Serialization.formats(NoTypeHints)
-    val pointsJSON = (points map {point => point._1 -> parse(swrite(point._3.content))}).toMap
-    val groupContextJSON = parse(swrite(groupContext.data))
-    val requestData = compact(render(
-      ("configuration" ->
-        ("type" -> groupContext.taskType) ~
-          ("hit_batch_size" -> parameters.maxPointsPerHIT) ~
-          ("num_assignments" -> parameters.maxVotesPerPoint) ~
-          ("callback_url" -> ("http://" + parameters.responseServerHost + ":" + parameters.responseServerPort))) ~
-        ("group_id" -> groupId) ~
-        ("group_context" -> groupContextJSON) ~
-        ("content" -> pointsJSON)))
-    //println("Request JSON: " + requestData)
-
-    // Send the request to the crowd server.
-    //println("Issuing request...")
-    val client: Service[HttpRequest, HttpResponse] = ClientBuilder()
-      .codec(Http())
-      .hosts(parameters.crowdServerHost + ":" + parameters.crowdServerPort)
-      .hostConnectionLimit(1)
-      .tlsWithoutValidation() // TODO: ONLY IN DEVELOPMENT
-      .build()
-    val request = RequestBuilder()
-      .url("https://" + parameters.crowdServerHost + ":" + parameters.crowdServerPort + "/" + CrowdLabelGetter.crowdJobURL)
-      .addHeader("Charset", "UTF-8")
-      .addFormElement(("data", requestData))
-      .buildFormPost()
-    val responseFuture = client(request)
-
-    // Check that our crowd request was successful. The response data will be handled by CrowdHTTPServer.callback
-    responseFuture onSuccess { resp: HttpResponse =>
-      val responseData = resp.getContent.toString("UTF-8")
-      resp.getStatus  match {
-        case HttpResponseStatus.OK =>
-          implicit val formats = DefaultFormats
-          (parse(responseData) \ "status").extract[String] match {
-            case "ok" =>  println("[SampleClean] Created AMT HIT")
-            case other: String => println("Error! Bad request: " + other)
-          }
-        case other: HttpResponseStatus =>
-          println("Error! Got unexpected response status " + other.getCode + ". Data: " + responseData)
-      }
-
-    } onFailure { exc: Throwable =>
-      println("Failure!")
-      throw exc
-    }
-  }
 
   /**
     * Asynchronously get labels for a group of points from the crowd.
@@ -204,27 +91,15 @@ class CrowdLabelGetter(parameters: CrowdLabelGetterParameters) extends LabelGett
     // generate an id for this group of points
     val groupId = utils.randomUUID()
     //println("NEW ACTIVE LEARNING BATCH: id=" + groupId)
-    System.out.flush()
 
     // gather the points and store their vectors, since the number should be small
     val pointGroup = points.collect()
     val pointMap = (pointGroup map {p => p._1 -> p._2}).toMap
-
-    // Register the point ids in the group map.
-    CrowdLabelGetter.groupMap.put(groupId, pointGroup map {p => p._1} toSet)
-
-    // Register a promise for the group.
-    val crowdResponse = Promise[CrowdResult]()
-    val crowdFuture = crowdResponse.future
-    CrowdLabelGetter.labelCache.put(groupId, crowdResponse)
-
-    // Send the group to the crowd for asynchronous processing.
-    startLabelRequest(groupId, pointGroup, groupContext)
+    val crowdFuture = CrowdHTTPServer.makeRequest(groupId, pointGroup map {p => p._1 -> p._3}, groupContext, parameters)
 
     // Block until the group is ready.
     val crowdResult = Await.result(crowdFuture, Duration.Inf)
     //println("REQUEST COMPLETE: id=" + groupId)
-    System.out.flush()
 
     // Extract and return the labeled points as an RDD
     val labeledPoints = crowdResult.answers map { answer =>

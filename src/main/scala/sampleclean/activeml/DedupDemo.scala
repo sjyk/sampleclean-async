@@ -40,11 +40,7 @@ object DedupDemo {
   var trainN: Long = 0
   var testN: Long = 0
 
-  /*
-   * Run an example program that does 'active learning' on generated svm data.
-   * Right now it doesn't actually get good labels for the data, it just shows the crowd a dummy tweet for sentiment
-   * analysis.
-   */
+  /* Run an example program that does trains an active learning model to recognize duplicate restaurants. */
   def main(args: Array[String]) {
 
     // load some sample data
