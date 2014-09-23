@@ -25,6 +25,7 @@ import sampleclean.clean.deduplication.WordTokenizer
 import sampleclean.clean.deduplication.BlockingStrategy
 import sampleclean.clean.deduplication.BlockingKey
 import sampleclean.clean.deduplication.ActiveLearningStrategy
+import sampleclean.clean.deduplication.CrowdsourcingStrategy
 
 /** The SampleCleanParser is the class that handles parsing SampleClean commands
  *  this class triggers execution when a command is parsed successfully. Commands
@@ -353,6 +354,8 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     algoPara.put("similarityParameters", SimilarityParameters(simFunc = "Jaccard", tokenizer = GramTokenizer(2), threshold = 0.25))
 
 
+    val crowdParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 10)
+    algoPara.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdLabelGetterParameters(crowdParameters))
     val d = new AttributeDeduplication(algoPara, scc)
     d.blocking = false
     d.name = "AttributeDeduplication"
