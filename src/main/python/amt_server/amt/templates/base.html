@@ -72,6 +72,26 @@
 					event.preventDefault();
 					submit_results();
 				});
+				
+				//disable the buttons
+				var paramstr = window.location.search.substring(1);
+				var parampairs = paramstr.split("&");
+				var allow = false;
+				
+				for (i in parampairs)
+				{
+					var pair = parampairs[i].split("=");
+					if (pair[0] == "assignmentId" && pair[1] != 'ASSIGNMENT_ID_NOT_AVAILABLE')
+						allow = true;
+				}
+								
+				if (! allow)
+				{
+					var input_elements = document.getElementsByTagName('input');
+					for (var i = 0; i < input_elements.length; i ++)
+						if (input_elements[i].type == "radio")
+							input_elements[i].disabled = true;
+				}
 			});	
 		</script>
 
