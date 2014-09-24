@@ -87,6 +87,44 @@ class SampleCleanContext(@transient sc: SparkContext) {
 								qb.getDirtySampleName(tableName))))
 	}
 
+
+	/** This function initializes the clean and dirty consistently hashed
+	* samples as
+    * Schema RDD's in a tuple (Clean, Dirty). There is an additional
+    * flag to persist the rdd in HIVE if desired.
+    *
+    * Args base table, sample name, sampling ratio, persist (optional)
+    */
+	def initializeConsistent(baseTable:String, tableName:String, onKey:String, samplingFrac: Long, persist:Boolean=true): (SchemaRDD, SchemaRDD) = {
+
+		val hiveContext = new HiveContext(sc)
+		//creates the clean sample using a consistent hashing procedure
+		val selectionList = List(onKey + " as hash",
+			                     "1 as dup", "*")
+
+		if(persist)
+		{
+			var query = qb.createTableAs(qb.getCleanSampleName(tableName)) +
+			qb.buildSelectQuery(selectionList,baseTable) +
+			qb.tableConsistentHash(samplingFrac,onKey)
+
+			hiveContext.hql(query)
+
+			hiveContext.hql(qb.setTableParent(qb.getCleanSampleName(tableName),baseTable + " " + 1.0/samplingFrac))
+
+			query = qb.createTableAs(qb.getDirtySampleName(tableName)) +
+					qb.buildSelectQuery(List("*"),qb.getCleanSampleName(tableName))
+		
+
+			hiveContext.hql(query)
+		}
+		
+		return (hiveContext.hql(qb.buildSelectQuery(List("*"),
+								qb.getCleanSampleName(tableName))), 
+				hiveContext.hql(qb.buildSelectQuery(List("*"),
+								qb.getDirtySampleName(tableName))))
+	}
+
 	/* This function cleans up after using initializeHive by dropping
 	 * any temp tables. If you use hive and don't execute this command, 
 	 * the samples can persist between sessions as it will be written

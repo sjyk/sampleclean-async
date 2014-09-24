@@ -40,6 +40,12 @@ class QueryBuilder(scc: SampleCleanContext) {
 		return SAMPLE_TEMPLATE.replace("%r",sampleRatio+"")
 	}
 
+	/** Returns the syntax for table sampling
+	*/
+	def tableConsistentHash(sampleFrac:Long, onKey:String):String ={
+		return " where hash(" +onKey +") % " + sampleFrac + " = 1" 
+	}
+
 	/** Takes a list of attributes and formats them into a selection string
 	*/
 	def attrsToSelectionList(attrs:List[String]): String = {
@@ -126,13 +132,116 @@ class QueryBuilder(scc: SampleCleanContext) {
 	/** Returns the "clean" sample name
 	*/
 	def getCleanSampleName(sampleName:String):String = {
-		return sampleName + "_clean"
+		val sampleExprSplit = sampleName.replaceAll("=", " = ")
+		val splitComponents = sampleExprSplit.split("\\s+")
+		val reservedWords = List("on", "join", "left", "right", "outer", "semi", "=")
+		var resultString = ""
+		for(comp <- splitComponents){
+			if(reservedWords contains comp){
+				resultString = resultString + " "+ comp
+			}
+			else{
+				
+				if(comp.indexOf(".") >= 0){
+					resultString = resultString + " "+ 
+					                            comp.substring(0, comp.indexOf("."))+
+												"_clean" +
+												comp.substring(comp.indexOf("."))
+				}
+				else{
+					resultString = resultString + " "+ comp+"_clean"
+				}
+			}
+		}
+		return resultString
+	}
+
+	def getCleanFactSampleName(sampleName:String,dirty:Boolean = false):String = {
+		var suffix = "_clean"
+
+		if(dirty)
+			suffix = "_dirty"
+
+		val splitComponents = sampleName.split("\\s+")
+		return splitComponents(0)+suffix
+	}
+
+	def getFactSampleName(sampleName:String):String = {
+		val splitComponents = sampleName.split("\\s+")
+		return splitComponents(0)
+	}
+
+	def getCleanDimSampleName(sampleName:String,dirty:Boolean = false):String = {
+		var suffix = "_clean"
+
+		if(dirty)
+			suffix = "_dirty"
+
+		val splitComponents = sampleName.split("\\s+")
+		return splitComponents(2)+suffix
+	}
+
+	def getDimSampleName(sampleName:String):String = {
+		val splitComponents = sampleName.split("\\s+")
+		return splitComponents(2)
+	}
+
+	def transformExplicitExpr(expr:String, sampleName:String, dirty:Boolean=false):String = {
+		val splitComponents = sampleName.split("\\s+")
+		var result = expr
+		if(splitComponents.length > 1){
+			result = result.replaceAll(getDimSampleName(sampleName),
+									 getCleanDimSampleName(sampleName, dirty))
+
+			result = result.replaceAll(getFactSampleName(sampleName),
+									 getCleanFactSampleName(sampleName,dirty))
+		}
+		else
+		{
+			result = result.replaceAll(getFactSampleName(sampleName),
+									 getCleanFactSampleName(sampleName,dirty))
+		}
+
+		return result
+	}
+
+	def exprToDupString(sampleName:String):String = {
+		val splitComponents = sampleName.split("\\s+")
+		if(splitComponents.length > 1){
+			return getCleanFactSampleName(sampleName) + ".dup*"	+ 
+				  getCleanDimSampleName(sampleName) + ".dup"
+		}
+		else{
+			return "dup"
+		}
 	}
 
 	/** Returns the "dirty" sample name
 	*/
 	def getDirtySampleName(sampleName:String):String = {
-		return sampleName + "_dirty"
+		val sampleExprSplit = sampleName.replaceAll("=", " = ")
+		val splitComponents = sampleExprSplit.split("\\s+")
+		val reservedWords = List("on", "join", "left", "right", "outer", "semi", "=")
+		var resultString = ""
+		for(comp <- splitComponents){
+			if(reservedWords contains comp){
+				resultString = resultString + " "+ comp
+			}
+			else{
+				
+				if(comp.indexOf(".") >= 0){
+					resultString = resultString + " "+
+					                            comp.substring(0, comp.indexOf("."))+
+												"_dirty" +
+												comp.substring(comp.indexOf("."))
+				}
+				else{
+					resultString = resultString + " "+ comp+"_dirty"
+				}
+			}
+		}
+
+		return resultString
 	}
 
 	/** Divide two attributes
