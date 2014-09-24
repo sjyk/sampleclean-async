@@ -19,7 +19,7 @@ class SampleCleanQuery(scc:SampleCleanContext,
 	 */
 	def execute():(Long, List[(String, (Double, Double))])={
 
-		var sampleRatio = scc.getSamplingRatio(scc.qb.getCleanSampleName(sampleName))
+		var sampleRatio = scc.getSamplingRatio(scc.qb.getCleanFactSampleName(sampleName))
 		var defaultPred = ""
 		if(pred != "")
 			defaultPred = pred
