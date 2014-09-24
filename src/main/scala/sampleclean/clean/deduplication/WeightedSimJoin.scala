@@ -205,48 +205,6 @@ class WeightedCosineJoin extends WeightedPrefixFiltering{
 
 }
 
-/*
-class WeightedSimJoin (
-                @transient private var sc: SparkContext
-                ) extends Serializable {
-
-  def wjoin[K: ClassTag, V: ClassTag](
-                                      sampleData: RDD[((Seq[K], V), Long)],
-                                      fullData: RDD[((Seq[K], V), Long)],
-                                      simfunc: String,
-                                      threshold: Double,
-                                      broadcast: Boolean = true,
-                                      tokenWeights: RDD[(K, Double)])
-  : RDD[((Long,Long),(Seq[K], Seq[K]), (V, V))] = {
-
-    simfunc match {
-      case "Jaccard" =>
-        if (broadcast)
-          new WeightedJaccardJoin().broadcastJoin(sc, sampleData, fullData, threshold, tokenWeights)
-        else
-          new WeightedJaccardJoin().broadcastJoin(sc, sampleData, fullData, threshold, tokenWeights)
-      case "Overlap" =>
-        if (broadcast)
-          new WeightedOverlapJoin().broadcastJoin(sc, sampleData, fullData, threshold, tokenWeights)
-        else
-          new WeightedOverlapJoin().broadcastJoin(sc, sampleData, fullData, threshold, tokenWeights)
-      case "Dice" =>
-        if (broadcast)
-          new WeightedDiceJoin().broadcastJoin(sc, sampleData, fullData, threshold, tokenWeights)
-        else
-          new WeightedDiceJoin().broadcastJoin(sc, sampleData, fullData, threshold, tokenWeights)
-      case "Cosine" =>
-        if (broadcast)
-          new WeightedCosineJoin().broadcastJoin(sc, sampleData, fullData, threshold, tokenWeights)
-        else
-          new WeightedCosineJoin().broadcastJoin(sc, sampleData, fullData, threshold, tokenWeights)
-
-    }
-
-  }
-}
-
-*/
 
 /*
 object WeightedSimJoin {

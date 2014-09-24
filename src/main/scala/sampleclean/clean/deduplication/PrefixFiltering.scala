@@ -65,8 +65,6 @@ trait PrefixFiltering extends Serializable {
    * @param fullKey second blocking method that will be used to calculate similarities between records.
    * @param sampleTable first data set (e.g. sample table)
    * @param sampleKey first blocking method that will be used to calculate similarities between records.
-   *
-   *
    */
   def broadcastJoin (@transient sc: SparkContext,
                      threshold: Double,

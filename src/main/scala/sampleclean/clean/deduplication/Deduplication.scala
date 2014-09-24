@@ -17,13 +17,20 @@ import org.apache.spark.mllib.regression.LabeledPoint
 
 
 /**
- * This class executes a deduplication algorithm on a data set.
+ * This class is used to execute a deduplication algorithm on a data set.
+ * The algorithm uses a text-blocking strategy to find similar record
+ * pairs and updates the corresponding SampleClean sample table accordingly.
+ * If there is an Active Learning strategy identified, it executes the algorithm asynchronously.
  * @param params algorithm parameters
  * @param scc SampleClean context
  */
 class RecordDeduplication(params:AlgorithmParameters, scc: SampleCleanContext)
       extends SampleCleanDeduplicationAlgorithm(params,scc) {
 
+  /**
+   * Executes the main deduplication algorithm on the SampleClean context.
+   * @param sampleTableName name of the sample table stored in the SampleClean context.
+   */
   def exec(sampleTableName: String) = {
 
     val idCol = params.get("id").asInstanceOf[String]
@@ -43,7 +50,11 @@ class RecordDeduplication(params:AlgorithmParameters, scc: SampleCleanContext)
       scc.getColAsStringFromBaseTable(fullRow, sampleTableName, idCol) != scc.getColAsString(sampleRow, sampleTableName, idCol)
     }
 
-    //This is a call-back function that will be called by active learning for each iteration
+    /**
+     * This is a call-back function that will be called by active learning for each iteration.
+     * It updates the SampleClean sample table stored in the scc.
+     * @param dupPairs duplicate pairs that will be used for updating.
+     */
     def onUpdateDupCounts(dupPairs: RDD[(Row, Row)]) {
 
       val dupCounts = dupPairs.map{case (fullRow, sampleRow) =>
@@ -75,11 +86,29 @@ class RecordDeduplication(params:AlgorithmParameters, scc: SampleCleanContext)
 
 }
 
+/**
+ * This class is used to create a valid attribute count (i.e. it's a helper class)
+ * @param attr a specific attribute value
+ * @param count the count of the attribute in the data set.
+ */
 case class AttrDedup(attr: String, count: Int)
 
+/**
+ * This class is used to execute a deduplication algorithm on a data set.
+ * The algorithm finds names of a specified attribute that are similar
+ * and performs deduplication on the SampleClean context accordingly.
+ * @param params algorithm parameters.
+ * @param scc SampleClean context.
+ */
 class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext)
   extends SampleCleanDeduplicationAlgorithm(params,scc) {
 
+  /**
+   * Tests whether two strings are equal and returns specified value if true.
+   * @param x first string.
+   * @param test second string.
+   * @param out is returned if strings are equal.
+   */
   def replaceIfEqual(x:String, test:String, out:String): String ={
       if(x.equals(test))
         return out
@@ -90,6 +119,13 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
 
   var graph:Map[Row, Set[Row]] = Map[Row, Set[Row]]()
 
+
+  /**
+   * Executes the main deduplication function. If a crowdsourcing
+   * strategy is identified, it performs an additional duplicate
+   * refining using Amazon Mechanical Turk.
+   * @param sampleTableName name of SampleClean sample table.
+   */
   def exec(sampleTableName: String) = {
 
     val attr = params.get("dedupAttr").asInstanceOf[String]
@@ -117,10 +153,10 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
 
     val sc = scc.getSparkContext()
 
+    // Attribute pairs that are similar
     var candidatePairs = BlockingStrategy(List("attr"))
       .setSimilarityParameters(similarityParameters)
       .blocking(sc, attrDedup, colMapper).collect()
-
 
 
     /* Use crowd to refine candidate pairs*/
@@ -177,6 +213,11 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
     //scc.updateTableAttrValue(sampleTableName, attr, resultRDD)
   }
 
+  /**
+   *
+   * @param vertex
+   * @param edgeTo
+   */
   def addToGraphUndirected(vertex:Row, edgeTo:Row) ={
 
     if(graph contains vertex){
@@ -195,6 +236,12 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
 
   }
 
+  /**
+   *
+   * @param vertex
+   * @param traverseSet
+   * @return
+   */
   def dfs(vertex:Row, traverseSet:Set[Row]=Set[Row]()):Set[Row]={
     if(! (graph contains vertex))
       return Set()
@@ -208,6 +255,11 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
     return resultSet
   }
 
+  /**
+   *
+   * @param comps
+   * @return
+   */
   def connectedComponentsToExecOrder(comps: Set[Set[Row]]): List[(String, String)] ={
     
     def compOperator(row1:Row, row2:Row) = (row1.getInt(1) < row2.getInt(1))
@@ -224,6 +276,10 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
 
   }
 
+  /**
+   *
+   * @return
+   */
   def connectedComponents():Set[Set[Row]] = {
      var resultSet = Set[Set[Row]]()
      for(v <- graph.keySet){
