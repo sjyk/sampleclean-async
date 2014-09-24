@@ -99,7 +99,6 @@ trait WeightedPrefixFiltering extends Serializable {
    * @param sampleKey first blocking method that will be used to calculate similarities between records.
    *
    */
-
    def broadcastJoin (@transient sc: SparkContext,
                       threshold: Double,
                       fullTable: SchemaRDD,
@@ -173,7 +172,6 @@ trait WeightedPrefixFiltering extends Serializable {
    * @param fullTable second data set (e.g. full table)
    * @param fullKey second blocking method that will be used to calculate similarities between records.
    */
-
   def broadcastJoin (@transient sc: SparkContext,
                      threshold: Double,
                      fullTable: SchemaRDD,

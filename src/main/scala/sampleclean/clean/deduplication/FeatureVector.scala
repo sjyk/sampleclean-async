@@ -6,13 +6,11 @@ import uk.ac.shef.wit.simmetrics.similaritymetrics._
 
 
 /**
- * Class used to create a valid strategy. A valid strategy may imply
- * one or more feature values, depending on the number of chosen metrics to be used.
+ * Class used to create a valid feature. A valid feature may imply
+ * one or more values, depending on the number of chosen metrics to be used.
  * @param colNames columns to be concatenated.
  * @param simMeasures list of valid names of similarity measures as per simmetrics library
  */
-
-
 case class Feature (colNames: List[String], simMeasures: List[String]) extends Serializable
 
 
@@ -20,6 +18,10 @@ case class Feature (colNames: List[String], simMeasures: List[String]) extends S
 /**
  * This class defines the Feature Vector of a pair of records.
  * @param features list of valid strategies to be combined into the vector.
+ * @param colMapper1 function that converts a list of column names
+ *                   into a list of those columns' indices.
+ * @param colMapper2 function that converts a list of column names
+ *                   into a list of those columns' indices.
  * @param lowerCase if true, converts all characters to lower case.
  */
 case class FeatureVector (features: List[Feature],

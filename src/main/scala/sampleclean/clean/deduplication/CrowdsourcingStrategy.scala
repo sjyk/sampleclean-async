@@ -4,7 +4,9 @@ import sampleclean.activeml._
 import scala.concurrent.{Await}
 import scala.concurrent.duration.Duration
 
-
+/**
+ * This class is used to request crowd participation
+ */
 case class CrowdsourcingStrategy() {
   var labelGetterParameters = CrowdLabelGetterParameters() // Use defaults
 

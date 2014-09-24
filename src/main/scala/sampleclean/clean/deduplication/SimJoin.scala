@@ -20,7 +20,7 @@ import java.io._
 class JaccardJoin extends PrefixFiltering{ 
 
   /**
-   * Returns true if two token lists are similar; otherwise, return false
+   * Returns true if two token lists are similar; otherwise, returns false
    * @param tokens1 first token list.
    * @param tokens2 second token list.
    * @param threshold specified threshold.
@@ -192,58 +192,7 @@ class CosineJoin extends PrefixFiltering{
 
 }
 
-class joinType() {
 
-
-}
-
-
-
-/*
-class SimJoin (
-    @transient private var sc: SparkContext
-  ) extends Serializable {
-
-  def join[K: ClassTag, V:ClassTag](
-      sampleData: RDD[((Seq[K], V), Long)],
-      fullData: RDD[((Seq[K], V), Long)],
-      simfunc: String,
-      threshold: Double,
-      broadcast: Boolean = true)
-      : RDD[((Long,Long),(Seq[K], Seq[K]), (V, V))] = {
-
-
-    simfunc match {
-      case "Jaccard" =>
-        if (broadcast)
-          new JaccardJoin().broadcastJoin(sc, sampleData, fullData, threshold)
-        else
-          new JaccardJoin().broadcastJoin(sc, sampleData, fullData, threshold)
-      case "Overlap" =>
-        if (broadcast)
-          new OverlapJoin().broadcastJoin(sc, sampleData, fullData, threshold)
-        else
-          new OverlapJoin().broadcastJoin(sc, sampleData, fullData, threshold)
-      case "Dice" =>
-        if (broadcast)
-          new DiceJoin().broadcastJoin(sc, sampleData, fullData, threshold)
-        else
-          new DiceJoin().broadcastJoin(sc, sampleData, fullData, threshold)
-      case "Cosine" =>
-        if (broadcast)
-          new CosineJoin().broadcastJoin(sc, sampleData, fullData, threshold)
-        else
-          new CosineJoin().broadcastJoin(sc, sampleData, fullData, threshold)
-
-
-
-    }
-
-  }
-
-
-}
-*/
 
 /*
 object SimJoin {
@@ -317,40 +266,6 @@ object SimJoin {
 
 
 
-
-/*
-    // Test code for Feature Vector
-    // RDD[((Seq[K], Seq[K]), (V, V))]
-    val simMeasures: Seq[String] = Seq(
-      "ChapmanLengthDeviation", "BlockDistance",
-      "ChapmanMeanLength",//ok
-      "ChapmanOrderedNameCompoundSimilarity", //character prob
-      "CosineSimilarity", "DiceSimilarity", //ok
-      "EuclideanDistance", "JaccardSimilarity",
-      "Jaro", "JaroWinkler", "Levenshtein", //ok
-      "MatchingCoefficient", "MongeElkan",
-      "NeedlemanWunch", "OverlapCoefficient",
-      "QGramsDistance", "SmithWaterman" ,// ok
-      "SmithWatermanGotoh" , //performance prob
-      "SmithWatermanGotohWindowedAffine" , //performance prob
-      "TagLinkToken", //ok
-      "Soundex", "ChapmanMatchingSoundex" //character prob
-    )
-
-    val sim1 = simMeasures
-
-    val measure1 = new Measurement(sim1)
-
-    val strategy: Strategy = Strategy(Seq(measure1))
-
-    val featureMatrix = new featureMatrix(sc)
-    val features = featureMatrix.matrix(joined, strategy)
-    println(features.first())
-    println(features.count())
-*/
-  sc.stop()
-
-  }*/
 
 
 
