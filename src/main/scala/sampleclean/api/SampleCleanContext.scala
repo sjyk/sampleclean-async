@@ -99,7 +99,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 
 		val hiveContext = new HiveContext(sc)
 		//creates the clean sample using a consistent hashing procedure
-		val selectionList = List(onKey + " as hash",
+		val selectionList = List("reflect(\"java.util.UUID\", \"randomUUID\") as hash",
 			                     "1 as dup", "*")
 
 		if(persist)

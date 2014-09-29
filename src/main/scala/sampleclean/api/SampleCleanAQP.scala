@@ -193,7 +193,7 @@ class SampleCleanAQP() {
 	  	  	val distinctKeys = hc.hql(scc.qb.buildSelectDistinctQuery(List(scc.qb.transformExplicitExpr(group,sampleName,true)),
 	  	  													   hiveTableName, 
 	  	  													   "true"))
-	  	  						 .map(x => x.getString(0)).collect()
+	  	  						 .map(x => x(0).asInstanceOf[String]).collect()
 
 	  		var result = List[(String, (Double, Double))]()
 	  		for(t <- distinctKeys)
@@ -231,8 +231,12 @@ class SampleCleanAQP() {
 	  	  val baseTableClean = scc.qb.getCleanSampleName(sampleName)
 	  	  val baseTableDirty = scc.qb.getDirtySampleName(sampleName)
 
-	  	  val newPred = scc.qb.makeExpressionExplicit(pred,baseTableClean)
-	  	  val oldPred = scc.qb.makeExpressionExplicit(pred,baseTableDirty)
+	  	  var defaultPred = "true"
+	  	  if(pred != "")
+	  	  	defaultPred = pred
+
+	  	  val newPred = scc.qb.makeExpressionExplicit(defaultPred,baseTableClean)
+	  	  val oldPred = scc.qb.makeExpressionExplicit(defaultPred,baseTableDirty)
 	  	  val typeSafeCleanAttr = scc.qb.makeExpressionExplicit(typeSafeHQL(attr),baseTableClean)
 	  	  val typeSafeDirtyAttr = scc.qb.makeExpressionExplicit(typeSafeHQL(attr),baseTableDirty)
 	  	  val typeSafeDup = scc.qb.makeExpressionExplicit(typeSafeHQL("dup",1),baseTableClean)
@@ -252,7 +256,7 @@ class SampleCleanAQP() {
 				                           pred,
 				                           baseTableDirty,
 				                           "hash")
-	  	  	 return approxAvg(hc.hql(buildQuery),sampleRatio)
+	  	  	 return approxAvg(hc.hql(buildQuery).cache(),sampleRatio)
 	  	  }
 	  	  else if (expr.toLowerCase() == "sum"){
 			val buildQuery = scc.qb.buildSelectQuery(List(selectionStringSUM,"1"),
@@ -260,7 +264,7 @@ class SampleCleanAQP() {
 				                           "true",
 				                           baseTableDirty,
 				                           "hash")
-	  	  	 return approxSum(hc.hql(buildQuery),sampleRatio)
+	  	  	 return approxSum(hc.hql(buildQuery).cache(),sampleRatio)
 	  	  	}
 	  	  else
 	  	  {
@@ -269,7 +273,9 @@ class SampleCleanAQP() {
 				                           "true",
 				                           baseTableDirty,
 				                           "hash")
-	  	  	 return approxSum(hc.hql(buildQuery),sampleRatio)
+
+			println(buildQuery)
+	  	  	 return approxSum(hc.hql(buildQuery).cache(),sampleRatio)
 	  	  }
 
 	  }
@@ -285,7 +291,7 @@ class SampleCleanAQP() {
 	  				  attr: String, expr: String, 
 	  				  pred:String,
 	  				  group: String, 
-	  				  sampleRatio: Double): List[(String, (Double, Double))]=
+	  				  sampleRatio: Double): (Long,List[(String, (Double, Double))])=
 	  {
 	  	  	val hc:HiveContext = scc.getHiveContext()
 	  	  	val hiveTableName = scc.qb.getDirtySampleName(sampleName)
@@ -305,7 +311,7 @@ class SampleCleanAQP() {
 	  							   sampleRatio)) :: result
 	  			}
 
-	  		return result
+	  		return (System.nanoTime, result)
 	  }
 
 

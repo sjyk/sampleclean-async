@@ -24,22 +24,42 @@ class SampleCleanQuery(scc:SampleCleanContext,
 		if(pred != "")
 			defaultPred = pred
 
-		if(group != "")
-			return saqp.rawSCQueryGroup(scc,
+		if(group != ""){
+			if(rawSC)
+				return saqp.rawSCQueryGroup(scc,
 										sampleName.trim(),
 										attr.trim(),
 										expr.trim(),
 										pred.trim(),
 										group.trim(), 
 										sampleRatio)
-		else
-			return (System.nanoTime,
-					List(("1",saqp.rawSCQuery( scc,
+			else
+				return saqp.normalizedSCQueryGroup(scc,
+										sampleName.trim(),
+										attr.trim(),
+										expr.trim(),
+										pred.trim(),
+										group.trim(), 
+										sampleRatio)
+		}
+		else{
+			if(rawSC)
+				return (System.nanoTime,
+						List(("1",saqp.rawSCQuery( scc,
 										  sampleName.trim(),
 										  attr.trim(),
 										  expr.trim(),
 										  pred.trim(),
 										  sampleRatio))))
+			else
+				return (System.nanoTime,
+						List(("1",saqp.normalizedSCQuery( scc,
+										  sampleName.trim(),
+										  attr.trim(),
+										  expr.trim(),
+										  pred.trim(),
+										  sampleRatio))))
+		}
 
 	}
 

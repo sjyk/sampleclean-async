@@ -65,6 +65,8 @@ object SCDriver {
 
     val parser:SampleCleanParser = new SampleCleanParser(scc,saqp);
 
+    //println(scc.getHiveTableFullSchema("paper"))
+
     //The REPL of the program
     var input = readLine(PROMPT);
     var exit_status = run(input,parser);

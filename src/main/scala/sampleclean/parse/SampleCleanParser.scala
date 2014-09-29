@@ -110,7 +110,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     * @param command a String representation of the query. 
     * Expects lower case strings
     */
-   def queryParser(command:String):SampleCleanQuery={
+   def queryParser(command:String, rawSC:Boolean = true):SampleCleanQuery={
 
    		val from = command.indexOf("from") 
       //every sample clean query should have a from
@@ -154,7 +154,8 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
    									parsedExpr._2,
    									parsedExpr._1,
    									pred,
-   									group)
+   									group,
+                    rawSC)
    		
    }
 
@@ -192,7 +193,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
       val comps = reservedCommandTokenizer(command)
       
       if(comps.length != 4)
-        throw new ParseError("Usage: init <samplename> <bt> <samplingratio>")
+        throw new ParseError("Usage: init <samplename> <bt> <unique key> <samplingratio>")
       
       val name = comps(1)
       val bt = comps(2)
@@ -289,6 +290,10 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   		  println(queryParser(command).execute())
   		  return ("Complete", (System.nanoTime - now)/1000000)
   	  }
+      else if(firstToken.equals("selectnsc")){
+        println(queryParser(command, false).execute())
+        return ("Complete", (System.nanoTime - now)/1000000)
+      }
   	 else {//in the default case pass it to hive
   		  val hiveContext = scc.getHiveContext();
   		  hiveContext.hql(command.replace(";","")).collect().foreach(println)
@@ -310,9 +315,9 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
   def initDemo() = {
     val hiveContext = scc.getHiveContext();
-  	hiveContext.hql("DROP TABLE IF EXISTS restaurant")
-    hiveContext.hql("CREATE TABLE IF NOT EXISTS restaurant (id STRING, entity_id STRING, name STRING, address STRING,city STRING,type STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
-    hiveContext.hql("LOAD DATA LOCAL INPATH 'restaurant.csv' OVERWRITE INTO TABLE restaurant")
+  	hiveContext.hql("DROP TABLE IF EXISTS paper")
+    hiveContext.hql("CREATE TABLE IF NOT EXISTS paper(id String,title string,year String,conference String,journal String,keyword String) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
+    hiveContext.hql("LOAD DATA LOCAL INPATH 'msac-datasets/Paper-reg.csv' OVERWRITE INTO TABLE paper")
     scc.closeHiveSession()
   }
 

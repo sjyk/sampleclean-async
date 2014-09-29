@@ -85,7 +85,7 @@ class QueryBuilder(scc: SampleCleanContext) {
 	* an additional table and join key
 	*/
 	def buildSelectQuery(attrs:List[String],table:String,pred:String,table2:String,joinKey:String):String = {
-		 val query =    " SELECT "+ 
+		 val query =    " SELECT " + forceMapJoin(table,table2) +
    			            attrsToSelectionList(attrs) +" FROM "+
    			            table+" LEFT OUTER JOIN " + 
    			            table2+" ON ("+
@@ -93,6 +93,10 @@ class QueryBuilder(scc: SampleCleanContext) {
    			            " = "+table2+"."+joinKey+")" +
 						" WHERE " + pred
 		return query  
+	}
+
+	def forceMapJoin(table1:String, table2:String):String = {
+		return "/*+ MAPJOIN("+table1+"), MAPJOIN("+table2+") */"
 	}
 
 	/** This builds a select query with a semi join with another table, that is, keep only records in the other table
@@ -208,8 +212,8 @@ class QueryBuilder(scc: SampleCleanContext) {
 	def exprToDupString(sampleName:String):String = {
 		val splitComponents = sampleName.split("\\s+")
 		if(splitComponents.length > 1){
-			return getCleanFactSampleName(sampleName) + ".dup*"	+ 
-				  getCleanDimSampleName(sampleName) + ".dup"
+			return getCleanFactSampleName(sampleName) + ".dup"	//+ 
+				  //getCleanDimSampleName(sampleName) + ".dup"
 		}
 		else{
 			return "dup"
