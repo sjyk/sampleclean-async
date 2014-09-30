@@ -371,8 +371,19 @@ Internal Crowd
 --------------
 - CROWD_NAME: 'internal'
 - special configuration keys: None
-- assignment_context: TBD
-- response_context: TBD
+- `assignment_context`: urlencoded key-value pairs that must include the
+  following keys:
+
+  - `worker_id`: the id of the worker assigned to the task.
+  - `task_type`: the type of task to assign to the worker.
+
+- `response_context`: x-www-form-urlencoded key-value pairs that must include
+  the following keys:
+
+  - `answers`: the results of the task (see API, above).
+  - `task_id`: the unique id for the task.
+  - `worker_id`: the unique id of the worker responding to the task.
+  - `assignment_id`: the unique id assigning this worker to this task.
 
 Interfacing with a new crowd
 ============================
@@ -406,12 +417,13 @@ for a new crowd to the server, you must:
      (described more below).
    * `get_response_context`: when a crowd worker submits data, extract it
      from the request and put it in a format that can be saved to your models.
+   
    Finally, create an instance of your interface as a module-level variable,
    e.g.:
 
-        ```python
-        MYCROWD_INTERFACE = MyCrowdInterface(CROWD_NAME)
-        ```
+    ```python
+    MYCROWD_INTERFACE = MyCrowdInterface(CROWD_NAME)
+    ```
        
 5. In `CROWD_NAME/__init__.py`, register your new interface with the server:
 
