@@ -8,11 +8,11 @@ version := "1.0"
 
 scalaVersion := "2.10.4"
 
-libraryDependencies += "org.apache.spark" %% "spark-core" % "1.0.0"
+libraryDependencies += "org.apache.spark" %% "spark-core" % "1.1.0"
 
-libraryDependencies += "org.apache.spark" %% "spark-sql" % "1.0.0"
+libraryDependencies += "org.apache.spark" %% "spark-sql" % "1.1.0"
 
-libraryDependencies += "org.apache.spark" %% "spark-mllib" % "1.0.0"
+libraryDependencies += "org.apache.spark" %% "spark-mllib" % "1.1.0"
 
 libraryDependencies += "com.twitter" %% "finagle-http" % "6.2.0"
 
@@ -20,9 +20,9 @@ libraryDependencies += "org.json4s" %% "json4s-jackson" % "3.2.10"
 
 libraryDependencies += "org.json4s" %% "json4s-native" % "3.2.10"
 
-libraryDependencies += "org.apache.spark" %% "spark-hive" % "1.0.0"
+libraryDependencies += "org.apache.spark" %% "spark-hive" % "1.1.0"
 
-libraryDependencies += "org.apache.hive" % "hive" % "0.13.1"
+libraryDependencies += "org.apache.hive" % "hive" % "0.14.0-SNAPSHOT"
 
 libraryDependencies += "javax.servlet" % "javax.servlet-api" % "3.1.0"
 
@@ -36,6 +36,8 @@ libraryDependencies ++= Seq(
 
 
 resolvers += "Akka Repository" at "http://repo.akka.io/releases/"
+
+resolvers += "Hive Contrib Repo" at "https://repository.jboss.org/"
 
 addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.6.0")
 

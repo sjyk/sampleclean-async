@@ -303,7 +303,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     }
     catch {
      case p: ParseError => println(p.details)
-     case e: Exception => println("Execution exception detected")
+     case e: Exception => println(e)
    }
 
     return ("Error", (System.nanoTime - now)/1000000 )
@@ -315,10 +315,15 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
   def initDemo() = {
     val hiveContext = scc.getHiveContext();
+    scc.closeHiveSession()
   	hiveContext.hql("DROP TABLE IF EXISTS paper")
     hiveContext.hql("CREATE TABLE IF NOT EXISTS paper(id String,title string,year String,conference String,journal String,keyword String) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
     hiveContext.hql("LOAD DATA LOCAL INPATH 'msac-datasets/Paper-reg.csv' OVERWRITE INTO TABLE paper")
-    scc.closeHiveSession()
+
+    hiveContext.hql("DROP TABLE IF EXISTS paper_author")
+    hiveContext.hql("CREATE TABLE IF NOT EXISTS paper_author(paperId String,authorId String,Name String,Affiliation String) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
+    hiveContext.hql("LOAD DATA LOCAL INPATH 'msac-datasets/PaperAuthor-reg.csv' OVERWRITE INTO TABLE paper_author")
+    
   }
 
   def demoDedupRec() = {
