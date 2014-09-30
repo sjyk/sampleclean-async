@@ -72,13 +72,16 @@ class SampleCleanContext(@transient sc: SparkContext) {
 
 			hiveContext.hql(query)
 
+			hiveContext.hql("cache table "+ qb.getCleanSampleName(tableName))
+
 			hiveContext.hql(qb.setTableParent(qb.getCleanSampleName(tableName),baseTable + " " + samplingRatio))
 
 			query = qb.createTableAs(qb.getDirtySampleName(tableName)) +
 					qb.buildSelectQuery(List("*"),qb.getCleanSampleName(tableName))
-		
 
 			hiveContext.hql(query)
+
+			hiveContext.hql("cache table "+ qb.getDirtySampleName(tableName))
 		}
 		
 		return (hiveContext.hql(qb.buildSelectQuery(List("*"),
