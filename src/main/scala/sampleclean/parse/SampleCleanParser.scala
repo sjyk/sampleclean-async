@@ -323,7 +323,14 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     hiveContext.hql("DROP TABLE IF EXISTS paper_author")
     hiveContext.hql("CREATE TABLE IF NOT EXISTS paper_author(paperId String,authorId String,Name String,Affiliation String) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
     hiveContext.hql("LOAD DATA LOCAL INPATH 'msac-datasets/PaperAuthor-reg.csv' OVERWRITE INTO TABLE paper_author")
-    
+
+    hiveContext.hql("DROP TABLE IF EXISTS paper_affiliation")
+    hiveContext.hql("CREATE TABLE paper_affiliation as SELECT paperid, affiliation from paper_author where length(affiliation) > 1 group by paperid,affiliation")
+  
+    scc.initializeConsistent("paper", "paper_sample", "id", 100)
+    scc.initializeConsistent("paper_affiliation", "paper_aff_sample", "paperid", 100)
+    scc.initializeConsistent("paper_author", "paper_auth_sample", "paperid", 100)
+
   }
 
   def demoDedupRec() = {
