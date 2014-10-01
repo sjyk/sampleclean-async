@@ -1,6 +1,7 @@
 import httplib
 import socket
 import ssl
+import sys
 import json
 import urllib
 import urllib2
@@ -28,94 +29,139 @@ class HTTPSHandlerV3(urllib2.HTTPSHandler):
     def https_open(self, req):
         return self.do_open(HTTPSConnectionV3, req)
 
-def send_request(data, crowds) :
+def send_request(data, crowds, num_requests) :
 
     # Send request
     params = {'data' : json.dumps(data)}
     url = 'https://127.0.0.1:8000/crowds/%s/tasks/'
     for crowd in crowds:
-        response = urllib2.urlopen(url%crowd,
-                                   urllib.urlencode(params))
-        res = json.loads(response.read())
-        if res['status'] != 'ok' :
-            print 'Got something wrong!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+        for i in range(num_requests):
+            response = urllib2.urlopen(url%crowd,
+                                       urllib.urlencode(params))
+            res = json.loads(response.read())
+            if res['status'] != 'ok' :
+                print 'Got something wrong!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+            if num_requests >= 100 and i % (num_requests / 10) == 0:
+                print '.',
+                sys.stdout.flush()
 
-# Create batches of HIT
-def create_hit(crowds, task_types):
-    if not task_types or not crowds:
-        print ("No crowds or no task types passed... not posting any data. Run "
-               "`python post.py --help` for options.")
-        return
+# Create batches of task
+def create_tasks(crowds, task_types):
 
     # install custom opener
     urllib2.install_opener(urllib2.build_opener(HTTPSHandlerV3()))
 
     if 'sa' in task_types:
-        # Create a sentiment analysis HIT
+        num_tasks, num_assignments = task_types['sa']
+        print ("Creating %d sentiment analysis tasks with %d assignments "
+               "each..." % (num_tasks, num_assignments)),
+
+        # Create a sentiment analysis task
         data = {}
         data['configuration'] = {}
         data['configuration']['task_type'] = 'sa'
-        data['configuration']['task_batch_size'] = 2
-        data['configuration']['num_assignments'] = 1
+        data['configuration']['task_batch_size'] = 3
+        data['configuration']['num_assignments'] = num_assignments
         data['configuration']['callback_url'] = 'www.google.com'
 
         data['group_id'] = 'test1'
-        data['group_context'] = {}   # Empty group contest for sentiment analysis
+        data['group_context'] = {}  # Empty group contest for sentiment analysis
 
-        # This configuration generates two HITs, one with two tweets, the other with one tweet.
+        # This configuration generates one task, with three tweets.
         data['content'] = {'t1' : 'This is tweet No.1',
                            't2' : 'This is tweet No.2',
                            't3' : 'This is tweet No.3'}
         # Send request
-        send_request(data, crowds)
+        send_request(data, crowds, num_tasks)
+        print "Done!"
 
     if 'er' in task_types:
-        # Create a Deduplication HIT
+        num_tasks, num_assignments = task_types['er']
+        print ("Creating %d entity resolution tasks with %d assignments "
+               "each..." % (num_tasks, num_assignments)),
+
+        # Create a Deduplication task
         data = {}
         data['configuration'] = {}
         data['configuration']['task_type'] = 'er'
-        data['configuration']['task_batch_size'] = 1
-        data['configuration']['num_assignments'] = 1
+        data['configuration']['task_batch_size'] = 2
+        data['configuration']['num_assignments'] = num_assignments
         data['configuration']['callback_url'] = 'www.google.com'
 
         data['group_id'] = 'test2'
         data['group_context'] = {'fields' : ['price', 'location']}
 
-        # This configuration generates two HITs, each with one pair of records to be compared.
+        # This configuration generates one task with two pairs of records.
         data['content'] = {'pair1' : [['5', 'LA'], ['6', 'Berkeley']],
                            'pair2' : [['80', 'London'], ['80.0', 'Londyn']]}
-        send_request(data, crowds)
+        send_request(data, crowds, num_tasks)
+        print "Done!"
 
     if 'ft' in task_types:
-        # Create a Filtering HIT
+        num_tasks, num_assignments = task_types['ft']
+        print ("Creating %d filtering tasks with %d assignments each..." %
+               (num_tasks, num_assignments)),
+
+        # Create a Filtering task
         data = {}
         data['configuration'] = {}
         data['configuration']['task_type'] = 'ft'
-        data['configuration']['task_batch_size'] = 1
-        data['configuration']['num_assignments'] = 1
+        data['configuration']['task_batch_size'] = 2
+        data['configuration']['num_assignments'] = num_assignments
         data['configuration']['callback_url'] = 'www.google.com'
 
         data['group_id'] = 'test3'
         data['group_context'] = {'fields' : ['city', 'cuisine']}
 
-        # This configuration generates two HITs, each with one pair of records to be compared.
+        # This configuration generates one tasks with two pairs of records.
         data['content'] = {'ft1': {'title' : 'Is this a mexican restaurant in California?',
                                    'record': ['San Francisco', 'Mexican']},
                            'ft2': {'title': 'Is this a French restaurant in Texas?',
                                    'record': ['El paso', 'Mediterranean']}}
-        send_request(data, crowds)
+        send_request(data, crowds, num_tasks)
+        print "Done!"
 
 def parse_args():
-    parser = ArgumentParser()
+    parser = ArgumentParser(description="Post sample tasks to the crowd server")
     parser.add_argument('--task-types', '-t', nargs="+", metavar="TASK_TYPE",
-                        choices=['sa', 'er', 'ft'],
-                        help='task types for which to create HITs.')
+                        choices=['sa', 'er', 'ft'], default=['sa'],
+                        help=('task types for which to create tasks. (defaults '
+                              'to just \'sa\''))
     parser.add_argument('--crowds', '-c', nargs="+", metavar="CROWD_NAME",
-                        choices=['amt', 'internal'],
-                        help='crowds on which to create HITs.')
+                        choices=['amt', 'internal'], default=['internal'],
+                        help=('crowds on which to create tasks. (defaults to '
+                              'just \'internal\''))
+    parser.add_argument('--num-tasks', '-n', nargs="+", type=int,
+                        metavar="NUM_TASKS",
+                        help=('Number of tasks to create (one number for each '
+                              'task type given with -t). Defaults to one task '
+                              'for each task type.'))
+    parser.add_argument('--num-assignments', '-a', nargs="+", type=int,
+                        metavar="NUM_ASSIGNMENTS",
+                        help=('Number of assignments to require (one number '
+                              'for each task type given with -t). Defaults to '
+                              'one assignment for each task type.'))
     args = parser.parse_args()
+
+    if not args.num_tasks:
+        args.num_tasks = [1 for task_type in args.task_types]
+
+    if not args.num_assignments:
+        args.num_assignments = [1 for task_type in args.task_types]
+
+    if (len(args.num_tasks) != len(args.task_types)
+        or len(args.num_assignments) != len(args.task_types)):
+        print ("Length of --num-tasks and --num-assignments options must match "
+               "the length of the --task-types option!")
+        print ""
+        parser.print_usage()
+        sys.exit()
+
+    args.types_map = { args.task_types[i] : (args.num_tasks[i],
+                                             args.num_assignments[i])
+                       for i in range(len(args.num_tasks)) }
     return args
 
 if __name__ == "__main__":
     args = parse_args()
-    create_hit(args.crowds, args.task_types)
+    create_tasks(args.crowds, args.types_map)
