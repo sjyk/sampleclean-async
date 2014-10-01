@@ -453,7 +453,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 			return msc.getTable(tableName).getParameters().get("comment").split(" ")(1).toDouble
 		}
 		catch {
-     		case e: Exception => 0
+     		case e: Exception => println(e)
    		}
    		return 1.0
 	}
