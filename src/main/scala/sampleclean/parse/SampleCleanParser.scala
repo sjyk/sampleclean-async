@@ -254,7 +254,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   def parseAndExecute(commandI:String):(String, Long) = {
 
   	val now = System.nanoTime
-  	val command = commandI.replace(";","").toLowerCase().trim()
+  	val command = commandI.replace(";","").trim()
     val firstToken = command.split("\\s+")(0)
 
     try{
@@ -287,11 +287,11 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
        return ("Dedup", (System.nanoTime - now)/1000000)
      }
   	 else if(firstToken.equals("selectrawsc")){
-  		  println(queryParser(command).execute())
+  		  printQuery(queryParser(command).execute())
   		  return ("Complete", (System.nanoTime - now)/1000000)
   	  }
       else if(firstToken.equals("selectnsc")){
-        println(queryParser(command, false).execute())
+        printQuery(queryParser(command, false).execute())
         return ("Complete", (System.nanoTime - now)/1000000)
       }
   	 else {//in the default case pass it to hive
@@ -310,6 +310,12 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
   }
 
+  def printQuery(result:(Long, List[(String, (Double, Double))])) ={
+      var listOfResults = result._2
+      listOfResults = listOfResults.sortBy(-_._2._1)
+      for(r <- listOfResults.slice(0,Math.min(10, listOfResults.length)))
+        println(r)
+  }
 
   //Demo functions
 
@@ -367,18 +373,18 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
     val algoPara = new AlgorithmParameters()
 
-    algoPara.put("dedupAttr", "city")
-    algoPara.put("similarityParameters", SimilarityParameters(simFunc = "Jaccard", tokenizer = GramTokenizer(2), threshold = 0.25))
+    algoPara.put("dedupAttr", "affiliation")
+    algoPara.put("similarityParameters", SimilarityParameters(bitSize=5))
 
 
     val crowdParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 10)
-    algoPara.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdLabelGetterParameters(crowdParameters))
+    //algoPara.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdLabelGetterParameters(crowdParameters))
     val d = new AttributeDeduplication(algoPara, scc)
     d.blocking = false
     d.name = "AttributeDeduplication"
 
     val pp = new SampleCleanPipeline(saqp, List(d))
-    pp.exec("restaurant_sample")
+    pp.exec("paper_aff_sample")
   }
 
 
