@@ -34,10 +34,15 @@ class SampleCleanAQP() {
 	  				  attr: String, expr: String, 
 	  				  pred:String,
 	  				  group: String, 
-	  				  sampleRatio: Double): (Long, List[(String, (Double, Double))])=
+	  				  sampleRatio: Double,
+	  				  dirty:Boolean = false): (Long, List[(String, (Double, Double))])=
 	  {
 	  	  	val hc:HiveContext = scc.getHiveContext()
-	  	  	val hiveTableName = scc.qb.getCleanSampleName(sampleName)
+	  	  	var hiveTableName = scc.qb.getCleanSampleName(sampleName)
+
+	  	  	if(dirty)
+	  	  		hiveTableName = scc.qb.getDirtySampleName(sampleName)
+
 
 	  	  	var defaultPred = "true"
 	  	  	val dup = scc.qb.exprToDupString(sampleName)
@@ -82,6 +87,7 @@ class SampleCleanAQP() {
 	  	  	 	                 gattr + " as group"),
 	  	  	 	              hiveTableName)
 
+	  	  	 println(buildQuery)
 	  	  	 hc.registerRDDAsTable(hc.hql(buildQuery),tmpTableName)
 
 	  	  	 val aggQuery = scc.qb.buildSelectQuery(List( "group",
@@ -182,7 +188,7 @@ class SampleCleanAQP() {
 
 	  	  var gattr = scc.qb.makeExpressionExplicit(group, scc.qb.getCleanSampleName(sampleName))
 
-	  	  val k = hc.hql("SELECT 1 from " + scc.qb.getCleanFactSampleName(sampleName,true)).count()
+	  	  val k = hc.hql("SELECT 1 from " + scc.qb.getCleanFactSampleName(sampleName,true)).count() + 0.0
 	  	  	
 	  	  if(group == "")
 	  	  	 gattr = "'1'"
@@ -248,12 +254,16 @@ class SampleCleanAQP() {
 	  	  	}
 	  	  else
 	  	  {
-			val buildQuery = scc.qb.buildSelectQuery(List(selectionStringCOUNT+ " as agg", gattr + " as group"),
+	  	  	val cleanCount = rawSCQueryGroup(scc, sampleName, attr, expr, pred, group, sampleRatio)
+	  	  	val dirtyCount = rawSCQueryGroup(scc, sampleName, attr, expr, pred, group, sampleRatio, true)
+	  	  	val comparedResult = compareQueryResults(cleanCount,dirtyCount)
+
+			/*val buildQuery = scc.qb.buildSelectQuery(List(selectionStringCOUNT+ " as agg", gattr + " as group"),
 				                           baseTableClean,
 				                           "true",
 				                           baseTableDirty,
 				                           "hash")
-
+			println(buildQuery)
 			hc.registerRDDAsTable(hc.hql(buildQuery),tmpTableName)
 
 	  	  	 val aggQuery = scc.qb.buildSelectQuery(List( "group",
@@ -265,36 +275,34 @@ class SampleCleanAQP() {
 	  	  	 println(aggQuery)
 	  	  	 val result = hc.hql(aggQuery).map(row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
-	  	  	 					      row(2).asInstanceOf[Double]))).collect()
-	  	  	 return (System.nanoTime, result.toList)
+	  	  	 					      row(2).asInstanceOf[Double]))).collect()*/
+	  	  	 return (System.nanoTime, comparedResult._2.map(x => (x._1,(x._2,deltaCountToVariance(x._2,k,sampleRatio)))))
 	  	  }
 
 	  		return (System.nanoTime, List(("1",(0.0,0.0))))
 	  }
 
+	def deltaCountToVariance(c:Double,k:Double,sampleRatio:Double):Double={
+		return ((1-c/k)*c/k)/sampleRatio
+	}
 
-	///fix
+
 	def compareQueryResults(qr1:(Long, List[(String, (Double, Double))]),
 							qr2:(Long, List[(String, (Double, Double))])): (Long, List[(String, Double)]) = {
 
 		val timeStamp = Math.max(qr1._1,qr2._1)
+		val hashJoinSet = qr2._2.toMap
 		var result = List[(String, Double)]()
 		for(k1 <- qr1._2)
 		{
-			for(k2 <- qr2._2)
+			if(hashJoinSet.contains(k1._1))
 			{
-				
-				if(k1._1.equals(k2._1))
-				{
-					val diff = k2._2._1 - k1._2._1
-					//val std = 2*k2._2._2
-
-					if(Math.abs(diff) > 0.0)
-						result = (k1._1, k2._2._1 - k1._2._1) :: result
-				}
+				val diff = k1._2._1 - hashJoinSet(k1._1)._1
+				println(k1._1 + " " + k1._2._1 + " " + hashJoinSet(k1._1)._1)
+				result = (k1._1, diff) :: result
 			}
 		}
-
+		println("Finished")
 		return (timeStamp, result)
 	} 
 }

@@ -256,7 +256,7 @@ class QueryBuilder(scc: SampleCleanContext) {
 		}
 	}
 
-	def countSumVarianceSQL(k: Long, attr: String, sampleRatio: Double):String = {
+	def countSumVarianceSQL(k: Double, attr: String, sampleRatio: Double):String = {
 		val p = "(count(1)"+"/"+k+")"
 		val pm = "(1 -"+p+")"
 		val means = "avg("+attr+")*avg("+attr+")"
