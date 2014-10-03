@@ -77,7 +77,18 @@ case class BlockingKey(cols: Seq[Int],
       tokenizer.tokenSet(value)
     }
   }
+
+  def concat(row: Row): String = {
+    cols.flatMap{x =>
+      var value = row.getString(x)
+      if (lowerCase)
+        value = value.toLowerCase()
+
+      tokenizer.tokenSet(value)
+    }.mkString(" ")
+  }
 }
+
 
 /**
  * This class defines default similarity parameters for the blocking strategy

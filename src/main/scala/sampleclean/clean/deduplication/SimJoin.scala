@@ -192,9 +192,9 @@ class CosineJoin extends PrefixFiltering{
 
 }
 
-
-
 /*
+
+
 object SimJoin {
   def main(args: Array[String]) {
 
@@ -252,7 +252,7 @@ object SimJoin {
       out.write(pair.toString())
       out.newLine()
     }
-    out.close()
+    out.close()*/
 
 /*
     fstream = new FileWriter("/testScript/fulldata.txt", false)

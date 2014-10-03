@@ -1,23 +1,24 @@
 package sampleclean.clean.deduplication
+/**
+ * Created by juanmanuelsanchez on 9/29/14.
+ */
+
+import sampleclean.api.SampleCleanContext
+
+import scala.collection.Seq
 
 import org.apache.spark.sql.hive.HiveContext
-import sampleclean.api.{SampleCleanAQP, SampleCleanContext}
-
-import scala.collection.{mutable, Seq}
-
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql._
 import org.apache.spark.SparkContext._
 
-/**
- * Created by juanmanuelsanchez on 9/29/14.
- */
 
 class PassJoin extends Serializable {
 
 
+  // generate even string segments
   def genEvenSeg(seg_str_len: Int, threshold: Int): Seq[(Int,Int)] = {
 
     val partNum = threshold + 1
@@ -54,72 +55,151 @@ class PassJoin extends Serializable {
     val segInfo = genEvenSeg(seg_str_len, threshold)
 
     (0 until partNum).flatMap {pid =>
-      for (stPos:Int <- math.max(segInfo(pid)._1 - pid, segInfo(pid)._1 + (sub_str_len - seg_str_len) - (threshold - pid))
-        to math.min(segInfo(pid)._1 + pid, segInfo(pid)._1 + (sub_str_len - seg_str_len) + (threshold - pid))) yield (stPos, segInfo(pid)._2)
-    }.slice(0,partNum)
+      for (stPos:Int <- Seq(0,segInfo(pid)._1 - pid, segInfo(pid)._1 + (sub_str_len - seg_str_len) - (threshold - pid)).max
+        to Seq(sub_str_len - segInfo(pid)._2, segInfo(pid)._1 + pid, segInfo(pid)._1 + (sub_str_len - seg_str_len) + (threshold - pid)).min)
+      yield (stPos, segInfo(pid)._2)
+    }//.slice(0,partNum)
 
   }
 
   def broadcastJoin (@transient sc: SparkContext,
                      threshold: Int,
                      fullTable: SchemaRDD,
-                     sampleTable: SchemaRDD): RDD[(Row,Row)] = {
+                     getAttrFull: BlockingKey,
+                     sampleTable: SchemaRDD,
+                     getAttrSample: BlockingKey): RDD[(Row,Row)] = {
 
-    //find max string length in sample
-    val maxLength:Int = sampleTable.map(row => row.getString(0).length).top(1).toSeq(0)
 
     //Add a record ID into sampleTable. Id is a unique id assigned to each row.
     val sampleTableWithId: RDD[(Long, (String, Row))] = sampleTable.zipWithUniqueId()
-      //row only contains one column
-      .map(x => (x._2, (x._1.getString(0), x._1))).cache()
+      .map(x => (x._2, (getAttrSample.concat(x._1), x._1))).cache()
 
-    // build hashmap for possible substrings according to string length
-    val likelyRange = 0 to maxLength + threshold
-    val segMap = likelyRange.map(length => (length,genOptimalSubs(length,threshold))).toMap
+    //find max string length in sample
+    val maxLen = sampleTableWithId.map(_._2._1.length).top(1).toSeq(0)
+    println("maxLen " + maxLen)
+
+    // build hashmap for possible substrings and segments according to string length
+    val likelyRange = 0 to maxLen + threshold
+    val subMap = (0 to maxLen).map(length => (length,genOptimalSubs(length,threshold))).toMap
+    val segMap = likelyRange.map(length => (length,genEvenSeg(length,threshold))).toMap
 
 
-    // Build an inverted index with segments
+    // Build an inverted index with substrings
     val invertedIndex = sampleTableWithId.flatMap {
       case (id, (string, row)) =>
-        val ranges = genOptimalSubs(string.length, threshold)
-        val segments = ranges.map(x => string.substring(x._1, x._1 + x._2))
-        segments.map(x => (x, id))
+        val ranges = subMap(string.length)
+        val substrings = ranges.map(x => string.substring(x._1, x._1 + x._2))
+        substrings.map(x => (x, id))
     }.groupByKey().map(x => (x._1, x._2.toSeq.distinct))
 
 
     //Broadcast sample data to all nodes
     val broadcastIndex: Broadcast[collection.Map[String, Seq[Long]]] = sc.broadcast(invertedIndex.collectAsMap())
     val broadcastData: Broadcast[collection.Map[Long, (String, Row)]] = sc.broadcast(sampleTableWithId.collectAsMap())
-    val broadcastMaxLen = sc.broadcast(maxLength)
+    val broadcastSegMap = sc.broadcast(segMap)
 
 
-    //Generate the candidates whose substrings have overlap, and then verify their edit distance similarity
+    //Generate the candidates whose segments and substrings have overlap, and then verify their edit distance similarity
     fullTable.flatMap({
       case (row1) =>
+        val string1 = getAttrFull.concat(row1)
+        if (string1.length > maxLen + threshold) List()
+        else {
+          val broadcastDataValue = broadcastData.value
+          val broadcastIndexValue = broadcastIndex.value
+          val broadcastSegMapValue = broadcastSegMap.value
+
+          val segments = {
+            broadcastSegMapValue(string1.length).map {
+              case (stPos, len) => string1.substring(stPos, stPos + len)
+            }
+          }
+
+          segments.foldLeft(List[Long]()) {
+            case (ids, string) =>
+              ids ++ broadcastIndexValue.getOrElse(string, List())
+          }.distinct.map {
+            case id =>
+              val (string2, row2) = broadcastDataValue(id)
+              val similar = {
+                thresholdLevenshtein(string1, string2, threshold) <= threshold
+              }
+              (string2, row2, similar)
+          }.withFilter(_._3).map {
+            case (key2, row2, similar) => (row1, row2)
+          }
+        }
+    })
+
+
+  }
+
+  def broadcastJoin (@transient sc: SparkContext,
+                     threshold: Int,
+                     fullTable: SchemaRDD,
+                     getAttrFull: BlockingKey
+                     ): RDD[(Row,Row)] = {
+
+
+    //Add a record ID into sampleTable. Id is a unique id assigned to each row.
+    val tableWithId: RDD[(Long, (String, Row))] = fullTable.zipWithUniqueId()
+      .map(x => (x._2, (getAttrFull.concat(x._1), x._1))).cache()
+
+    //find max string length in sample
+    val maxLen = tableWithId.map(_._2._1.length).top(1).toSeq(0)
+    println("maxLen " + maxLen)
+
+    // build hashmap for possible substrings and segments according to string length
+    val likelyRange = 0 to maxLen
+    val subMap = likelyRange.map(length => (length,genOptimalSubs(length,threshold))).toMap
+    val segMap = likelyRange.map(length => (length,genEvenSeg(length,threshold))).toMap
+
+
+    // Build an inverted index with substrings
+    val invertedIndex = tableWithId.flatMap {
+      case (id, (string, row)) =>
+        val ranges = subMap(string.length)
+        val substrings = ranges.map(x => string.substring(x._1, x._1 + x._2))
+        substrings.map(x => (x, id))
+    }.groupByKey().map(x => (x._1, x._2.toSeq.distinct))
+
+
+    //Broadcast sample data to all nodes
+    val broadcastIndex: Broadcast[collection.Map[String, Seq[Long]]] = sc.broadcast(invertedIndex.collectAsMap())
+    val broadcastData: Broadcast[collection.Map[Long, (String, Row)]] = sc.broadcast(tableWithId.collectAsMap())
+    val broadcastSegMap = sc.broadcast(segMap)
+
+
+    //Generate the candidates whose segments and substrings have overlap, and then verify their edit distance similarity
+    tableWithId.flatMap({
+      case (id1, (string1, row1)) =>
         val broadcastDataValue = broadcastData.value
         val broadcastIndexValue = broadcastIndex.value
+        val broadcastSegMapValue = broadcastSegMap.value
 
-        val string1 = row1.toString()
-        val segments = genEvenSeg(string1.length, threshold).map {
-          case (stPos, len) => string1.substring(stPos, stPos + len)
+        val segments = {
+          broadcastSegMapValue(string1.length).map {
+            case (stPos, len) => string1.substring(stPos, stPos + len)
+          }
         }
 
         segments.foldLeft(List[Long]()) {
           case (ids, string) =>
             ids ++ broadcastIndexValue.getOrElse(string, List())
         }.distinct.map {
-          case id =>
-            val (string2, row2) = broadcastDataValue(id)
-            val similar = {
-              if (string2.length > broadcastMaxLen.value + threshold) false
-              else thresholdLevenshtein(string1, string2, threshold) <= threshold
+          case id2 =>
+            if (id2 >= id1) (null, null, false)
+            else {
+              val (string2, row2) = broadcastDataValue(id2)
+              val similar = {
+                thresholdLevenshtein(string1, string2, threshold) <= threshold
+              }
+              (string2, row2, similar)
             }
-            (string2, row2, similar)
         }.withFilter(_._3).map {
           case (key2, row2, similar) => (row1, row2)
-        }
+          }
     })
-
 
 
   }
@@ -151,8 +231,8 @@ class PassJoin extends Serializable {
     prev(tlen)
   }
 
-  // Original Algorithm translated to Scala
-  // Returns negative indices?? e.g. try (2,2,2) or (5,4,4)
+/*
+  // Original C++ Algorithm translated to Scala
   def getSubstringInfo(tau:Int, seg_str_len:Int, sub_str_len:Int): Unit = {
     var subInfo: Seq[(Int,Int)] = Seq()
     val partNum = tau + 1; // number of segments, should be tau + 1
@@ -174,19 +254,20 @@ class PassJoin extends Serializable {
     // enumerate the valid substrings with respect to seg_str_len, sub_str_len and pid
     for (pid <- 0 until partNum) {
       // stPos is the begin position of a substring and the length of the substring should equal to the length of the segment
-      for (stPos <- math.max(segPos(pid) - pid, segPos(pid) + (sub_str_len - seg_str_len) - (tau - pid))
-      to math.min(segPos(pid) + pid, segPos(pid) + (sub_str_len - seg_str_len) + (tau - pid)))
+      for (stPos <- Seq(0,segPos(pid) - pid, segPos(pid) + (sub_str_len - seg_str_len) - (tau - pid)).max
+      to Seq(sub_str_len - segLen(pid), segPos(pid) + pid, segPos(pid) + (sub_str_len - seg_str_len) + (tau - pid)).min)
       subInfo = subInfo :+ (stPos, segLen(pid))
     }
 
     // print
-    for (i <- 0 until partNum) { // <- Jiannan: # of segments = # of substrings??
+    for (i <- 0 until partNum) {
       println("segment" , segPos(i) , segLen(i))
+    }
+    for (i <- 0 until subInfo.length) {
       println("substring", subInfo(i)._1, subInfo(i)._2)
     }
-    println("number of substrings",subInfo.length)
 
-  }
+  }*/
 
 }
 
@@ -195,44 +276,41 @@ class PassJoin extends Serializable {
 object PassJoin {
   def main(args: Array[String]) = {
 
-    val conf = new SparkConf();
-    conf.setAppName("PassJoinDriver");
-    conf.setMaster("local[4]");
-    conf.set("spark.executor.memory", "4g");
+    val conf = new SparkConf()
+    conf.setAppName("PassJoinDriver")
+    conf.setMaster("local[4]")
+    conf.set("spark.executor.memory", "4g")
 
-    val sc = new SparkContext(conf);
-    val scc = new SampleCleanContext(sc);
+    val sc = new SparkContext(conf)
+    val scc = new SampleCleanContext(sc)
 
-    val hiveContext = scc.getHiveContext();
+    val hiveContext = scc.getHiveContext()
     //hiveContext.hql("DROP TABLE IF EXISTS restaurant")
     hiveContext.hql("CREATE TABLE IF NOT EXISTS restaurant(id String,name String,address String,city String,type String) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
     hiveContext.hql("LOAD DATA LOCAL INPATH '/Users/juanmanuelsanchez/Documents/sampleCleanData/restaurant.csv' OVERWRITE INTO TABLE restaurant")
     scc.closeHiveSession()
 
-    scc.initialize("restaurant","restaurant_sample",0.1)
+    scc.initialize("restaurant","restaurant_sample",1)
 
-    def getFullTableAttr(sampleName: String, attr: String):SchemaRDD = {
-      val hiveContext = new HiveContext(sc)
-      hiveContext.hql(scc.qb.buildSelectQuery(List(attr),scc.getParentTable(scc.qb.getCleanSampleName(sampleName))))
-    }
+    val blockedCols = List("name", "address")
+    val sampleTableName = "restaurant_sample"
 
-    def getCleanSampleAttr(tableName: String, attr: String):SchemaRDD = {
-      val hiveContext = new HiveContext(sc)
-      hiveContext.hql(scc.qb.buildSelectQuery(List(attr),scc.qb.getCleanSampleName(tableName)))
-    }
+    val sampleTable = scc.getCleanSample(sampleTableName).cache
+    val fullTable = scc.getFullTable(sampleTableName).cache
 
-    val sampleTable = getCleanSampleAttr("restaurant_sample","name")
-    val fullTable = getFullTableAttr("restaurant_sample","name")
+    val sampleTableColMapper = scc.getSampleTableColMapper(sampleTableName)
+    val fullTableColMapper = scc.getFullTableColMapper(sampleTableName)
+    val genKeyFull = BlockingKey(fullTableColMapper(blockedCols), WordTokenizer())
+    val genKeySample = BlockingKey(sampleTableColMapper(blockedCols), WordTokenizer())
 
-    println(sampleTable.first())
-    println(sampleTable.count())
-    println(fullTable.first())
-    println(fullTable.count())
+    println("sample count " + sampleTable.count())
+    println("full count " + fullTable.count())
 
     val join = new PassJoin
-    val joined = join.broadcastJoin(sc,2,fullTable,sampleTable)
+    //val joined = join.broadcastJoin(sc,2,fullTable,genKeyFull,sampleTable, genKeySample).cache()
+    val joined = join.broadcastJoin(sc,8,fullTable,genKeyFull).cache()
 
     println(joined.count())
-    println(joined.collect())
+    println(joined.first())
   }
 }
