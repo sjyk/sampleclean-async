@@ -12,25 +12,20 @@ import sampleclean.util.TypeUtils._
 /** Example!! 
 */
 @serializable
-class MergeKey(params:AlgorithmParameters,scc: SampleCleanContext) 
+class LowerCaseTrimKey(params:AlgorithmParameters,scc: SampleCleanContext) 
          extends SampleCleanAlgorithm(params, scc) {
 
-    def replaceIfEqual(x:String, test:String, out:String): String ={
-    	if(x.trim().equalsIgnoreCase(test.trim()))
-    		return out
-    	else
-    		return x
+    def lowerCaseTrim(x:String): String ={
+    	return x.replaceAll("\\s+"," ").toLowerCase().trim()
     }
 
 	def exec(tableName:String)={
 		val attr = params.get("attr").asInstanceOf[String]
-		val key1 = params.get("src").asInstanceOf[String]
-		val key2 = params.get("target").asInstanceOf[String]
 		val attrCol = scc.getColAsIndex(tableName,attr)
     	val hashCol = scc.getColAsIndex(tableName,"hash")
 
 		val update_rdd = scc.getCleanSample(tableName).map(x =>(x(hashCol).asInstanceOf[String],
-																  replaceIfEqual(x(attrCol).asInstanceOf[String],key1,key2)))
+																  lowerCaseTrim(x(attrCol).asInstanceOf[String])))
 		scc.updateTableAttrValue(tableName, attr, update_rdd)
 
 		this.onUpdateNotify()
