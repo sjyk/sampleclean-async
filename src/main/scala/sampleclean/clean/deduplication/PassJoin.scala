@@ -15,17 +15,19 @@ import org.apache.spark.sql._
 import org.apache.spark.SparkContext._
 
 
-class PassJoin extends Serializable {
+trait PassJoin extends Serializable {
 
+
+  def isSimilar(_s: String, _t: String, threshold: Int): Boolean
 
   // generate even string segments
-  def genEvenSeg(seg_str_len: Int, threshold: Int): Seq[(Int,Int)] = {
+  def genEvenSeg(seg_str_len: Int, threshold: Int): Seq[(Int, Int)] = {
 
     val partNum = threshold + 1
     var segLength = seg_str_len / partNum
     var segStartPos = 0
 
-    (0 until partNum).map {pid =>
+    (0 until partNum).map { pid =>
       if (pid == 0) (segStartPos, segLength)
       else {
         segStartPos += segLength
@@ -41,7 +43,7 @@ class PassJoin extends Serializable {
   }
 
   // strLength is length of string to be divided into substrings
-  def genOptimalSubs(strLength: Int, threshold: Int): Seq[(Int,Int)] = {
+  def genOptimalSubs(strLength: Int, threshold: Int): Seq[(Int, Int)] = {
 
     val candidateLengths = strLength - threshold to strLength + threshold
     candidateLengths.flatMap(genSubstrings(_, strLength, threshold)).distinct
@@ -49,25 +51,25 @@ class PassJoin extends Serializable {
   }
 
   // returns starting position and length
-  def genSubstrings(seg_str_len: Int, sub_str_len: Int, threshold: Int): Seq[(Int,Int)] = {
+  def genSubstrings(seg_str_len: Int, sub_str_len: Int, threshold: Int): Seq[(Int, Int)] = {
     val partNum = threshold + 1
     // first value is segment starting position, second value is segment length
     val segInfo = genEvenSeg(seg_str_len, threshold)
 
-    (0 until partNum).flatMap {pid =>
-      for (stPos:Int <- Seq(0,segInfo(pid)._1 - pid, segInfo(pid)._1 + (sub_str_len - seg_str_len) - (threshold - pid)).max
+    (0 until partNum).flatMap { pid =>
+      for (stPos: Int <- Seq(0, segInfo(pid)._1 - pid, segInfo(pid)._1 + (sub_str_len - seg_str_len) - (threshold - pid)).max
         to Seq(sub_str_len - segInfo(pid)._2, segInfo(pid)._1 + pid, segInfo(pid)._1 + (sub_str_len - seg_str_len) + (threshold - pid)).min)
       yield (stPos, segInfo(pid)._2)
-    }//.slice(0,partNum)
+    } //.slice(0,partNum)
 
   }
 
-  def broadcastJoin (@transient sc: SparkContext,
-                     threshold: Int,
-                     fullTable: SchemaRDD,
-                     getAttrFull: BlockingKey,
-                     sampleTable: SchemaRDD,
-                     getAttrSample: BlockingKey): RDD[(Row,Row)] = {
+  def broadcastJoin(@transient sc: SparkContext,
+                    threshold: Int,
+                    fullTable: SchemaRDD,
+                    getAttrFull: BlockingKey,
+                    sampleTable: SchemaRDD,
+                    getAttrSample: BlockingKey): RDD[(Row, Row)] = {
 
 
     //Add a record ID into sampleTable. Id is a unique id assigned to each row.
@@ -80,8 +82,8 @@ class PassJoin extends Serializable {
 
     // build hashmap for possible substrings and segments according to string length
     val likelyRange = 0 to maxLen + threshold
-    val subMap = (0 to maxLen).map(length => (length,genOptimalSubs(length,threshold))).toMap
-    val segMap = likelyRange.map(length => (length,genEvenSeg(length,threshold))).toMap
+    val subMap = (0 to maxLen).map(length => (length, genOptimalSubs(length, threshold))).toMap
+    val segMap = likelyRange.map(length => (length, genEvenSeg(length, threshold))).toMap
 
 
     // Build an inverted index with substrings
@@ -122,7 +124,7 @@ class PassJoin extends Serializable {
             case id =>
               val (string2, row2) = broadcastDataValue(id)
               val similar = {
-                thresholdLevenshtein(string1, string2, threshold) <= threshold
+                isSimilar(string1, string2, threshold)
               }
               (string2, row2, similar)
           }.withFilter(_._3).map {
@@ -134,11 +136,11 @@ class PassJoin extends Serializable {
 
   }
 
-  def broadcastJoin (@transient sc: SparkContext,
-                     threshold: Int,
-                     fullTable: SchemaRDD,
-                     getAttrFull: BlockingKey
-                     ): RDD[(Row,Row)] = {
+  def broadcastJoin(@transient sc: SparkContext,
+                    threshold: Int,
+                    fullTable: SchemaRDD,
+                    getAttrFull: BlockingKey
+                     ): RDD[(Row, Row)] = {
 
 
     //Add a record ID into sampleTable. Id is a unique id assigned to each row.
@@ -151,8 +153,8 @@ class PassJoin extends Serializable {
 
     // build hashmap for possible substrings and segments according to string length
     val likelyRange = 0 to maxLen
-    val subMap = likelyRange.map(length => (length,genOptimalSubs(length,threshold))).toMap
-    val segMap = likelyRange.map(length => (length,genEvenSeg(length,threshold))).toMap
+    val subMap = likelyRange.map(length => (length, genOptimalSubs(length, threshold))).toMap
+    val segMap = likelyRange.map(length => (length, genEvenSeg(length, threshold))).toMap
 
 
     // Build an inverted index with substrings
@@ -192,19 +194,25 @@ class PassJoin extends Serializable {
             else {
               val (string2, row2) = broadcastDataValue(id2)
               val similar = {
-                thresholdLevenshtein(string1, string2, threshold) <= threshold
+                isSimilar(string1, string2, threshold)
               }
               (string2, row2, similar)
             }
         }.withFilter(_._3).map {
           case (key2, row2, similar) => (row1, row2)
-          }
+        }
     })
 
 
   }
 
+}
+class EditDistance extends PassJoin {
   // Given EditD calculator
+  def isSimilar(_s: String, _t: String, threshold: Int): Boolean = {
+    thresholdLevenshtein(_s,_t,threshold) <= threshold
+  }
+
   def thresholdLevenshtein(_s: String, _t: String, threshold: Int): Int = {
     val (s, t) = if (_s.length > _t.length) (_s, _t) else (_t, _s)
     val slen = s.length
@@ -306,9 +314,9 @@ object PassJoin {
     println("sample count " + sampleTable.count())
     println("full count " + fullTable.count())
 
-    val join = new PassJoin
+    val metric = new EditDistance
     //val joined = join.broadcastJoin(sc,2,fullTable,genKeyFull,sampleTable, genKeySample).cache()
-    val joined = join.broadcastJoin(sc,8,fullTable,genKeyFull).cache()
+    val joined = metric.broadcastJoin(sc,8,fullTable,genKeyFull).cache()
 
     println(joined.count())
     println(joined.first())
