@@ -46,6 +46,8 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   //function registry--use the function registry if the system accepts string parameters
   val functionRegistry = Map("merge" -> ("sampleclean.clean.misc.MergeKey",
                                          List("attr","src","target")),
+                             "lowercase" -> ("sampleclean.clean.misc.LowerCaseTrimKey",
+                                         List("attr")),
                              "filter" -> ("sampleclean.clean.misc.RuleFilter",
                                          List("attr", "rule")))
 
@@ -234,7 +236,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
       var paramIndex = 2
 
       for(param <- classData._2){
-         algoPara.put(param, comps(paramIndex))
+         algoPara.put(param, comps(paramIndex).trim())
          paramIndex = paramIndex + 1
       }
       val d =  Class.forName(classData._1).getConstructors()(0).newInstance(algoPara,scc).asInstanceOf[SampleCleanAlgorithm]
@@ -333,9 +335,9 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     hiveContext.hql("DROP TABLE IF EXISTS paper_affiliation")
     hiveContext.hql("CREATE TABLE paper_affiliation as SELECT paperid, affiliation from paper_author where length(affiliation) > 1 group by paperid,affiliation")
   
-    scc.initializeConsistent("paper", "paper_sample", "id", 100)
-    scc.initializeConsistent("paper_affiliation", "paper_aff_sample", "paperid", 100)
-    scc.initializeConsistent("paper_author", "paper_auth_sample", "paperid", 100)
+    scc.initializeConsistent("paper", "paper_sample", "id", 50)
+    scc.initializeConsistent("paper_affiliation", "paper_aff_sample", "paperid", 50)
+    scc.initializeConsistent("paper_author", "paper_auth_sample", "paperid", 50)
 
   }
 

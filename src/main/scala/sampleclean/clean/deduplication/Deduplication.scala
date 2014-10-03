@@ -110,8 +110,8 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
    * @param out is returned if strings are equal.
    */
   def replaceIfEqual(x:String, test:Map[String,String]): String ={
-      if(test.contains(x))
-        return test(x)
+      if(test.contains(x.toLowerCase()))
+        return test(x.toLowerCase())
       else
         return x
     }
@@ -130,6 +130,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
 
     val attr = params.get("dedupAttr").asInstanceOf[String]
     val attrCol = scc.getColAsIndex(sampleTableName,attr)
+    val hashCol = scc.getColAsIndex(sampleTableName,"hash")
     //println("attr = " + attr)
 
     val sampleTableRDD = scc.getCleanSample(sampleTableName)
@@ -198,7 +199,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
     }
 
     var resultRDD = sampleTableRDD.map(x =>
-      (scc.getColAsString(x,sampleTableName,"hash"), scc.getColAsString(x,sampleTableName,attr)))
+      (x(hashCol).asInstanceOf[String], x(attrCol).asInstanceOf[String]))
 
     for(pair <- candidatePairs){
         println("Added " + pair)
@@ -269,7 +270,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
 
       val sortedList = comp.toList.sortWith(compOperator)
       for(i <- 0 until (sortedList.length - 1) )
-        resultList = (sortedList(i).getString(0),sortedList(sortedList.length - 1).getString(0))  :: resultList 
+        resultList = (sortedList(i).getString(0).toLowerCase(),sortedList(sortedList.length - 1).getString(0).toLowerCase())  :: resultList 
 
     }
 
