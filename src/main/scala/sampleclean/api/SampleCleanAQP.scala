@@ -4,6 +4,7 @@ import org.apache.spark.sql.SchemaRDD
 import org.apache.spark.sql.hive.HiveContext
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.Row
+import scala.util.Random
 
 import sampleclean.util.TypeUtils._
 
@@ -15,108 +16,6 @@ import sampleclean.util.TypeUtils._
 @serializable
 class SampleCleanAQP() {
 
-	  /**This function executes the per-partition query processing of the agg function
-	   * Notice that this operation returns a single tuple from each partition which is
-	     then aggregated in a reduce call.
-	   */
-	  private def aqpPartitionAgg(partitionData:Iterator[Double]): Iterator[(Double,Double,Double)] =
-	  {
-	  		var result = 0.0
-	  		var variance = 0.0
-	  		var n = 0.0
-
-	  		for(tuple <- partitionData)
-	  		{
-	  			n = n + 1
-	  			result = result*((n-1)/n) + tuple/n
-	  			val dev = Math.pow((tuple - result),2)
-	  			variance = variance*((n-1)/n) + dev/n
-	  		}
-
-	  		return List((result,variance, n)).iterator
-	  }
-
-	  /**Helper function that "transforms" our queries into mean queries
-	  */
-	  private def aqpPartitionMap(row:Row, transform: Double => Double): Double = 
-	  {
-	  		return transform(rowToNumber(row,0))/rowToNumber(row,1)
-	  }
-
-	  /**Internal method to execute the count query, returns a tuple of (Result, Confidence)
-	  */
-	  private def approxCount(rdd:SchemaRDD, sampleRatio:Double):(Double, Double)=
-	  {
-
-	  	  val partitionResults = rdd.coalesce(4,true).map(row => aqpPartitionMap(row,x => x))
-	  	  							.mapPartitions(aqpPartitionAgg, true).collect()
-	  	  var count:Double = 0.0
-	  	  var variance:Double = 0.0
-	  	  var emptyPartitions = 0
-	  	  var k = 0.0
-
-	  	  for(p <- partitionResults)
-	  	  {
-	  	  	count = count + p._1.asInstanceOf[Double]
-	  	  	variance = variance + p._2.asInstanceOf[Double]
-	  	  	
-	  	  	if (p._3.asInstanceOf[Double] == 0.0)
-	  	  		emptyPartitions = emptyPartitions + 1
-
-	  	  }
-	  	  val splitSize = partitionResults.length - emptyPartitions
-	  	  return (rdd.count()*count/(splitSize*sampleRatio),
-	  	  	      (rdd.count()/sampleRatio)*Math.sqrt(variance/splitSize)/
-	  	  	       Math.sqrt(rdd.count()))
-	  }
-
-
-	  /**Internal method to execute the sum query, returns a tuple of (Result, Confidence)
-	  */
-	  private def approxSum(rdd:SchemaRDD, sampleRatio:Double):(Double, Double)=
-	  {
-
-	  	  val partitionResults = rdd.coalesce(4,true).map(row => aqpPartitionMap(row,x => x))
-	  	  							.mapPartitions(aqpPartitionAgg, true).collect()
-	  	  var sum:Double = 0.0
-	  	  var variance:Double = 0.0
-	  	  var emptyPartitions = 0
-	  	  for(p <- partitionResults)
-	  	  {
-	  	  	sum = sum + p._1.asInstanceOf[Double]
-	  	  	variance = variance + p._2.asInstanceOf[Double]
-
-	  	  	if (p._3.asInstanceOf[Double] == 0.0)
-	  	  		emptyPartitions = emptyPartitions + 1
-	  	  }
-	  	  val splitSize = partitionResults.length - emptyPartitions
-	  	  return (rdd.count()*sum/(splitSize*sampleRatio),
-	  	  	       (rdd.count()/sampleRatio)*Math.sqrt(variance/splitSize)/
-	  	  	       Math.sqrt(rdd.count()))
-	  }
-
-	 /**Internal method to execute the AVG query, returns a tuple of (Result, Confidence)
-	  */
-	  private def approxAvg(rdd:SchemaRDD, sampleRatio:Double):(Double, Double)=
-	  {
-	  	  val partitionResults = rdd.coalesce(4,true).map(row => aqpPartitionMap(row,x => x))//todo fix
-	  	  							.mapPartitions(aqpPartitionAgg, true).collect()
-	  	  var sum:Double = 0.0
-	  	  var variance:Double = 0.0
-	  	  var emptyPartitions = 0
-	  	  for(p <- partitionResults)
-	  	  {
-	  	  	sum = sum + p._1.asInstanceOf[Double]
-	  	  	variance = variance + p._2.asInstanceOf[Double]
-	  	  	if (p._3.asInstanceOf[Double] == 0.0)
-	  	  		emptyPartitions = emptyPartitions + 1
-	  	  }
-	  	  val splitSize = partitionResults.length - emptyPartitions
-	  	  return (duplicationRate(rdd)*sum/(splitSize)
-	  	  	     ,duplicationRate(rdd)*Math.sqrt(variance/splitSize)/
-	  	  	     Math.sqrt(rdd.count()))
-	  }
-
 	  /**Internal method to calculate the normalization for the AVG query
 	  */
 	  private def duplicationRate(rdd:SchemaRDD):Double=
@@ -124,57 +23,7 @@ class SampleCleanAQP() {
 	  	  return rdd.count()/rdd.map( x => 1.0/x(1).asInstanceOf[Int]).reduce(_ + _)
 	  }
 
-	  /*This query executes rawSC given an attribute to aggregate, expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
-	  * It returns a tuple of the estimate, and the variance of the estimate (EST, VAR_EST)
-
-	  *Args (SampleCleanContext, Name of Sample to Query, 
-	  *Attr to Query, Agg Function to Use, Predicate, Sampling Ratio)
-	  */
-	  def rawSCQuery(scc:SampleCleanContext, sampleName: String, 
-	  				  attr: String, expr: String, 
-	  				  pred:String, 
-	  				  sampleRatio: Double): (Double, Double)=
-	  {
-	  	  val hc:HiveContext = scc.getHiveContext()
-	  	  val hiveTableName = scc.qb.getCleanSampleName(sampleName)
-	  	  
-	  	  var defaultPred = "true"
-	  	  val dup = scc.qb.exprToDupString(sampleName)
-	  	  val tattr = scc.qb.transformExplicitExpr(attr,sampleName)
-
-	  	  if(pred != "")
-	  	  	defaultPred = scc.qb.transformExplicitExpr(pred,sampleName)
-
-	  	  if (expr.toLowerCase() == "avg"){
-	  	  	 
-	  	  	 val buildQuery = scc.qb.buildSelectQuery(List(tattr,dup),
-	  	  	 	                               hiveTableName,
-	  	  	 	                               defaultPred)
-	  	  	 
-	  	  	 return approxAvg(hc.hql(buildQuery),sampleRatio)
-	  	  }
-	  	  else if (expr.toLowerCase() == "sum"){
-
-	  	  	 val buildQuery = scc.qb.buildSelectQuery(
-	  	  	 	                 List(scc.qb.predicateToCaseMult(defaultPred,tattr)
-	  	  	 	                 ,dup),
-	  	  	 	              hiveTableName)
-
-	  	  	 return approxSum(hc.hql(buildQuery),sampleRatio)
-	  	  	}
-	  	  else
-	  	  {
-	  	  	 val buildQuery = scc.qb.buildSelectQuery(
-	  	  	 	                 List(scc.qb.predicateToCase(defaultPred)
-	  	  	 	                 ,dup),
-	  	  	 	              hiveTableName)
-
-	  	  	 return approxCount(hc.hql(buildQuery),sampleRatio)
-	  	  }
-
-	  }
-
-	 /*This query executes rawSC with a group given an attribute to aggregate, 
+	  /*This query executes rawSC with a group given an attribute to aggregate, 
 	  * expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
 	  * It returns a tuple of the estimate, and the variance of the estimate (EST, VAR_EST)
 
@@ -185,55 +34,166 @@ class SampleCleanAQP() {
 	  				  attr: String, expr: String, 
 	  				  pred:String,
 	  				  group: String, 
-	  				  sampleRatio: Double): (Long, List[(String, (Double, Double))])=
+	  				  sampleRatio: Double,
+	  				  dirty:Boolean = false): (Long, List[(String, (Double, Double))])=
 	  {
 	  	  	val hc:HiveContext = scc.getHiveContext()
-	  	  	val hiveTableName = scc.qb.getDirtySampleName(sampleName)
+	  	  	var hiveTableName = scc.qb.getCleanSampleName(sampleName)
 
-	  	  	val distinctKeys = hc.hql(scc.qb.buildSelectDistinctQuery(List(scc.qb.transformExplicitExpr(group,sampleName,true)),
-	  	  													   hiveTableName, 
-	  	  													   "true"))
-	  	  						 .map(x => x(0).asInstanceOf[String]).collect()
+	  	  	if(dirty)
+	  	  		hiveTableName = scc.qb.getDirtySampleName(sampleName)
 
-	  		var result = List[(String, (Double, Double))]()
-	  		for(t <- distinctKeys)
-	  			{ 
-	  				if(pred != ""){
-	  					result = (t, rawSCQuery(scc, sampleName, 
-	  							   attr, expr, 
-	  							   scc.qb.appendToPredicate(pred, 
-	  							   				scc.qb.attrEquals(group,t)),
-	  							   sampleRatio)) :: result
-	  				}
-	  				else{
-	  					result = (t, rawSCQuery(scc, sampleName, 
-	  							   attr, expr,
-	  							   scc.qb.attrEquals(group,t),
-	  							   sampleRatio)) :: result
-						}
-	  			}
 
-	  		return (System.nanoTime, result)
+	  	  	var defaultPred = "true"
+	  	  	val dup = scc.qb.exprToDupString(sampleName)
+	  	  	val tattr = scc.qb.transformExplicitExpr(attr,sampleName)
+	  	  	var gattr = scc.qb.transformExplicitExpr(group,sampleName)
+	  	  	
+	  	  	if(group == "")
+	  	  		gattr = "'1'"
+
+	  	  	val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
+
+	  	  	val k = hc.hql("SELECT 1 from " + scc.qb.getCleanFactSampleName(sampleName,true)).count()
+
+	  	  	if(pred != "")
+	  	  		defaultPred = scc.qb.transformExplicitExpr(pred,sampleName)
+
+	  		if (expr.toLowerCase() == "avg"){
+	  	  	 
+	  	  	 val buildQuery = scc.qb.buildSelectQuery(
+	  	  	 	                 List(scc.qb.divide(scc.qb.predicateToCaseMult(defaultPred,tattr), dup) + " as agg",
+	  	  	 	                 gattr + " as group"),
+	  	  	 	              hiveTableName)
+
+	  	  	 hc.registerRDDAsTable(hc.hql(buildQuery),tmpTableName)
+
+	  	  	 val aggQuery = scc.qb.buildSelectQuery(List( "group",
+	  	  	 										      "avg(agg)",
+	  	  	 	                 					      "var_samp(agg)/"+k),
+	  	  	 	              					    tmpTableName) +
+	  	  	 				" group by group"
+
+	  	  	 println(aggQuery)
+	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
+	  	  	 					      (row(1).asInstanceOf[Double],
+	  	  	 					      row(2).asInstanceOf[Double]))).collect()
+	  	  	 return (System.nanoTime, result.toList)
+	  	  	}
+	  	  	else if (expr.toLowerCase() == "sum"){
+
+	  	  	 val buildQuery = scc.qb.buildSelectQuery(
+	  	  	 	                 List(scc.qb.divide(scc.qb.predicateToCaseMult(defaultPred,tattr), dup) + " as agg",
+	  	  	 	                 gattr + " as group"),
+	  	  	 	              hiveTableName)
+
+	  	  	 println(buildQuery)
+	  	  	 hc.registerRDDAsTable(hc.hql(buildQuery),tmpTableName)
+
+	  	  	 val aggQuery = scc.qb.buildSelectQuery(List( "group",
+	  	  	 										      "sum(agg)/"+sampleRatio,
+	  	  	 	                 					      scc.qb.countSumVarianceSQL(k,"agg",sampleRatio)),
+	  	  	 	              					    tmpTableName) +
+	  	  	 				" group by group"
+
+	  	  	 println(aggQuery)
+	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
+	  	  	 					      (row(1).asInstanceOf[Double],
+	  	  	 					      row(2).asInstanceOf[Double]))).collect()
+	  	  	 return (System.nanoTime, result.toList)
+	  	  	}
+	  	  	else
+	  	  	{
+	  	  	 val buildQuery = scc.qb.buildSelectQuery(
+	  	  	 	                 List(scc.qb.divide(scc.qb.predicateToCase(defaultPred), dup) + " as agg",
+	  	  	 	                 gattr + " as group"),
+	  	  	 	              hiveTableName)
+
+	  	  	 hc.registerRDDAsTable(hc.hql(buildQuery),tmpTableName)
+
+	  	  	 val aggQuery = scc.qb.buildSelectQuery(List( "group",
+	  	  	 										      "sum(agg)/"+sampleRatio,
+	  	  	 	                 					      scc.qb.countSumVarianceSQL(k,"agg",sampleRatio)),
+	  	  	 	              					    tmpTableName) +
+	  	  	 				" group by group"
+
+	  	  	 println(aggQuery)
+	  	  	 val result = hc.hql(aggQuery).map(row => (row(0).asInstanceOf[String],
+	  	  	 					      (row(1).asInstanceOf[Double],
+	  	  	 					      row(2).asInstanceOf[Double]))).collect()
+	  	  	 return (System.nanoTime, result.toList)
+	  	  	}
+
+	  		//return (System.nanoTime, List(("test",(0.0,0.0))))
 	  }
 
-	  /*This query executes rawSC given an attribute to aggregate, expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
-	  * It returns a tuple of the estimate, and the variance of the estimate (EST, VAR_EST)
-	  *
-	  *Args (SampleCleanContext, Name of Sample to Query, 
+	 def materializeJoinResult(scc:SampleCleanContext, 
+	 						    sampleName1: String,
+	 						    sampleName2: String, 
+	 						    key1:String, 
+	 						    key2:String, 
+	 						    tableName:String):(SchemaRDD,SchemaRDD) = {
+
+	 	val hc:HiveContext = scc.getHiveContext()
+	 	val cleanName1 = scc.qb.getCleanSampleName(sampleName1)
+	 	val cleanName2 = scc.qb.getCleanSampleName(sampleName2)
+	 	val dirtyName1 = scc.qb.getDirtySampleName(sampleName1)
+	 	val dirtyName2 = scc.qb.getDirtySampleName(sampleName2)
+
+	 	val query1 = hc.hql(scc.qb.createTableAs(scc.qb.getCleanSampleName(tableName))+
+	 						scc.qb.buildSelectQuery(scc.qb.getTableJoinSchemaList(cleanName1,cleanName2),
+	 												cleanName1,"true",cleanName2,key1,key2))
+
+	 	val query2 = hc.hql(scc.qb.createTableAs(scc.qb.getDirtySampleName(tableName))+
+	 						scc.qb.buildSelectQuery(scc.qb.getTableJoinSchemaList(dirtyName1,dirtyName2),
+	 											    dirtyName1,"true",dirtyName2,key1,key2))
+
+	 	return (query1, query2)
+	 }
+
+	 def materializeJoinResult(scc:SampleCleanContext, expr:String,tableName:String):(SchemaRDD,SchemaRDD)= {
+	 	val params = scc.qb.joinExpr(expr)
+	 	return materializeJoinResult(scc,params._1,params._2,params._3,params._4,tableName)
+	 }
+
+	  /*Args (SampleCleanContext, Name of Sample to Query, 
 	  *Attr to Query, Agg Function to Use, Predicate, Sampling Ratio)
 	  */
-	 def normalizedSCQuery(scc:SampleCleanContext, sampleName: String, 
+	 def normalizedSCQueryGroup(scc:SampleCleanContext, sampleName: String, 
 	  				  attr: String, expr: String, 
-	  				  pred:String, 
-	  				  sampleRatio: Double): (Double, Double)=
+	  				  pred:String,
+	  				  group: String, 
+	  				  sampleRatio: Double): (Long,List[(String, (Double, Double))])=
 	  {
 	  	  val hc:HiveContext = scc.getHiveContext()
-	  	  val baseTableClean = scc.qb.getCleanSampleName(sampleName)
-	  	  val baseTableDirty = scc.qb.getDirtySampleName(sampleName)
+	  	  var baseTableClean = ""
+	  	  var baseTableDirty = ""
+
+	  	  if(scc.qb.isJoinQuery(sampleName))
+	  	  {
+	  	  		val tmpJTableName = "tmp"+Math.abs((new Random().nextLong()))
+	  	  		materializeJoinResult(scc,sampleName,tmpJTableName)
+	  	  		baseTableClean = scc.qb.getCleanFactSampleName(tmpJTableName,false)
+	  	  		baseTableDirty = scc.qb.getCleanFactSampleName(tmpJTableName,true)
+	  	  }
+	  	  else{
+	  	  		baseTableClean = scc.qb.getCleanFactSampleName(sampleName,false)
+	  	  		baseTableDirty = scc.qb.getCleanFactSampleName(sampleName,true)
+	  	  }
+
 
 	  	  var defaultPred = "true"
 	  	  if(pred != "")
 	  	  	defaultPred = pred
+
+	  	  var gattr = scc.qb.makeExpressionExplicit(group, scc.qb.getCleanSampleName(sampleName))
+
+	  	  val k = hc.hql("SELECT 1 from " + scc.qb.getCleanFactSampleName(sampleName,true)).count() + 0.0
+	  	  	
+	  	  if(group == "")
+	  	  	 gattr = "'1'"
+
+	  	  val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
 
 	  	  val newPred = scc.qb.makeExpressionExplicit(defaultPred,baseTableClean)
 	  	  val oldPred = scc.qb.makeExpressionExplicit(defaultPred,baseTableDirty)
@@ -251,92 +211,98 @@ class SampleCleanAQP() {
 
 	  	  var query = ""
 	  	  if (expr.toLowerCase() == "avg"){
-			val buildQuery = scc.qb.buildSelectQuery(List(selectionStringAVG,"1"),
+			val buildQuery = scc.qb.buildSelectQuery(List(selectionStringAVG + " as agg", gattr + " as group"),
 				                           baseTableClean,
 				                           pred,
 				                           baseTableDirty,
 				                           "hash")
-	  	  	 return approxAvg(hc.hql(buildQuery).cache(),sampleRatio)
+
+	  	  	 hc.registerRDDAsTable(hc.hql(buildQuery),tmpTableName)
+
+	  	  	 val aggQuery = scc.qb.buildSelectQuery(List( "group",
+	  	  	 										      "avg(agg)",
+	  	  	 	                 					      "var_samp(agg)/"+k),
+	  	  	 	              					    tmpTableName) +
+	  	  	 				" group by group"
+
+	  	  	 println(aggQuery)
+	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
+	  	  	 					      (row(1).asInstanceOf[Double],
+	  	  	 					      row(2).asInstanceOf[Double]))).collect()
+	  	  	 return (System.nanoTime, result.toList)
 	  	  }
 	  	  else if (expr.toLowerCase() == "sum"){
-			val buildQuery = scc.qb.buildSelectQuery(List(selectionStringSUM,"1"),
+			val buildQuery = scc.qb.buildSelectQuery(List(selectionStringSUM+ " as agg", gattr + " as group"),
 				                           baseTableClean,
 				                           "true",
 				                           baseTableDirty,
 				                           "hash")
-	  	  	 return approxSum(hc.hql(buildQuery).cache(),sampleRatio)
+
+	  	  	 hc.registerRDDAsTable(hc.hql(buildQuery),tmpTableName)
+
+	  	  	 val aggQuery = scc.qb.buildSelectQuery(List( "group",
+	  	  	 										      "sum(agg)/"+sampleRatio,
+	  	  	 	                 					      scc.qb.countSumVarianceSQL(k,"agg",sampleRatio)),
+	  	  	 	              					    tmpTableName) +
+	  	  	 				" group by group"
+
+	  	  	 println(aggQuery)
+	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
+	  	  	 					      (row(1).asInstanceOf[Double],
+	  	  	 					      row(2).asInstanceOf[Double]))).collect()
+	  	  	 return (System.nanoTime, result.toList)
 	  	  	}
 	  	  else
 	  	  {
-			val buildQuery = scc.qb.buildSelectQuery(List(selectionStringCOUNT,"1"),
+	  	  	val cleanCount = rawSCQueryGroup(scc, sampleName, attr, expr, pred, group, sampleRatio)
+	  	  	val dirtyCount = rawSCQueryGroup(scc, sampleName, attr, expr, pred, group, sampleRatio, true)
+	  	  	val comparedResult = compareQueryResults(cleanCount,dirtyCount)
+
+			/*val buildQuery = scc.qb.buildSelectQuery(List(selectionStringCOUNT+ " as agg", gattr + " as group"),
 				                           baseTableClean,
 				                           "true",
 				                           baseTableDirty,
 				                           "hash")
-
 			println(buildQuery)
-	  	  	 return approxSum(hc.hql(buildQuery).cache(),sampleRatio)
+			hc.registerRDDAsTable(hc.hql(buildQuery),tmpTableName)
+
+	  	  	 val aggQuery = scc.qb.buildSelectQuery(List( "group",
+	  	  	 										      "sum(agg)/"+sampleRatio,
+	  	  	 	                 					      scc.qb.countSumVarianceSQL(k,"agg",sampleRatio)),
+	  	  	 	              					    tmpTableName) +
+	  	  	 				" group by group"
+
+	  	  	 println(aggQuery)
+	  	  	 val result = hc.hql(aggQuery).map(row => (row(0).asInstanceOf[String],
+	  	  	 					      (row(1).asInstanceOf[Double],
+	  	  	 					      row(2).asInstanceOf[Double]))).collect()*/
+	  	  	 return (System.nanoTime, comparedResult._2.map(x => (x._1,(x._2,deltaCountToVariance(x._2,k,sampleRatio)))))
 	  	  }
 
+	  		return (System.nanoTime, List(("1",(0.0,0.0))))
 	  }
 
-	  	 /*This query executes normalizedSC with a group given an attribute to aggregate, 
-	  * expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
-	  * It returns a tuple of the estimate, and the variance of the estimate (EST, VAR_EST)
-
-	  *Args (SampleCleanContext, Name of Sample to Query, 
-	  *Attr to Query, Agg Function to Use, Predicate, Sampling Ratio)
-	  */
-	 def normalizedSCQueryGroup(scc:SampleCleanContext, sampleName: String, 
-	  				  attr: String, expr: String, 
-	  				  pred:String,
-	  				  group: String, 
-	  				  sampleRatio: Double): (Long,List[(String, (Double, Double))])=
-	  {
-	  	  	val hc:HiveContext = scc.getHiveContext()
-	  	  	val hiveTableName = scc.qb.getDirtySampleName(sampleName)
-
-	  	  	val distinctKeys = hc.hql(scc.qb.buildSelectDistinctQuery(List(group),
-	  	  													   hiveTableName, 
-	  	  													   "true"))
-	  	  						 .map(x => x.getString(0)).collect()
-
-	  		var result = List[(String, (Double, Double))]()
-	  		for(t <- distinctKeys)
-	  			{
-	  				result = (t, normalizedSCQuery(scc, sampleName, 
-	  							   attr, expr, 
-	  							   scc.qb.appendToPredicate(pred, 
-	  							   		scc.qb.attrEquals(group,t)),
-	  							   sampleRatio)) :: result
-	  			}
-
-	  		return (System.nanoTime, result)
-	  }
+	def deltaCountToVariance(c:Double,k:Double,sampleRatio:Double):Double={
+		return ((1-c/k)*c/k)/sampleRatio
+	}
 
 
-	///fix
 	def compareQueryResults(qr1:(Long, List[(String, (Double, Double))]),
 							qr2:(Long, List[(String, (Double, Double))])): (Long, List[(String, Double)]) = {
 
 		val timeStamp = Math.max(qr1._1,qr2._1)
+		val hashJoinSet = qr2._2.toMap
 		var result = List[(String, Double)]()
 		for(k1 <- qr1._2)
 		{
-			for(k2 <- qr2._2)
+			if(hashJoinSet.contains(k1._1))
 			{
-				
-				if(k1._1.equals(k2._1))
-				{
-					val diff = k2._2._1 - k1._2._1
-					//val std = 2*k2._2._2
-
-					if(Math.abs(diff) > 0.0)
-						result = (k1._1, k2._2._1 - k1._2._1) :: result
-				}
+				val diff = k1._2._1 - hashJoinSet(k1._1)._1
+				println(k1._1 + " " + k1._2._1 + " " + hashJoinSet(k1._1)._1)
+				result = (k1._1, diff) :: result
 			}
 		}
-
+		println("Finished")
 		return (timeStamp, result)
 	} 
 }

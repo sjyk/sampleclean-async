@@ -1,9 +1,0 @@
-BEGIN;
-DROP TABLE "amt_request" CASCADE;
-DROP TABLE "amt_response" CASCADE;
-DROP TABLE "amt_worker" CASCADE;
-DROP TABLE "amt_worker_hits" CASCADE;
-DROP TABLE "amt_hit" CASCADE;
-DROP TABLE "amt_group" CASCADE;
-
-COMMIT;

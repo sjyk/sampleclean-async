@@ -1,0 +1,13 @@
+Django==1.7
+amqp==1.4.6
+anyjson==0.3.3
+billiard==3.3.0.18
+boto==2.29.1
+celery==3.1.15
+django-celery==3.1.16
+django-sslserver==0.12
+gunicorn==19.0.0
+kombu==3.0.23
+psycopg2==2.5.3
+pytz==2014.7
+wsgiref==0.1.2

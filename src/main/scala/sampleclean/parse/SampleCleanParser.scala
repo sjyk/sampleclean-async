@@ -46,6 +46,8 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   //function registry--use the function registry if the system accepts string parameters
   val functionRegistry = Map("merge" -> ("sampleclean.clean.misc.MergeKey",
                                          List("attr","src","target")),
+                             "lowercase" -> ("sampleclean.clean.misc.LowerCaseTrimKey",
+                                         List("attr")),
                              "filter" -> ("sampleclean.clean.misc.RuleFilter",
                                          List("attr", "rule")))
 
@@ -234,7 +236,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
       var paramIndex = 2
 
       for(param <- classData._2){
-         algoPara.put(param, comps(paramIndex))
+         algoPara.put(param, comps(paramIndex).trim())
          paramIndex = paramIndex + 1
       }
       val d =  Class.forName(classData._1).getConstructors()(0).newInstance(algoPara,scc).asInstanceOf[SampleCleanAlgorithm]
@@ -254,7 +256,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   def parseAndExecute(commandI:String):(String, Long) = {
 
   	val now = System.nanoTime
-  	val command = commandI.replace(";","").toLowerCase().trim()
+  	val command = commandI.replace(";","").trim()
     val firstToken = command.split("\\s+")(0)
 
     try{
@@ -287,11 +289,11 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
        return ("Dedup", (System.nanoTime - now)/1000000)
      }
   	 else if(firstToken.equals("selectrawsc")){
-  		  println(queryParser(command).execute())
+  		  printQuery(queryParser(command).execute())
   		  return ("Complete", (System.nanoTime - now)/1000000)
   	  }
       else if(firstToken.equals("selectnsc")){
-        println(queryParser(command, false).execute())
+        printQuery(queryParser(command, false).execute())
         return ("Complete", (System.nanoTime - now)/1000000)
       }
   	 else {//in the default case pass it to hive
@@ -303,22 +305,40 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     }
     catch {
      case p: ParseError => println(p.details)
-     case e: Exception => println("Execution exception detected")
+     case e: Exception => println(e)
    }
 
     return ("Error", (System.nanoTime - now)/1000000 )
 
   }
 
+  def printQuery(result:(Long, List[(String, (Double, Double))])) ={
+      var listOfResults = result._2
+      listOfResults = listOfResults.sortBy(-_._2._1)
+      for(r <- listOfResults.slice(0,Math.min(10, listOfResults.length)))
+        println(r)
+  }
 
   //Demo functions
 
   def initDemo() = {
     val hiveContext = scc.getHiveContext();
+    scc.closeHiveSession()
   	hiveContext.hql("DROP TABLE IF EXISTS paper")
     hiveContext.hql("CREATE TABLE IF NOT EXISTS paper(id String,title string,year String,conference String,journal String,keyword String) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
     hiveContext.hql("LOAD DATA LOCAL INPATH 'msac-datasets/Paper-reg.csv' OVERWRITE INTO TABLE paper")
-    scc.closeHiveSession()
+
+    hiveContext.hql("DROP TABLE IF EXISTS paper_author")
+    hiveContext.hql("CREATE TABLE IF NOT EXISTS paper_author(paperId String,authorId String,Name String,Affiliation String) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
+    hiveContext.hql("LOAD DATA LOCAL INPATH 'msac-datasets/PaperAuthor-reg.csv' OVERWRITE INTO TABLE paper_author")
+
+    hiveContext.hql("DROP TABLE IF EXISTS paper_affiliation")
+    hiveContext.hql("CREATE TABLE paper_affiliation as SELECT paperid, affiliation from paper_author where length(affiliation) > 1 group by paperid,affiliation")
+  
+    scc.initializeConsistent("paper", "paper_sample", "id", 50)
+    scc.initializeConsistent("paper_affiliation", "paper_aff_sample", "paperid", 50)
+    scc.initializeConsistent("paper_author", "paper_auth_sample", "paperid", 50)
+
   }
 
   def demoDedupRec() = {
@@ -355,18 +375,18 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
     val algoPara = new AlgorithmParameters()
 
-    algoPara.put("dedupAttr", "city")
-    algoPara.put("similarityParameters", SimilarityParameters(simFunc = "Jaccard", tokenizer = GramTokenizer(2), threshold = 0.25))
+    algoPara.put("dedupAttr", "affiliation")
+    algoPara.put("similarityParameters", SimilarityParameters(bitSize=5))
 
 
     val crowdParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 10)
-    algoPara.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdLabelGetterParameters(crowdParameters))
+    //algoPara.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdLabelGetterParameters(crowdParameters))
     val d = new AttributeDeduplication(algoPara, scc)
     d.blocking = false
     d.name = "AttributeDeduplication"
 
     val pp = new SampleCleanPipeline(saqp, List(d))
-    pp.exec("restaurant_sample")
+    pp.exec("paper_aff_sample")
   }
 
 

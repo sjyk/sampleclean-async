@@ -109,9 +109,9 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
    * @param test second string.
    * @param out is returned if strings are equal.
    */
-  def replaceIfEqual(x:String, test:String, out:String): String ={
-      if(x.equals(test))
-        return out
+  def replaceIfEqual(x:String, test:Map[String,String]): String ={
+      if(test.contains(x.toLowerCase()))
+        return test(x.toLowerCase())
       else
         return x
     }
@@ -129,7 +129,8 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
   def exec(sampleTableName: String) = {
 
     val attr = params.get("dedupAttr").asInstanceOf[String]
-
+    val attrCol = scc.getColAsIndex(sampleTableName,attr)
+    val hashCol = scc.getColAsIndex(sampleTableName,"hash")
     //println("attr = " + attr)
 
     val sampleTableRDD = scc.getCleanSample(sampleTableName)
@@ -138,11 +139,11 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
     val sqlContext = new SQLContext(scc.getSparkContext())
     import sqlContext._
 
-    // Get distinct attr values and their counts
+    /*// Get distinct attr values and their counts
     val attrDedup: SchemaRDD = sampleTableRDD.map(row =>
       (scc.getColAsString(row, sampleTableName, attr).trim, 1)).filter(_._1 != "")
       .reduceByKey(_ + _)
-      .map(x => AttrDedup(x._1, x._2)).cache()
+      .map(x => AttrDedup(x._1, x._2)).cache()*/
 
     //attrDedup.foreach(row => println(row.getString(0)+" "+row.getString(1)))
 
@@ -152,11 +153,15 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
     val similarityParameters = params.get("similarityParameters").asInstanceOf[SimilarityParameters]
 
     val sc = scc.getSparkContext()
+    val attrCountRdd = sampleTableRDD.map(x => 
+                                          (x(attrCol),1)).
+                                          reduceByKey(_ + _).
+                                          map(x => AttrDedup(x._1.asInstanceOf[String], x._2))
 
     // Attribute pairs that are similar
     var candidatePairs = BlockingStrategy(List("attr"))
       .setSimilarityParameters(similarityParameters)
-      .blocking(sc, attrDedup, colMapper).collect()
+      .coarseBlocking(sc, attrCountRdd , 0).collect()
 
 
     /* Use crowd to refine candidate pairs*/
@@ -193,24 +198,21 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
       println("[SampleClean] \"%s (%d)\" = \"%s (%d)\"".format(x._1.getString(0), x._1.getInt(1), x._2.getString(0), x._2.getInt(1)))
     }
 
-
-
     var resultRDD = sampleTableRDD.map(x =>
-      (scc.getColAsString(x,sampleTableName,"hash"), scc.getColAsString(x,sampleTableName,attr)))
+      (x(hashCol).asInstanceOf[String], x(attrCol).asInstanceOf[String]))
 
-    for(pair <- candidatePairs)
+    for(pair <- candidatePairs){
+        println("Added " + pair)
         addToGraphUndirected(pair._1, pair._2)
+    }
 
     //println("Graph " + graph)
 
     val connectedPairs = connectedComponentsToExecOrder(connectedComponents())
-    for(p <- connectedPairs)
-    {
-        resultRDD = resultRDD.map(x => (x._1, replaceIfEqual(x._2, p._1, p._2)))
-        //println("Merging " + p._1 + " -> " + p._2)
-    }
+    resultRDD = resultRDD.map(x => (x._1, replaceIfEqual(x._2, connectedPairs)))
 
-    //scc.updateTableAttrValue(sampleTableName, attr, resultRDD)
+    scc.updateTableAttrValue(sampleTableName, attr, resultRDD)
+    
   }
 
   /**
@@ -260,7 +262,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
    * @param comps
    * @return
    */
-  def connectedComponentsToExecOrder(comps: Set[Set[Row]]): List[(String, String)] ={
+  def connectedComponentsToExecOrder(comps: Set[Set[Row]]): Map[String, String] ={
     
     def compOperator(row1:Row, row2:Row) = (row1.getInt(1) < row2.getInt(1))
     var resultList = List[(String, String)]()
@@ -268,11 +270,11 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
 
       val sortedList = comp.toList.sortWith(compOperator)
       for(i <- 0 until (sortedList.length - 1) )
-        resultList = (sortedList(i).getString(0),sortedList(sortedList.length - 1).getString(0))  :: resultList 
+        resultList = (sortedList(i).getString(0).toLowerCase(),sortedList(sortedList.length - 1).getString(0).toLowerCase())  :: resultList 
 
     }
 
-    return resultList
+    return resultList.toMap
 
   }
 

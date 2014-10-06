@@ -95,6 +95,20 @@ class QueryBuilder(scc: SampleCleanContext) {
 		return query  
 	}
 
+		/** This builds a select query that joins with a larger table. Same syntax as above just specifying
+	* an additional table and join key
+	*/
+	def buildSelectQuery(attrs:List[String],table:String,pred:String,table2:String,joinKey:String,joinKey2:String ):String = {
+		 val query =    " SELECT " + forceMapJoin(table,table2) +
+   			            attrsToSelectionList(attrs) +" FROM "+
+   			            table+" LEFT OUTER JOIN " + 
+   			            table2+" ON ("+
+   			            table+"." + joinKey+ 
+   			            " = "+table2+"."+joinKey2+")" +
+						" WHERE " + pred
+		return query  
+	}
+
 	def forceMapJoin(table1:String, table2:String):String = {
 		return "/*+ MAPJOIN("+table1+"), MAPJOIN("+table2+") */"
 	}
@@ -166,13 +180,30 @@ class QueryBuilder(scc: SampleCleanContext) {
 		if(dirty)
 			suffix = "_dirty"
 
-		val splitComponents = sampleName.split("\\s+")
+		val splitComponents = sampleName.trim().split("\\s+")
 		return splitComponents(0)+suffix
 	}
 
 	def getFactSampleName(sampleName:String):String = {
 		val splitComponents = sampleName.split("\\s+")
 		return splitComponents(0)
+	}
+
+	def joinExpr(sampleName:String):(String,String,String,String) ={
+		val splitComponents = sampleName.replace("=", " = ").split("\\s+")
+
+		return(splitComponents(0),splitComponents(2),splitComponents(4),splitComponents(6))
+	}
+
+	def getTableJoinSchemaList(table1:String,table2:String):List[String] ={
+		val schema1 = scc.getHiveTableSchema(table1).map(concatTableName(_,table1))
+		var schema2 = scc.getHiveTableSchema(table2).map(concatTableName(_,table2))
+		schema2 = schema2.slice(2,schema2.size)
+		return schema1 ::: schema2
+	}
+
+	def concatTableName(attr:String,tableName:String):String ={
+		return tableName + "." + attr
 	}
 
 	def getCleanDimSampleName(sampleName:String,dirty:Boolean = false):String = {
@@ -209,6 +240,11 @@ class QueryBuilder(scc: SampleCleanContext) {
 		return result
 	}
 
+	def isJoinQuery(sampleName:String):Boolean = {
+		val splitComponents = sampleName.split("\\s+")
+		return (splitComponents.length > 1)
+	}
+
 	def exprToDupString(sampleName:String):String = {
 		val splitComponents = sampleName.split("\\s+")
 		if(splitComponents.length > 1){
@@ -218,6 +254,15 @@ class QueryBuilder(scc: SampleCleanContext) {
 		else{
 			return "dup"
 		}
+	}
+
+	def countSumVarianceSQL(k: Double, attr: String, sampleRatio: Double):String = {
+		val p = "(count(1)"+"/"+k+")"
+		val pm = "(1 -"+p+")"
+		val means = "avg("+attr+")*avg("+attr+")"
+		val stds = "var_samp("+attr+")"
+
+		return "("+p+"*("+pm+"*"+means+"+"+stds+"))/"+sampleRatio
 	}
 
 	/** Returns the "dirty" sample name

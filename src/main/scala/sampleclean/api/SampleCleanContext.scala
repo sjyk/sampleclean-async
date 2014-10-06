@@ -72,13 +72,16 @@ class SampleCleanContext(@transient sc: SparkContext) {
 
 			hiveContext.hql(query)
 
+			hiveContext.hql("cache table "+ qb.getCleanSampleName(tableName))
+
 			hiveContext.hql(qb.setTableParent(qb.getCleanSampleName(tableName),baseTable + " " + samplingRatio))
 
 			query = qb.createTableAs(qb.getDirtySampleName(tableName)) +
 					qb.buildSelectQuery(List("*"),qb.getCleanSampleName(tableName))
-		
 
 			hiveContext.hql(query)
+
+			hiveContext.hql("cache table "+ qb.getDirtySampleName(tableName))
 		}
 		
 		return (hiveContext.hql(qb.buildSelectQuery(List("*"),
@@ -285,6 +288,24 @@ class SampleCleanContext(@transient sc: SparkContext) {
 	/**
 	 * Given a column name, a row, and a sampleName it returns the column as
 	 * a string.
+	 * @param sampleName a sample from which the row comes
+	 * @param colName the name of the col you want to access
+	 * @return in
+	 */
+	def getColAsIndex(sampleName:String, colName:String):Int=
+    {
+    	val tableNameClean = qb.getCleanSampleName(sampleName)
+    	val schemaString = getHiveTableSchema(tableNameClean)
+    	val index = schemaString.indexOf(colName.toLowerCase)
+    	if(index >= 0)
+    		return index
+    	else
+    		return -1
+    }
+
+    /**
+	 * Given a column name, a row, and a sampleName it returns the column as
+	 * a string.
 	 * @param row A row to query
 	 * @param sampleName a sample from which the row comes
 	 * @param colName the name of the col you want to access
@@ -296,7 +317,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
     	val schemaString = getHiveTableSchema(tableNameClean)
     	val index = schemaString.indexOf(colName.toLowerCase)
     	if(index >= 0)
-    		return row.getString(index)
+    		return row(index).asInstanceOf[String]
     	else
     		return null
     }
@@ -450,7 +471,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 			return msc.getTable(tableName).getParameters().get("comment").split(" ")(1).toDouble
 		}
 		catch {
-     		case e: Exception => 0
+     		case e: Exception => println(e)
    		}
    		return 1.0
 	}

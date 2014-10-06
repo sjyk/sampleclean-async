@@ -1,6 +1,7 @@
 package sampleclean.clean.deduplication
 
 import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext._
 import org.apache.spark.sql.SchemaRDD
 import org.apache.spark.rdd._
 import org.apache.spark.sql.Row
@@ -101,7 +102,8 @@ case class BlockingKey(cols: Seq[Int],
 case class SimilarityParameters(simFunc: String = "WJaccard",
                              threshold: Double = 0.5,
                              tokenizer: Tokenizer = WordTokenizer(),
-                             lowerCase: Boolean = true)
+                             lowerCase: Boolean = true,
+                             bitSize: Int = 1)
 
 /**
  * This class builds a blocking strategy for a data set.
@@ -266,6 +268,39 @@ case class BlockingStrategy(blockedColNames: List[String]){
         new WeightedCosineJoin().broadcastJoin(sc, threshold, table, genKey)
       case _ => println("Cannot support "+simFunc); null
     }
+  }
+
+  def coarseBlocking(@transient sc: SparkContext, 
+                                sampleTable: SchemaRDD, 
+                                col:Int): RDD[(Row, Row)] = {
+
+      val bits = similarityParameters.bitSize
+      return sampleTable.map(x => minHash(x,bits,col)).groupByKey().flatMap(x => prunedCartesianProduct(x._2,col))
+  }
+
+  def minHash(row:Row, modulus:Int, attr:Int): (Set[String], Row) = {
+      val attrText = row(attr).asInstanceOf[String]
+
+      if(attrText == null)
+        return (Set(),row)
+
+      val attrList = attrText.trim.toLowerCase.split("([.,!?:;'\"-]|\\s)+").sortBy(_.hashCode())
+      val minHashSet = attrList.slice(0,Math.min(attrList.length,modulus)).toSet
+
+      return (minHashSet,row)
+  }
+
+  def prunedCartesianProduct(rows:Iterable[Row],attr:Int): List[(Row,Row)]=
+  {
+     var result = List[(Row,Row)]()
+     for (a <- rows; b <- rows) {
+        val key1 = a(attr).asInstanceOf[String]
+        val key2 = b(attr).asInstanceOf[String]
+        if(a != b && key1 != key2)
+          result = (a, b) :: result
+      }
+
+      return result
   }
 }
 
