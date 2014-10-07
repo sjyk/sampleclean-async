@@ -46,3 +46,22 @@ Dashboard API
 
     ungrouped_result = 7100000000.0
     ````
+
+Using the Dashboard with Sample Data
+------------------------------------
+The script `results_dashboard/post.py` enables users to create sample query results for display
+in the dashboard. From the `results_dashboard` directory, run `post.py --help` for option when
+using the script. For example, to create a grouped query with 4 groups, run:
+
+```shell
+python post.py -g 4
+```
+
+and to post new results for an existing query with id `abcdef`, you could run:
+
+```shell
+python post.py -q abcdef -g 4
+```
+
+
+  
