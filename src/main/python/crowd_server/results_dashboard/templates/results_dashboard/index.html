@@ -1,0 +1,489 @@
+<html>
+<head>
+{% block jslibraries %}
+    <script type='text/javascript' src='//code.jquery.com/jquery-1.11.0.js'></script>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+{% endblock jslibraries %}
+
+{% block customjs %}
+    <script type="text/javascript">
+        {% block chart_setup %}
+            function chart_setup(callback){
+                google.setOnLoadCallback(callback);
+                google.load("visualization", "1", {packages:["corechart"]});
+            }
+        {% endblock %}
+
+        {% block draw_chart %}
+            CHART_DATA = {};
+            CHARTS = {};
+            TOP_K_GROUPS = {};
+            TIME_STAMP = 0;
+            NUM_GROUPS_FOR_CHART = 5;
+            function update_chart_data(results, query_id, is_grouped){
+                // Initialize the chart data if this is a new chart.
+                var chart_div = $("#" + query_id + "-chart");
+                var result_data = results.results;
+                var value_col_name = results.result_col_name;
+                if (CHART_DATA[query_id] == undefined) {
+                    var chart = new google.visualization.LineChart(chart_div[0]);
+                    var chart_data = new google.visualization.DataTable();
+                    var top_groups = {};
+                    chart_data.addColumn('number', 'Time');
+                    top_groups[0] = 0;
+
+                    if (is_grouped) {
+                        for (j = 0; j < result_data.length; j++) {
+                            chart_data.addColumn('number', result_data[j].name);
+                            if (j < NUM_GROUPS_FOR_CHART) top_groups[j+1] = j+1;
+                        }
+                    } else {
+                        chart_data.addColumn('number', 'all');
+                    }
+                    CHART_DATA[query_id] = chart_data;
+                    CHARTS[query_id] = chart;
+                    TOP_K_GROUPS[query_id] = top_groups;
+                } else { var chart = CHARTS[query_id]; var chart_data = CHART_DATA[query_id]; }
+
+                // Build data for the new row, and record the top k columns for display.
+                var row = [];
+                row[0] = TIME_STAMP;
+                var view_indices = [];
+                if (is_grouped) {
+                    var top_k_column_labels = [];
+                    var top_k_indices = [];
+                    top_k_indices[0] = 0;
+                    var groups_map = {};
+                    for (var i = 0; i < result_data.length; i++) {
+                        groups_map[result_data[i].name] = result_data[i].value;
+                        if (i < NUM_GROUPS_FOR_CHART) { top_k_column_labels.push(result_data[i].name);}
+                    }
+                    var unseen_map = $.extend({}, groups_map);
+                    for (var i = 1; i < chart_data.getNumberOfColumns(); i++) {
+                        var label = chart_data.getColumnLabel(i);
+                        row[i] = groups_map[label];
+                        delete unseen_map[label];
+                        for (var j = 0; j < top_k_column_labels.length; j++) {
+                            if (top_k_column_labels[j] == label) {
+                                top_k_indices[j+1] = i;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Add groups we haven't seen before to the data table.
+                    for (var new_group_name in unseen_map) {
+                        if (!unseen_map.hasOwnProperty(new_group_name)) continue;
+                        chart_data.addColumn('number', new_group_name);
+                        row.push(unseen_map[new_group_name]);
+                        for (var j = 0; j < top_k_column_labels.length; j++) {
+                            if (top_k_column_labels[j] == new_group_name) {
+                                top_k_indices[j+1] = chart_data.getNumberOfColumns() - 1;
+                                break;
+                            }
+                        }
+                    }
+
+                    // If we got fewer groups than we intend to plot, pick remaining groups based on the highest
+                    // values from last update.
+                    var num_to_plot = Math.min(chart_data.getNumberOfColumns()-1, NUM_GROUPS_FOR_CHART);
+                    var num_needed = num_to_plot - result_data.length;
+                    if (num_needed > 0) {
+                        var num_rows = chart_data.getNumberOfRows();
+                        if (num_rows == 0) { console.log("IMPOSSIBLE");}
+                        top_k = [];
+                        for (var i = 1; i < chart_data.getNumberOfColumns(); i++) {
+                            top_k.push(i);
+                        }
+                        top_k.sort(function(a,b){
+                            return chart_data.getValue(num_rows-1,b) - chart_data.getValue(num_rows-1, a)
+                        });
+
+                        var num_found = 0;
+                        for (var i = 0; i < top_k.length; i++) {
+                            if (top_k_indices.indexOf(top_k[i]) == -1) {
+                                num_found++;
+                                top_k_indices.push(top_k[i]);
+                            }
+                            if (num_found >= num_needed) break;
+                        }
+                    }
+
+                    // resolve the new top_k indices with the old to preserve line color.
+                    var new_indices = [];
+                    for (var i = 0; i < top_k_indices.length; i++) {
+                        var base_column_index = top_k_indices[i];
+
+                        // If a column was in the top k as of last update, preserve its position this time.
+                        var seen = false;
+                        for (var top_k_position in TOP_K_GROUPS[query_id]) {
+                            if (!TOP_K_GROUPS[query_id].hasOwnProperty(top_k_position)) continue;
+                            if (TOP_K_GROUPS[query_id][top_k_position] == base_column_index){
+                                view_indices[top_k_position] = base_column_index;
+                                seen = true;
+                                break;
+                            }
+                        }
+                        if (!seen) new_indices.push(base_column_index);
+                    }
+
+                    // Insert all of the new columns into an open slot in the top k, or at the end if necessary.
+                    for (var i = 0; i < new_indices.length; i++) {
+                        var inserted = false;
+                        for (var j = 0; j < view_indices.length; j++) {
+                            if (view_indices[j] == undefined) {
+                                view_indices[j] = new_indices[i];
+                                inserted = true;
+                                break;
+                            }
+                        }
+                        if (!inserted) view_indices.push(new_indices[i]);
+                    }
+
+
+
+                    if (view_indices.length != num_to_plot + 1) {
+                        console.log("ERROR");
+                    }
+
+                    // Record the new top k ordering for next time
+                    for (var i = 0; i < view_indices.length; i ++) {
+                        TOP_K_GROUPS[query_id][i] = view_indices[i];
+                    }
+
+                } else {
+                    row[1] = result_data;
+                    view_indices[0] = 0;
+                    view_indices[1] = 1;
+                }
+                TIME_STAMP++;
+                chart_data.addRow(row);
+
+                var data_view = new google.visualization.DataView(chart_data);
+                data_view.setColumns(view_indices);
+
+                // Redraw the chart
+                var chart_options = {
+                    animation: {
+                        //duration: POLL_INTERVAL * 0.75
+                        duration: 0
+                    },
+                    chartArea: {
+                        width:"85%",
+                        left: "15%",
+                        height: "80%",
+                        top: "5%"
+                    },
+                    backgroundColor: "#f5f5f5",
+                    hAxis: {
+                        textPosition: "none",
+                        title: "Time",
+                        minValue: 0
+                    },
+                    height: 280,
+                    width: "100%",
+                    legend: {
+                        alignment: "center",
+                        position: "none",
+                        maxLines: 1
+                    },
+                    pointSize: 5 / Math.pow(chart_data.getNumberOfRows(), 0.5),
+                    vAxis: {
+                        title: value_col_name
+                    }
+                };
+                chart.draw(data_view, chart_options);
+
+            }
+        {% endblock %}
+
+        {% block draw_table %}
+            NUM_GROUPS_FOR_TABLE = 6;
+            COLOR_MAP = {
+                1: "blue",
+                2: "red",
+                3: "orange",
+                4: "green",
+                5: "purple"
+            };
+            function draw_table(results, query_id, is_grouped){
+                var table_div = $("#" + query_id + "-table");
+                var result_data = results.results;
+
+                // Build the table
+                var table = $("<table>").addClass("table table-striped");
+                var table_header = $("<thead>").appendTo(table);
+                $("<tr>")
+                        .append($("<th>"))
+                        .append($("<th>").text("group"))
+                        .append($("<th>").text(results.result_col_name))
+                        .appendTo(table_header);
+                var table_body = $("<tbody>").appendTo(table);
+
+                if (!is_grouped) {
+                    $("<tr>")
+                            .append($("<td>").append($("<div>")
+                                    .addClass("colored-box")
+                                    .css("background-color", "blue")
+                                    .css("vertical-align", "middle")))
+                            .append($("<td>").text('All'))
+                            .append($("<td>").text(result_data.toFixed(2)))
+                            .appendTo(table_body);
+                } else {
+                    for (var i = 0; i < Math.min(result_data.length, NUM_GROUPS_FOR_TABLE); i++) {
+                        var chart_data = CHART_DATA[query_id];
+                        var top_groups = TOP_K_GROUPS[query_id];
+
+                        var group_name = result_data[i].name;
+                        var color = "transparent";
+                        for (var j = 1; j < chart_data.getNumberOfColumns(); j++) {
+                            if (chart_data.getColumnLabel(j) == group_name) {
+                                for (color_key in top_groups) {
+                                    if (!top_groups.hasOwnProperty(color_key)) continue;
+                                    if (top_groups[color_key] == j) {
+                                        color = COLOR_MAP[color_key];
+                                        break;
+                                    }
+
+                                }
+                                break;
+                            }
+                        }
+
+                        var row = $("<tr>")
+                                .append($("<td>").append($("<div>")
+                                        .addClass("colored-box")
+                                        .css("background-color", color)
+                                        .css("vertical-align", "middle")))
+                                .append($("<td>").text(result_data[i].name))
+                                .append($("<td>").text(result_data[i].value.toFixed(2)))
+                                .appendTo(table_body);
+                    }
+                }
+
+                // render the table
+                table_div.html(table);
+            }
+        {% endblock draw_table %}
+
+        {% block polling_controls %}
+            POLLING = true;
+            function toggle_polling() {
+                var polling_control = $("#polling-control");
+                if (POLLING) {
+                    POLLING = false;
+                    polling_control.text("Resume Updating Results");
+                } else {
+                    POLLING = true;
+                    polling_control.text("Pause Updating Results");
+                }
+                polling_control.blur();
+            }
+        {% endblock %}
+
+        {% block poll_func %}
+            function poll_for_results() {
+                if (!POLLING) return;
+                $(".query-result").each(function(){
+                    var query_id = $(this).attr("id");
+                    get_results(query_id);
+                })
+            }
+        {% endblock poll_func %}
+
+        {% block get_results_func %}
+            function get_results(query_id) {
+                var url = '/dashboard/results/' + query_id;
+                $.get(url, function(data){update_results_display(query_id, data)});
+            }
+        {% endblock get_results_func %}
+
+        {% block update_results_func %}
+            function update_results_display(query_id, data) {
+                var chart_div = $("#" + query_id + "-chart");
+                var table_div = $("#" + query_id + "-table");
+                var noresult_div = $("#" + query_id + "-no-result");
+                if (data.results == null) {
+                    chart_div.hide();
+                    table_div.hide();
+                    noresult_div.show();
+                } else {
+                    noresult_div.hide();
+                    chart_div.show();
+                    table_div.show();
+                    var is_grouped = isNaN(data.results);
+                    update_chart_data(data, query_id, is_grouped);
+                    draw_table(data, query_id, is_grouped);
+                }
+            }
+        {% endblock update_results_func %}
+
+        {% block create_query_func %}
+            function create_query() {
+                var querystring_div =  $("#new-query-string");
+                var querystring = querystring_div.val();
+                $.post('/dashboard/queries/', {querystring: querystring},
+                        function(data){
+                            build_query_panel(data.query_id, querystring);
+                            querystring_div.val("");
+                });
+            }
+
+            function build_no_results_div(query_id) {
+                return $("<div>")
+                        .addClass("col-xs-12")
+                        .attr("id", query_id + "-no-result")
+                        .html("<p>No results available.</p>")
+            }
+
+            function build_query_panel(query_id, querystring) {
+                var panel_html = $("<div>").addClass("col-xs-6");
+                var close_button_html = $("<button>")
+                        .attr("type", "button")
+                        .css("padding-right", "4px")
+                        .addClass("close")
+                        .attr("id", query_id + "-delete")
+                        .append($("<span>")
+                                .attr("aria-hidden", "true")
+                                .html("&times;"))
+                        .append($("<span>")
+                                .addClass("sr-only")
+                                .text("Close"))
+                        .appendTo(panel_html);
+                var well_html = $("<div>").addClass("well").appendTo(panel_html);
+                $("<h4>").text(querystring + " (" + query_id + ")").appendTo(well_html);
+                var result_div = $("<div>")
+                        .addClass("query-result row")
+                        .attr("id", query_id)
+                        .appendTo(well_html);
+                $("<div>").addClass("col-xs-7").attr("id", query_id + "-chart").appendTo(result_div);
+                $("<div>").addClass("col-xs-5").attr("id", query_id + "-table").appendTo(result_div);
+                build_no_results_div(query_id).appendTo(result_div);
+                $("#panel-root > div:last").before(panel_html);
+                close_button_html.click(function() {delete_query(query_id);});
+            }
+        {% endblock create_query_func %}
+
+        {% block delete_query_func %}
+            function delete_query(query_id) {
+                // delete from the database.
+                $.post("/dashboard/queries/" + query_id + "/delete", function(){
+                    $("#" + query_id).parent().parent().remove(); // delete from the interface.
+                });
+            }
+        {% endblock delete_query_func %}
+
+        {% block ready_func %}
+            POLL_INTERVAL = 2000;
+            function ready_func() {
+                // get initial data
+                poll_for_results();
+
+                // set up polling
+                setInterval(poll_for_results, POLL_INTERVAL);
+            }
+
+            // set up charts, and start polling for data once they're ready.
+            chart_setup(ready_func);
+            $(document).ready(function()
+            {
+                // Setup the form to create new queries
+                $("#query-create").click(create_query);
+                $("form").submit(function(event) {
+                    event.preventDefault;
+                    $("#query-create").click();
+                    return false;
+                });
+
+                // Setup delete buttons for queries
+                $(".query-result").each(function(){
+                    result_div = $(this);
+                    var query_id = result_div.attr("id");
+                    result_div.parent().prev().click(function(){delete_query(query_id);});
+                });
+            });
+        {% endblock ready_func %}
+    </script>
+{% endblock customjs %}
+
+{% block css_includes %}
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+{%  endblock css_includes %}
+
+{% block custom_css %}
+    <style>
+        .task-container {
+            margin-top: 20px;
+            font-family: Verdana, Geneva, sans-serif;
+        }
+
+        .colored-box {
+            width: 15px;
+            height: 15px;
+        }
+    </style>
+{% endblock custom_css %}
+
+{% block misc_head_tags %}
+    <title>SampleClean Dashboard</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+{% endblock misc_head_tags %}
+</head>
+
+<body>
+<div class="container">
+    <div class="row task-container">
+        {% block page_header %}
+            <div class="jumbotron">
+                <h1>SampleClean Dashboard</h1>
+                <p>Run queries on dirty data, and watch your results update as the data gets cleaned.</p>
+            </div>
+        {% endblock page_header %}
+    </div>
+    <div class="row">
+        {% block main_panel %}
+            <div class="panel panel-primary">
+                <div class="panel-heading">
+                    <strong class="lead">Registered Queries:</strong>
+                    <button id="polling-control" type="button" class="btn btn-default pull-right"
+                            onclick="toggle_polling();">Pause Updating Results</button>
+                </div>
+                <div class="panel-body">
+                    <div class="row" id="panel-root">
+                        {% for query in queries %}
+                            <div class="col-xs-6">
+                                <button type="button" class="close" id="{{ query.query_id }}-delete" style="padding-right:4px;">
+                                    <span aria-hidden="true">&times;</span><span class="sr-only">Close</span>
+                                </button>
+                                <div class="well">
+                                    <h4>{{ query.querystring }} ({{ query.query_id }})</h4>
+                                    <div class="query-result row" id="{{ query.query_id }}">
+                                        <div class="col-xs-7" id="{{ query.query_id }}-chart"></div>
+                                        <div class="col-xs-5" id="{{ query.query_id }}-table"></div>
+                                        <div class="col-xs-12" id="{{ query.query_id }}-no-result" style="display:none">
+                                            <p>No results available</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                        <div class="col-xs-6">
+                            <div class="well">
+                                <form role="form">
+                                    <div class="form-group">
+                                        <input id="new-query-string" type="text" class="form-control" placeholder="SQL query" />
+                                    </div>
+                                    <button type="button" class="btn btn-primary btn-lg center-block" id="query-create">
+                                        <span class="glyphicon glyphicon-plus"></span> Add a new query
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endblock main_panel %}
+    </div>
+</div>
+</body>
+</html>

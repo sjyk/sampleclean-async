@@ -73,6 +73,7 @@ INSTALLED_APPS = (
     'basecrowd',
     'amt',
     'internal',
+    'results_dashboard',
 )
 
 MIDDLEWARE_CLASSES = (
