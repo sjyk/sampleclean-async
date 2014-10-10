@@ -262,7 +262,7 @@ class QueryBuilder(scc: SampleCleanContext) {
 		val means = "avg("+attr+")*avg("+attr+")"
 		val stds = "var_samp("+attr+")"
 
-		return "("+p+"*("+pm+"*"+means+"+"+stds+"))/"+sampleRatio
+		return "("+p+"*("+pm+"*"+means+"+"+stds+"))/("+sampleRatio+"*"+sampleRatio+")"
 	}
 
 	/** Returns the "dirty" sample name

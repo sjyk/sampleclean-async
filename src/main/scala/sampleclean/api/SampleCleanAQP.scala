@@ -77,7 +77,7 @@ class SampleCleanAQP() {
 	  	  	 println(aggQuery)
 	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
-	  	  	 					      row(2).asInstanceOf[Double]))).collect()
+	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double]))).collect()
 	  	  	 return (System.nanoTime, result.toList)
 	  	  	}
 	  	  	else if (expr.toLowerCase() == "sum"){
@@ -99,7 +99,7 @@ class SampleCleanAQP() {
 	  	  	 println(aggQuery)
 	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
-	  	  	 					      row(2).asInstanceOf[Double]))).collect()
+	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double]))).collect()
 	  	  	 return (System.nanoTime, result.toList)
 	  	  	}
 	  	  	else
@@ -120,7 +120,7 @@ class SampleCleanAQP() {
 	  	  	 println(aggQuery)
 	  	  	 val result = hc.hql(aggQuery).map(row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
-	  	  	 					      row(2).asInstanceOf[Double]))).collect()
+	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double]))).collect()
 	  	  	 return (System.nanoTime, result.toList)
 	  	  	}
 
@@ -228,7 +228,7 @@ class SampleCleanAQP() {
 	  	  	 println(aggQuery)
 	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
-	  	  	 					      row(2).asInstanceOf[Double]))).collect()
+	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double]))).collect()
 	  	  	 return (System.nanoTime, result.toList)
 	  	  }
 	  	  else if (expr.toLowerCase() == "sum"){
@@ -249,7 +249,7 @@ class SampleCleanAQP() {
 	  	  	 println(aggQuery)
 	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
-	  	  	 					      row(2).asInstanceOf[Double]))).collect()
+	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double]))).collect()
 	  	  	 return (System.nanoTime, result.toList)
 	  	  	}
 	  	  else
@@ -283,7 +283,7 @@ class SampleCleanAQP() {
 	  }
 
 	def deltaCountToVariance(c:Double,k:Double,sampleRatio:Double):Double={
-		return ((1-c/k)*c/k)/sampleRatio
+		return ((1-c/k)*c/k)/(sampleRatio*sampleRatio)
 	}
 
 
