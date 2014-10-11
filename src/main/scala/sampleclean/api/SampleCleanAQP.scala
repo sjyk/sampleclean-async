@@ -77,7 +77,8 @@ class SampleCleanAQP() {
 	  	  	 println(aggQuery)
 	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
-	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double]))).collect()
+	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double])))).collect()
+
 	  	  	 return (System.nanoTime, result.toList)
 	  	  	}
 	  	  	else if (expr.toLowerCase() == "sum"){
@@ -99,7 +100,7 @@ class SampleCleanAQP() {
 	  	  	 println(aggQuery)
 	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
-	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double]))).collect()
+	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double])))).collect()
 	  	  	 return (System.nanoTime, result.toList)
 	  	  	}
 	  	  	else
@@ -118,9 +119,9 @@ class SampleCleanAQP() {
 	  	  	 				" group by group"
 
 	  	  	 println(aggQuery)
-	  	  	 val result = hc.hql(aggQuery).map(row => (row(0).asInstanceOf[String],
+	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
-	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double]))).collect()
+	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double])))).collect()
 	  	  	 return (System.nanoTime, result.toList)
 	  	  	}
 
@@ -228,7 +229,7 @@ class SampleCleanAQP() {
 	  	  	 println(aggQuery)
 	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
-	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double]))).collect()
+	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double])))).collect()
 	  	  	 return (System.nanoTime, result.toList)
 	  	  }
 	  	  else if (expr.toLowerCase() == "sum"){
@@ -249,7 +250,7 @@ class SampleCleanAQP() {
 	  	  	 println(aggQuery)
 	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
-	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double]))).collect()
+	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double])))).collect()
 	  	  	 return (System.nanoTime, result.toList)
 	  	  	}
 	  	  else
@@ -283,7 +284,7 @@ class SampleCleanAQP() {
 	  }
 
 	def deltaCountToVariance(c:Double,k:Double,sampleRatio:Double):Double={
-		return ((1-c/k)*c/k)/(sampleRatio*sampleRatio)
+		return Math.sqrt(((1-c/k)*c/k)/(sampleRatio*sampleRatio))
 	}
 
 

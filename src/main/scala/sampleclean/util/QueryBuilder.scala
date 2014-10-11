@@ -257,12 +257,20 @@ class QueryBuilder(scc: SampleCleanContext) {
 	}
 
 	def countSumVarianceSQL(k: Double, attr: String, sampleRatio: Double):String = {
-		val p = "(count(1)"+"/"+k+")"
-		val pm = "(1 -"+p+")"
-		val means = "avg("+attr+")*avg("+attr+")"
-		val stds = "var_samp("+attr+")"
+		val realCount = "sum("+predicateToCase("agg != 0")+")" //todo fix
 
-		return "("+p+"*("+pm+"*"+means+"+"+stds+"))/("+sampleRatio+"*"+sampleRatio+")"
+		val n = "("+k/sampleRatio+")"
+		val p = realCount +"/" + k
+		val ps = p + " * (1.0 - " + p + ")"
+		val sf = k + "/" + realCount
+
+		val means = "sum(agg)/"+realCount
+		val meansS = "("+means+")*(" + means+")"
+		val stds = "var_samp("+attr+")*"+sf
+		val firstTerm = ps+"*"+n+"*"+n+"*"+meansS
+		val secondTerm = p+"*"+n+"*"+n+"*"+stds
+
+		return "("+firstTerm+"+"+secondTerm+")/"+k
 	}
 
 	/** Returns the "dirty" sample name
