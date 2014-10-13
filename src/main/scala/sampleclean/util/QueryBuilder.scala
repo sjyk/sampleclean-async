@@ -98,15 +98,28 @@ class QueryBuilder(scc: SampleCleanContext) {
 		/** This builds a select query that joins with a larger table. Same syntax as above just specifying
 	* an additional table and join key
 	*/
-	def buildSelectQuery(attrs:List[String],table:String,pred:String,table2:String,joinKey:String,joinKey2:String ):String = {
+	def buildSelectQuery(attrs:List[String],table:String,pred:String,table2:String,joinKey:String,joinKey2:String, dirty:Boolean =false):String = {
 		 val query =    " SELECT " + forceMapJoin(table,table2) +
    			            attrsToSelectionList(attrs) +" FROM "+
    			            table+" LEFT OUTER JOIN " + 
    			            table2+" ON ("+
-   			            table+"." + joinKey+ 
-   			            " = "+table2+"."+joinKey2+")" +
+   			            formatJoinKey(joinKey,table,dirty) +
+   			            " = "+formatJoinKey(joinKey2,table2,dirty)+")" +
 						" WHERE " + pred
 		return query  
+	}
+
+	def formatJoinKey(joinKey:String, table:String, dirty:Boolean):String = {
+		if(joinKey.indexOf(".") < 0){
+			return table+"." + joinKey
+		}
+		else{
+				var suffix = "_dirty"
+				if(!dirty)
+					suffix = "_clean"
+
+				return joinKey.replace(".",suffix+".")
+		}
 	}
 
 	def forceMapJoin(table1:String, table2:String):String = {

@@ -259,6 +259,9 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   	val command = commandI.replace(";","").trim()
     val firstToken = command.split("\\s+")(0)
 
+    if(firstToken.equals(""))
+      return ("Error", (System.nanoTime - now)/1000000 )
+
     try{
 
      if(firstToken.equals("quit")){

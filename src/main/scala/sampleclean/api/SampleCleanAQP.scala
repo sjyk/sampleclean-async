@@ -35,14 +35,14 @@ class SampleCleanAQP() {
 	  				  pred:String,
 	  				  group: String, 
 	  				  sampleRatio: Double,
-	  				  dirty:Boolean = false): (Long, List[(String, (Double, Double))])=
+	  				  preserveTableName:Boolean =false): (Long, List[(String, (Double, Double))])=
 	  {
 	  	  	val hc:HiveContext = scc.getHiveContext()
+
 	  	  	var hiveTableName = scc.qb.getCleanSampleName(sampleName)
 
-	  	  	if(dirty)
-	  	  		hiveTableName = scc.qb.getDirtySampleName(sampleName)
-
+	  	  	if(preserveTableName)
+	  	  		hiveTableName = sampleName
 
 	  	  	var defaultPred = "true"
 	  	  	val dup = scc.qb.exprToDupString(sampleName)
@@ -54,7 +54,7 @@ class SampleCleanAQP() {
 
 	  	  	val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
 
-	  	  	val k = hc.hql("SELECT 1 from " + scc.qb.getCleanFactSampleName(sampleName,true)).count()
+	  	  	val k = hc.hql("SELECT 1 from " + hiveTableName).count()
 
 	  	  	if(pred != "")
 	  	  		defaultPred = scc.qb.transformExplicitExpr(pred,sampleName)
@@ -141,13 +141,17 @@ class SampleCleanAQP() {
 	 	val dirtyName1 = scc.qb.getDirtySampleName(sampleName1)
 	 	val dirtyName2 = scc.qb.getDirtySampleName(sampleName2)
 
+	 	val query = scc.qb.createTableAs(scc.qb.getCleanSampleName(tableName))+
+	 						scc.qb.buildSelectQuery(scc.qb.getTableJoinSchemaList(cleanName1,cleanName2),
+	 												cleanName1,"true",cleanName2,key1,key2,false)
+
 	 	val query1 = hc.hql(scc.qb.createTableAs(scc.qb.getCleanSampleName(tableName))+
 	 						scc.qb.buildSelectQuery(scc.qb.getTableJoinSchemaList(cleanName1,cleanName2),
-	 												cleanName1,"true",cleanName2,key1,key2))
+	 												cleanName1,"true",cleanName2,key1,key2,false))
 
 	 	val query2 = hc.hql(scc.qb.createTableAs(scc.qb.getDirtySampleName(tableName))+
 	 						scc.qb.buildSelectQuery(scc.qb.getTableJoinSchemaList(dirtyName1,dirtyName2),
-	 											    dirtyName1,"true",dirtyName2,key1,key2))
+	 											    dirtyName1,"true",dirtyName2,key1,key2,true))
 
 	 	return (query1, query2)
 	 }
@@ -255,8 +259,8 @@ class SampleCleanAQP() {
 	  	  	}
 	  	  else
 	  	  {
-	  	  	val cleanCount = rawSCQueryGroup(scc, sampleName, attr, expr, pred, group, sampleRatio)
-	  	  	val dirtyCount = rawSCQueryGroup(scc, sampleName, attr, expr, pred, group, sampleRatio, true)
+	  	  	val cleanCount = rawSCQueryGroup(scc, baseTableClean, attr, expr, pred, group, sampleRatio, true)
+	  	  	val dirtyCount = rawSCQueryGroup(scc, baseTableDirty, attr, expr, pred, group, sampleRatio, true)
 	  	  	val comparedResult = compareQueryResults(cleanCount,dirtyCount)
 
 			/*val buildQuery = scc.qb.buildSelectQuery(List(selectionStringCOUNT+ " as agg", gattr + " as group"),
