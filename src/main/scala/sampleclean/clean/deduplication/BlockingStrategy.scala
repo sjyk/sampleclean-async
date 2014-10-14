@@ -264,7 +264,15 @@ case class BlockingStrategy(blockedColNames: List[String]){
                                 col:Int): RDD[(Row, Row)] = {
 
       val bits = similarityParameters.bitSize
-      return sampleTable.map(x => minHash(x,bits,col)).groupByKey().flatMap(x => prunedCartesianProduct(x._2,col))
+      val simFunc = similarityParameters.simFunc
+      println("simFunc = " + simFunc + " threshold = " + bits.toString)
+      //println(sampleTable.map(x => x(col).asInstanceOf[String].trim().split("\\s+").length).filter(_ < 3).count())
+
+      simFunc match {
+        case "MinHash" =>  return sampleTable.map(x => minHash(x,bits,col)).groupByKey().flatMap(x => prunedCartesianProduct(x._2,col))
+        case "SortMerge" => return sortFilter(sc, sampleTable, col, bits)
+        case _ => println("Cannot support "+simFunc); return null
+      }
   }
 
   def minHash(row:Row, modulus:Int, attr:Int): (Set[String], Row) = {
@@ -278,6 +286,38 @@ case class BlockingStrategy(blockedColNames: List[String]){
 
       return (minHashSet,row)
   }
+
+   def sortFilter(@transient sc: SparkContext, 
+                                sampleTable: SchemaRDD, 
+                                col:Int,
+                                bits: Int): RDD[(Row, Row)] = {
+
+    val rows = sampleTable.map(x => (x(col).asInstanceOf[String].trim().toLowerCase(),x)).sortByKey(true)
+    return rows.mapPartitions(mergePartitions)
+  }
+
+  def mergePartitions(rowIter:Iterator[(String,Row)]):Iterator[(Row,Row)] = {
+
+      var prev:(String,Row) = null
+      var result:List[(Row,Row)] = List()
+      for(row <- rowIter)
+      {
+        if(prev != null && row._1.indexOf(prev._1) >= 0)
+        {
+            result = (prev._2, row._2) :: result
+            println(row._1 + " " + prev._1)
+        }
+        else
+        {
+          prev = row
+        }
+        
+      }
+
+      return result.iterator
+
+  }
+
 
   def prunedCartesianProduct(rows:Iterable[Row],attr:Int): List[(Row,Row)]=
   {

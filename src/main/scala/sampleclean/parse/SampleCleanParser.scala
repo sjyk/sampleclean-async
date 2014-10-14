@@ -379,8 +379,8 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     val algoPara = new AlgorithmParameters()
 
     algoPara.put("dedupAttr", "affiliation")
-    algoPara.put("similarityParameters", SimilarityParameters(bitSize=5))
-
+    algoPara.put("similarityParameters", SimilarityParameters(simFunc="SortMerge"))
+    algoPara.put("mergeStrategy", "MostFrequent")
 
     val crowdParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 10)
     //algoPara.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdLabelGetterParameters(crowdParameters))

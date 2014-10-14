@@ -110,8 +110,8 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
    * @param out is returned if strings are equal.
    */
   def replaceIfEqual(x:String, test:Map[String,String]): String ={
-      if(test.contains(x.toLowerCase()))
-        return test(x.toLowerCase())
+      if(test.contains(x.trim().toLowerCase()))
+        return test(x.trim().toLowerCase())
       else
         return x
     }
@@ -151,6 +151,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
     val colMapper = (colNames: List[String]) => colNames.map(schema.indexOf(_))
 
     val similarityParameters = params.get("similarityParameters").asInstanceOf[SimilarityParameters]
+    val mergeStrategy = params.get("mergeStrategy").asInstanceOf[String]
 
     val sc = scc.getSparkContext()
     val attrCountRdd = sampleTableRDD.map(x => 
@@ -208,7 +209,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
 
     //println("Graph " + graph)
 
-    val connectedPairs = connectedComponentsToExecOrder(connectedComponents())
+    val connectedPairs = connectedComponentsToExecOrder(connectedComponents(), mergeStrategy)
     resultRDD = resultRDD.map(x => (x._1, replaceIfEqual(x._2, connectedPairs)))
 
     scc.updateTableAttrValue(sampleTableName, attr, resultRDD)
@@ -262,15 +263,23 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
    * @param comps
    * @return
    */
-  def connectedComponentsToExecOrder(comps: Set[Set[Row]]): Map[String, String] ={
+  def connectedComponentsToExecOrder(comps: Set[Set[Row]], mergeStrategy:String): Map[String, String] ={
     
-    def compOperator(row1:Row, row2:Row) = (row1.getInt(1) < row2.getInt(1))
+    def mfCompOperator(row1:Row, row2:Row) = (row1.getInt(1) < row2.getInt(1))
+    def mcCompOperator(row1:Row, row2:Row) = (row1.getString(0).length > row2.getString(0).length)
+
     var resultList = List[(String, String)]()
     for(comp <- comps){
 
-      val sortedList = comp.toList.sortWith(compOperator)
+      var sortedList = comp.toList
+
+      if(mergeStrategy.equals("MostConcise"))
+          sortedList = comp.toList.sortWith(mcCompOperator)
+      else if (mergeStrategy.equals("MostFrequent"))
+          sortedList = comp.toList.sortWith(mfCompOperator)
+
       for(i <- 0 until (sortedList.length - 1) )
-        resultList = (sortedList(i).getString(0).toLowerCase(),sortedList(sortedList.length - 1).getString(0).toLowerCase())  :: resultList 
+        resultList = (sortedList(i).getString(0).trim().toLowerCase(),sortedList(sortedList.length - 1).getString(0))  :: resultList 
 
     }
 
