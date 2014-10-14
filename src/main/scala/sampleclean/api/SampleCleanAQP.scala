@@ -288,7 +288,8 @@ class SampleCleanAQP() {
 	  }
 
 	def deltaCountToVariance(c:Double,k:Double,sampleRatio:Double):Double={
-		return Math.sqrt(((1-c/k)*c/k)/(sampleRatio*sampleRatio))
+		val n = k/sampleRatio
+		return n*Math.sqrt((1-c/n)*c/n)/Math.sqrt(k)
 	}
 
 
@@ -300,9 +301,9 @@ class SampleCleanAQP() {
 		var result = List[(String, Double)]()
 		for(k1 <- qr1._2)
 		{
-			if(hashJoinSet.contains(k1._1.trim().toLowerCase()))
+			if(hashJoinSet.contains(k1._1))
 			{
-				val diff = k1._2._1 - hashJoinSet(k1._1.trim().toLowerCase())._1
+				val diff = k1._2._1 - hashJoinSet(k1._1)._1
 				//println(k1._1 + " " + k1._2._1 + " " + hashJoinSet(k1._1)._1)
 				result = (k1._1, -diff) :: result
 			}
