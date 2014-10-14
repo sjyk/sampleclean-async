@@ -261,7 +261,7 @@ class SampleCleanAQP() {
 	  	  {
 	  	  	val cleanCount = rawSCQueryGroup(scc, baseTableClean, attr, expr, pred, group, sampleRatio, true)
 	  	  	val dirtyCount = rawSCQueryGroup(scc, baseTableDirty, attr, expr, pred, group, sampleRatio, true)
-	  	  	val comparedResult = compareQueryResults(cleanCount,dirtyCount)
+	  	  	val comparedResult = compareQueryResults(dirtyCount,cleanCount)
 
 			/*val buildQuery = scc.qb.buildSelectQuery(List(selectionStringCOUNT+ " as agg", gattr + " as group"),
 				                           baseTableClean,
@@ -300,11 +300,11 @@ class SampleCleanAQP() {
 		var result = List[(String, Double)]()
 		for(k1 <- qr1._2)
 		{
-			if(hashJoinSet.contains(k1._1))
+			if(hashJoinSet.contains(k1._1.trim().toLowerCase()))
 			{
-				val diff = k1._2._1 - hashJoinSet(k1._1)._1
-				println(k1._1 + " " + k1._2._1 + " " + hashJoinSet(k1._1)._1)
-				result = (k1._1, diff) :: result
+				val diff = k1._2._1 - hashJoinSet(k1._1.trim().toLowerCase())._1
+				//println(k1._1 + " " + k1._2._1 + " " + hashJoinSet(k1._1)._1)
+				result = (k1._1, -diff) :: result
 			}
 		}
 		println("Finished")
