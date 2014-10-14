@@ -48,6 +48,10 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
                                          List("attr","src","target")),
                              "lowercase" -> ("sampleclean.clean.misc.LowerCaseTrimKey",
                                          List("attr")),
+                             "democustom" -> ("sampleclean.clean.misc.CustomTransform",
+                                         List("attr")),
+                             "cut" -> ("sampleclean.clean.misc.CutTransform",
+                                         List("attr","delimiter","position")),
                              "filter" -> ("sampleclean.clean.misc.RuleFilter",
                                          List("attr", "rule")))
 
@@ -379,14 +383,25 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     val algoPara = new AlgorithmParameters()
 
     algoPara.put("dedupAttr", "affiliation")
-    algoPara.put("similarityParameters", SimilarityParameters(simFunc="SortMerge"))
+    algoPara.put("similarityParameters", SimilarityParameters(simFunc="SortMerge", skipWords=List("of", "at", "department")))
     algoPara.put("mergeStrategy", "MostFrequent")
 
     val crowdParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 10)
     //algoPara.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdLabelGetterParameters(crowdParameters))
     val d = new AttributeDeduplication(algoPara, scc)
-    d.blocking = false
+    d.blocking = true
     d.name = "AttributeDeduplication"
+
+    val algoPara2 = new AlgorithmParameters()
+    algoPara2.put("dedupAttr", "affiliation")
+    algoPara2.put("similarityParameters", SimilarityParameters(simFunc="MinHash", bitSize= 5))
+    algoPara2.put("mergeStrategy", "MostConcise")
+
+    //val crowdParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 10)
+    //algoPara.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdLabelGetterParameters(crowdParameters))
+    val d2 = new AttributeDeduplication(algoPara2, scc)
+    d2.blocking = true
+    d2.name = "AttributeDeduplication2"
 
     val pp = new SampleCleanPipeline(saqp, List(d))
     pp.exec("paper_aff_sample")

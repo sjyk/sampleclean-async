@@ -92,7 +92,8 @@ case class SimilarityParameters(simFunc: String = "WJaccard",
                              threshold: Double = 0.5,
                              tokenizer: Tokenizer = WordTokenizer(),
                              lowerCase: Boolean = true,
-                             bitSize: Int = 1)
+                             bitSize: Int = 1,
+                             skipWords: List[String] = List())
 
 /**
  * This class builds a blocking strategy for a data set.
@@ -270,7 +271,7 @@ case class BlockingStrategy(blockedColNames: List[String]){
 
       simFunc match {
         case "MinHash" =>  return sampleTable.map(x => minHash(x,bits,col)).groupByKey().flatMap(x => prunedCartesianProduct(x._2,col))
-        case "SortMerge" => return sortFilter(sc, sampleTable, col, bits)
+        case "SortMerge" => return sortFilter(sc, sampleTable, col, similarityParameters.skipWords)
         case _ => println("Cannot support "+simFunc); return null
       }
   }
@@ -290,28 +291,43 @@ case class BlockingStrategy(blockedColNames: List[String]){
    def sortFilter(@transient sc: SparkContext, 
                                 sampleTable: SchemaRDD, 
                                 col:Int,
-                                bits: Int): RDD[(Row, Row)] = {
+                                skipWords:List[String]): RDD[(Row, Row)] = {
 
-    val rows = sampleTable.map(x => (x(col).asInstanceOf[String].trim().toLowerCase(),x)).sortByKey(true)
+    val rows = sampleTable.map(x => (sanitizeString(x(col).asInstanceOf[String],skipWords),x)).sortByKey(true)
     return rows.mapPartitions(mergePartitions)
+  }
+
+  def sanitizeString(input:String, skipWords:List[String]):String = {
+    var result = input.trim().toLowerCase().split("\\s+").mkString(" ")
+
+    for(word <- skipWords)
+      result = result.replace(" "+word+" "," ")
+    return result
   }
 
   def mergePartitions(rowIter:Iterator[(String,Row)]):Iterator[(Row,Row)] = {
 
       var prev:(String,Row) = null
       var result:List[(Row,Row)] = List()
-      for(row <- rowIter)
-      {
-        if(prev != null && row._1.indexOf(prev._1) >= 0)
-        {
+
+      for(row <- rowIter) {
+        if(prev != null){
+          val attr1 = row._1.trim.toLowerCase.split("\\s+").toSet
+          val attr2 = prev._1.trim.toLowerCase.split("\\s+").toSet
+
+          if(attr2.size >= 2 && attr2.forall(x => attr1.contains(x))) { //equal on word boundary 
             result = (prev._2, row._2) :: result
             println(row._1 + " " + prev._1)
+          }
+          else {
+            prev = row
+          }
+
         }
-        else
-        {
+        else {
           prev = row
         }
-        
+
       }
 
       return result.iterator
