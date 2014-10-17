@@ -1,5 +1,24 @@
 package sampleclean.api
 
+import java.net.InetSocketAddress
+import java.util.concurrent.ConcurrentHashMap
+
+import com.twitter.finagle.Service
+import com.twitter.finagle.builder.{ClientBuilder, Server, ServerBuilder}
+import com.twitter.finagle.http._
+import com.twitter.finagle.http.service.RoutingService
+import com.twitter.util.{Future => TFuture}
+import org.jboss.netty.handler.codec.http.{HttpRequest, HttpResponse, HttpResponseStatus}
+import org.json4s.JsonDSL._
+import org.json4s._
+import org.json4s.jackson.JsonMethods._
+import org.json4s.native.Serialization
+import org.json4s.native.Serialization.{write => swrite}
+
+import scala.collection.mutable
+import scala.concurrent.{Future, Promise}
+import scala.util.{Failure, Success}
+
 /**
  * This class defines a sampleclean query object
  * @type {[type]}
@@ -17,7 +36,7 @@ class SampleCleanQuery(scc:SampleCleanContext,
 	 *  the result is the current time and tuple result of estimate + confidence interval
 	 *  this is in a list to support group by aggregates.
 	 */
-	def execute():(Long, List[(String, (Double, Double))])= {
+	def execute(dashboard:Boolean = false):(Long, List[(String, (Double, Double))])= {
 
 		var sampleRatio = scc.getSamplingRatio(scc.qb.getCleanFactSampleName(sampleName))
 		println(sampleRatio)
@@ -26,25 +45,89 @@ class SampleCleanQuery(scc:SampleCleanContext,
 		if(pred != "")
 			defaultPred = pred
 
-		if(rawSC)
-				return saqp.rawSCQueryGroup(scc,
-										sampleName.trim(),
-										attr.trim(),
-										expr.trim(),
-										pred.trim(),
-										group.trim(), 
-										sampleRatio)
-			else
-				return saqp.normalizedSCQueryGroup(scc,
-										sampleName.trim(),
-										attr.trim(),
-										expr.trim(),
-										pred.trim(),
-										group.trim(), 
-										sampleRatio)
-		
+		var query:(Long, List[(String, (Double, Double))]) = null
 
+		if(rawSC){
+			query = saqp.rawSCQueryGroup(scc,
+									sampleName.trim(),
+									attr.trim(),
+									expr.trim(),
+									pred.trim(),
+									group.trim(), 
+									sampleRatio)
+		} 
+		else{
+			query = saqp.normalizedSCQueryGroup(scc,
+									sampleName.trim(),
+									attr.trim(),
+									expr.trim(),
+									pred.trim(),
+									group.trim(), 
+									sampleRatio)
+		}
+
+		if(dashboard){
+			implicit val formats = Serialization.formats(NoTypeHints)
+    		val requestData = compact(render(
+      		("querystring" -> "Query") ~
+        	("query_id" -> 1 ) ~
+          	("pipeline_id" -> 1 ) ~
+          	("grouped" -> true ) ~
+          	("grouped_result" -> query2Map(query))))
+          	println(requestData)
+
+          	val client: Service[HttpRequest, HttpResponse] = ClientBuilder()
+      		.codec(Http())
+      		.hosts("localhost:8000")
+      		.hostConnectionLimit(1)
+      		.tlsWithoutValidation() // TODO: ONLY IN DEVELOPMENT
+      		.build()
+
+    		val request = RequestBuilder()
+      		.url("https://localhost:8000/dashboard/results/")
+      		.addHeader("Charset", "UTF-8")
+      		.addFormElement(("querystring", "Query"))
+      		.addFormElement(("result_col_name", "Count"))
+      		.addFormElement(("query_id", "1"))
+      		.addFormElement(("pipeline_id", "1"))
+      		.addFormElement(("grouped", "true"))
+      		.addFormElement(("results", compact(render(query2Map(query)))))
+      		.buildFormPost()
+    		
+    		val responseFuture = client(request)
+
+    		responseFuture onSuccess { resp: HttpResponse =>
+      val responseData = resp.getContent.toString("UTF-8")
+      resp.getStatus  match {
+        case HttpResponseStatus.OK =>
+          implicit val formats = DefaultFormats
+          (parse(responseData) \ "status").extract[String] match {
+            case "ok" =>  println("[SampleClean] Created AMT HIT")
+            case other: String => println("Error! Bad request: " + other)
+          }
+        case other: HttpResponseStatus =>
+          println("Error! Got unexpected response status " + other.getCode + ". Data: " + responseData)
+      }
+
+    } onFailure { exc: Throwable =>
+      println("Failure!")
+      throw exc
+    }
+
+		}
+
+		return query
+		
 	}
+
+	def query2Map(query:(Long, List[(String, (Double, Double))])):Map[String,Double] ={
+      var listOfResults = query._2
+      var result:Map[String,Double] = Map()
+      listOfResults = listOfResults.sortBy(-_._2._1)
+      for(r <- listOfResults.slice(0,Math.min(10, listOfResults.length)))
+        result = result + (r._1 -> r._2._1)
+      return result
+  }
 
 
 }

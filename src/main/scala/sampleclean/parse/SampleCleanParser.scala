@@ -296,7 +296,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
        return ("Dedup", (System.nanoTime - now)/1000000)
      }
   	 else if(firstToken.equals("selectrawsc")){
-  		  printQuery(queryParser(command).execute())
+  		  printQuery(queryParser(command).execute(false))
   		  return ("Complete", (System.nanoTime - now)/1000000)
   	  }
       else if(firstToken.equals("selectnsc")){
@@ -383,7 +383,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     val algoPara = new AlgorithmParameters()
 
     algoPara.put("dedupAttr", "affiliation")
-    algoPara.put("similarityParameters", SimilarityParameters(simFunc="SortMerge", skipWords=List("of", "at", "department")))
+    algoPara.put("similarityParameters", SimilarityParameters(simFunc="WJaccard", threshold=0.6))
     algoPara.put("mergeStrategy", "MostFrequent")
 
     val crowdParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 10)
@@ -394,8 +394,8 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
     val algoPara2 = new AlgorithmParameters()
     algoPara2.put("dedupAttr", "affiliation")
-    algoPara2.put("similarityParameters", SimilarityParameters(simFunc="MinHash", bitSize= 5))
-    algoPara2.put("mergeStrategy", "MostConcise")
+    algoPara2.put("similarityParameters", SimilarityParameters(simFunc="SortMerge", skipWords=List("of", "at", "department")))
+    algoPara2.put("mergeStrategy", "MostFrequent")
 
     //val crowdParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 10)
     //algoPara.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdLabelGetterParameters(crowdParameters))
@@ -403,7 +403,20 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     d2.blocking = true
     d2.name = "AttributeDeduplication2"
 
-    val pp = new SampleCleanPipeline(saqp, List(d))
+
+    val algoPara3 = new AlgorithmParameters()
+    algoPara3.put("dedupAttr", "affiliation")
+    algoPara3.put("similarityParameters", SimilarityParameters(simFunc="WJaccard", threshold=0.4))
+    algoPara3.put("mergeStrategy", "MostFrequent")
+
+    //val crowdParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 10)
+    algoPara3.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdLabelGetterParameters(crowdParameters))
+    val d3 = new AttributeDeduplication(algoPara3, scc)
+    d3.blocking = true
+    d3.name = "AttributeDeduplication3 (Crowd)"
+
+
+    val pp = new SampleCleanPipeline(saqp, List(d2,d2,d2,d2,d,d3))
     pp.exec("paper_aff_sample")
   }
 

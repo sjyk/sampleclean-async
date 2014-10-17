@@ -8,6 +8,8 @@ import scala.util.Random
 
 import sampleclean.util.TypeUtils._
 
+
+
 /* This class provides the approximate query processing 
 * for SampleClean. Currently, it supports SUM, COUNT, AVG
 * and returns confidence intervals in the form of CLT variance

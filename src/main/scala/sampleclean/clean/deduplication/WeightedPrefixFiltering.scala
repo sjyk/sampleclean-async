@@ -223,7 +223,7 @@ trait WeightedPrefixFiltering extends Serializable {
             // Avoid double checking
             if (id2 >= id1) (null, null, false)
             else {
-              val (key2, row2) = broadcastDataValue(id1)
+              val (key2, row2) = broadcastDataValue(id2)
               val similar: Boolean = isSimilar(key1, key2, threshold, weightsValue)
               (key2, row2, similar)
             }

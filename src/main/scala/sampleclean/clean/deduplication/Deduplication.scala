@@ -155,14 +155,15 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
 
     val sc = scc.getSparkContext()
     val attrCountRdd = sampleTableRDD.map(x => 
-                                          (x(attrCol),1)).
+                                          (x(attrCol).asInstanceOf[String],1)).
                                           reduceByKey(_ + _).
-                                          map(x => AttrDedup(x._1.asInstanceOf[String], x._2))
+                                          map(x => AttrDedup(x._1, x._2))
 
     // Attribute pairs that are similar
     var candidatePairs = BlockingStrategy(List("attr"))
       .setSimilarityParameters(similarityParameters)
-      .coarseBlocking(sc, attrCountRdd , 0).collect()
+      .blocking(sc, attrCountRdd, colMapper).collect()
+      //.coarseBlocking(sc, attrCountRdd , 0).collect()
 
 
     /* Use crowd to refine candidate pairs*/
@@ -293,8 +294,18 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
    */
   def connectedComponents():Set[Set[Row]] = {
      var resultSet = Set[Set[Row]]()
+     var closedSet = Set[Row]()
+
      for(v <- graph.keySet){
-        resultSet = resultSet + dfs(v)
+        
+        if (!closedSet.contains(v)){
+          println("Processing " + v)
+          val dfsResult = dfs(v)
+          resultSet = resultSet + dfsResult
+          closedSet = closedSet ++ dfsResult
+
+        }
+
      }
 
      return resultSet
