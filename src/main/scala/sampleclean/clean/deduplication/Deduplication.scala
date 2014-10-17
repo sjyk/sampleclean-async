@@ -162,20 +162,23 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
     // Attribute pairs that are similar
     var candidatePairs = BlockingStrategy(List("attr"))
       .setSimilarityParameters(similarityParameters)
-      .blocking(sc, attrCountRdd, colMapper).collect()
+      .blocking(sc, attrCountRdd, colMapper)
       //.coarseBlocking(sc, attrCountRdd , 0).collect()
 
 
     /* Use crowd to refine candidate pairs*/
-    if (params.exist("crowdsourcingStrategy") && candidatePairs.size != 0){
-      println("[SampleClean] Publish %d pairs to AMT".format(candidatePairs.size))
+    if (params.exist("crowdsourcingStrategy") && candidatePairs.count() != 0){
+      
+      var candidatePairsArray = candidatePairs.collect()
+
+      println("[SampleClean] Publish %d pairs to AMT".format(candidatePairsArray.size))
       val crowdsourcingStrategy = params.get("crowdsourcingStrategy").asInstanceOf[CrowdsourcingStrategy]
 
       val groupContext : GroupLabelingContext = DeduplicationGroupLabelingContext(
         taskType="er", data=Map("fields" ->List(attr, "count"))).asInstanceOf[GroupLabelingContext]
 
       // Assign a unique id for each candidate pair
-      val candidatePairsWithId = candidatePairs.map{ pair =>
+      val candidatePairsWithId = candidatePairsArray.map{ pair =>
         val random_id = utils.randomUUID()
         (random_id, pair)
       }
@@ -189,33 +192,94 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
         (id, context)
       }
       val answers = crowdsourcingStrategy.run(crowdData, groupContext).answers
-      candidatePairs = answers.withFilter(_.value > 0.5).map{ answer =>
+      candidatePairsArray = answers.withFilter(_.value > 0.5).map{ answer =>
         assert(contextMap.contains(answer.identifier))
         contextMap.apply(answer.identifier)
       }.toArray
+
+      onReceiveCandidatePairs(candidatePairsArray, 
+                              sampleTableRDD,
+                              sampleTableName,
+                              attr,
+                              mergeStrategy,
+                              hashCol, 
+                              attrCol)
     }
-    println("[SampleClean] Crowd identified %d dup pairs".format(candidatePairs.size))
+    else if(params.exist("activeLearningStrategy") && candidatePairs.count() != 0){
+      
+      val emptyLabeledRDD = scc.getSparkContext().parallelize(new Array[(String, LabeledPoint)](0))
+      val activeLearningStrategy = params.get("activeLearningStrategy").asInstanceOf[ActiveLearningStrategy]
+      activeLearningStrategy.asyncRun(emptyLabeledRDD, 
+                                      candidatePairs, 
+                                      colMapper, 
+                                      colMapper, 
+                                      onReceiveCandidatePairs(_, sampleTableRDD,
+                                                                sampleTableName,
+                                                                attr,
+                                                                mergeStrategy,
+                                                                hashCol, 
+                                                                attrCol))
 
-    candidatePairs.foreach{x=>
-      println("[SampleClean] \"%s (%d)\" = \"%s (%d)\"".format(x._1.getString(0), x._1.getInt(1), x._2.getString(0), x._2.getInt(1)))
     }
+    else{
 
-    var resultRDD = sampleTableRDD.map(x =>
-      (x(hashCol).asInstanceOf[String], x(attrCol).asInstanceOf[String]))
+      onReceiveCandidatePairs(candidatePairs, 
+                              sampleTableRDD,
+                              sampleTableName,
+                              attr,
+                              mergeStrategy,
+                              hashCol, 
+                              attrCol)
+    
+    } 
+  }
 
-    for(pair <- candidatePairs){
+  def onReceiveCandidatePairs(candidatePairs: Array[(Row, Row)], 
+                              sampleTableRDD:RDD[Row], 
+                              sampleTableName:String,
+                              attr:String, 
+                              mergeStrategy:String, 
+                              hashCol:Int, 
+                              attrCol:Int):Unit = {
+
+      println("[SampleClean] Crowd identified %d dup pairs".format(candidatePairs.size))
+
+      candidatePairs.foreach{x=>
+        println("[SampleClean] \"%s (%d)\" = \"%s (%d)\"".format(x._1.getString(0), x._1.getInt(1), x._2.getString(0), x._2.getInt(1)))
+      }
+
+      var resultRDD = sampleTableRDD.map(x =>
+        (x(hashCol).asInstanceOf[String], x(attrCol).asInstanceOf[String]))
+
+      for(pair <- candidatePairs){
         println("Added " + pair)
         addToGraphUndirected(pair._1, pair._2)
-    }
+      }
 
-    //println("Graph " + graph)
+      //println("Graph " + graph)
 
-    val connectedPairs = connectedComponentsToExecOrder(connectedComponents(), mergeStrategy)
-    resultRDD = resultRDD.map(x => (x._1, replaceIfEqual(x._2, connectedPairs)))
+      val connectedPairs = connectedComponentsToExecOrder(connectedComponents(), mergeStrategy)
+      resultRDD = resultRDD.map(x => (x._1, replaceIfEqual(x._2, connectedPairs)))
 
-    scc.updateTableAttrValue(sampleTableName, attr, resultRDD)
-    
-  }
+      scc.updateTableAttrValue(sampleTableName, attr, resultRDD)
+ }  
+
+ def onReceiveCandidatePairs(candidatePairs: RDD[(Row, Row)], 
+                              sampleTableRDD:RDD[Row], 
+                              sampleTableName:String,
+                              attr:String, 
+                              mergeStrategy:String, 
+                              hashCol:Int, 
+                              attrCol:Int):Unit = {
+
+      onReceiveCandidatePairs(candidatePairs.collect(), 
+                              sampleTableRDD, 
+                              sampleTableName,
+                              attr, 
+                              mergeStrategy, 
+                              hashCol, 
+                              attrCol)
+ }  
 
   /**
    *

@@ -409,14 +409,21 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     algoPara3.put("similarityParameters", SimilarityParameters(simFunc="WJaccard", threshold=0.4))
     algoPara3.put("mergeStrategy", "MostFrequent")
 
+    val displayedCols = List("attr","count")
+    var featureList = List[Feature](Feature(List("attr"), List("Levenshtein", "JaroWinkler")))
+    algoPara3.put("activeLearningStrategy",
+      ActiveLearningStrategy(displayedCols)
+        .setFeatureList(featureList)
+        .setActiveLearningParameters(ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10)))
+
     //val crowdParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 10)
-    algoPara3.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdLabelGetterParameters(crowdParameters))
+    //algoPara3.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdLabelGetterParameters(crowdParameters))
     val d3 = new AttributeDeduplication(algoPara3, scc)
     d3.blocking = true
     d3.name = "AttributeDeduplication3 (Crowd)"
 
 
-    val pp = new SampleCleanPipeline(saqp, List(d2,d2,d2,d2,d,d3))
+    val pp = new SampleCleanPipeline(saqp, List(d3))//d2,d2,d2,d2,d,
     pp.exec("paper_aff_sample")
   }
 
