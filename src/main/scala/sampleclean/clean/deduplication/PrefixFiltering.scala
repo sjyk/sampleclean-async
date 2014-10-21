@@ -68,9 +68,9 @@ trait PrefixFiltering extends Serializable {
    */
   def broadcastJoin (@transient sc: SparkContext,
                      threshold: Double,
-                     fullTable: SchemaRDD,
+                     fullTable: RDD[Row],
                      fullKey: BlockingKey,
-                     sampleTable: SchemaRDD,
+                     sampleTable: RDD[Row],
                      sampleKey: BlockingKey): RDD[(Row,Row)] = {
 
 
@@ -139,7 +139,7 @@ trait PrefixFiltering extends Serializable {
    */
   def broadcastJoin[K: ClassTag, V:ClassTag] (@transient sc: SparkContext,
                                                   threshold: Double,
-                                                  fullTable: SchemaRDD,
+                                                  fullTable: RDD[Row],
                                                   fullKey: BlockingKey
                                                   ) : RDD[(Row,Row)] = {
 

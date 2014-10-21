@@ -160,6 +160,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
                                           map(x => AttrDedup(x._1, x._2))
 
     // Attribute pairs that are similar
+    
     var candidatePairs = BlockingStrategy(List("attr"))
       .setSimilarityParameters(similarityParameters)
       .blocking(sc, attrCountRdd, colMapper)
@@ -256,7 +257,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
         addToGraphUndirected(pair._1, pair._2)
       }
 
-      //println("Graph " + graph)
+      println("Graph: " + graph)
 
       val connectedPairs = connectedComponentsToExecOrder(connectedComponents(), mergeStrategy)
       resultRDD = resultRDD.map(x => (x._1, replaceIfEqual(x._2, connectedPairs)))

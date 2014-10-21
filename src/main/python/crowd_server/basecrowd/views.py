@@ -204,6 +204,6 @@ def post_response(request, crowd_name):
         and current_task.responses.count() >= current_task.num_assignments):
         current_task.is_complete = True
         current_task.save()
-        gather_answer.delay(current_task, model_spec)
+        gather_answer.delay(current_task.task_id, model_spec)
 
     return HttpResponse('ok') # AJAX call succeded.

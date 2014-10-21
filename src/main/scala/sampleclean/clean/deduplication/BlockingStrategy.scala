@@ -207,9 +207,9 @@ case class BlockingStrategy(blockedColNames: List[String]){
    *                            in the small table into a list of those columns' indices.
    */
   def blocking(@transient sc: SparkContext,
-               largeTable: SchemaRDD,
+               largeTable: RDD[Row],
                largeTableColMapper: List[String] => List[Int],
-               smallTable: SchemaRDD,
+               smallTable: RDD[Row],
                smallTableColMapper: List[String] => List[Int]
                ): RDD[(Row, Row)] = {
 
@@ -247,7 +247,7 @@ case class BlockingStrategy(blockedColNames: List[String]){
    *                  into a list of those columns' indices.
    */
   def blocking(@transient sc: SparkContext,
-               table: SchemaRDD,
+               table: RDD[Row],
                colMapper: List[String] => List[Int]): RDD[(Row, Row)] = {
 
     val genKey = BlockingKey(colMapper(blockedColNames), similarityParameters.tokenizer)
@@ -304,7 +304,7 @@ case class BlockingStrategy(blockedColNames: List[String]){
   }
 
    def sortFilter(@transient sc: SparkContext, 
-                                sampleTable: SchemaRDD, 
+                                sampleTable: RDD[Row], 
                                 key: BlockingKey,
                                 skipWords:List[String]): RDD[(Row, Row)] = {
 

@@ -389,7 +389,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     val crowdParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 10)
     //algoPara.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdLabelGetterParameters(crowdParameters))
     val d = new AttributeDeduplication(algoPara, scc)
-    d.blocking = true
+    d.blocking = false
     d.name = "AttributeDeduplication"
 
     val algoPara2 = new AlgorithmParameters()
@@ -400,7 +400,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     //val crowdParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 10)
     //algoPara.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdLabelGetterParameters(crowdParameters))
     val d2 = new AttributeDeduplication(algoPara2, scc)
-    d2.blocking = true
+    d2.blocking = false
     d2.name = "AttributeDeduplication2"
 
 
@@ -419,11 +419,11 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     //val crowdParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 10)
     //algoPara3.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdLabelGetterParameters(crowdParameters))
     val d3 = new AttributeDeduplication(algoPara3, scc)
-    d3.blocking = true
+    d3.blocking = false
     d3.name = "AttributeDeduplication3 (Crowd)"
 
 
-    val pp = new SampleCleanPipeline(saqp, List(d3))//d2,d2,d2,d2,d,
+    val pp = new SampleCleanPipeline(saqp, List(d3))//,
     pp.exec("paper_aff_sample")
   }
 
