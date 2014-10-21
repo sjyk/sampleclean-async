@@ -44,6 +44,11 @@
                     TOP_K_GROUPS[query_id] = top_groups;
                 } else { var chart = CHARTS[query_id]; var chart_data = CHART_DATA[query_id]; }
 
+                var hist = new google.visualization.Histogram(chart_div[0]);
+                var hist_data = new google.visualization.DataTable();
+                hist_data.addColumn('string', 'group_name');
+                hist_data.addColumn('number', value_col_name);
+
                 // Build data for the new row, and record the top k columns for display.
                 var row = [];
                 row[0] = TIME_STAMP;
@@ -56,6 +61,7 @@
                     for (var i = 0; i < result_data.length; i++) {
                         groups_map[result_data[i].name] = result_data[i].value;
                         if (i < NUM_GROUPS_FOR_CHART) { top_k_column_labels.push(result_data[i].name);}
+                        hist_data.addRow([result_data[i].name, result_data[i].value]);
                     }
                     var unseen_map = $.extend({}, groups_map);
                     for (var i = 1; i < chart_data.getNumberOfColumns(); i++) {
@@ -190,7 +196,14 @@
                         title: value_col_name
                     }
                 };
-                chart.draw(data_view, chart_options);
+                //chart.draw(data_view, chart_options);
+                var hist_options = {
+                    title: 'Lengths of dinosaurs, in meters',
+                    legend: { position: 'none' },
+                    height: 280,
+                    width:"100%"
+                };
+                hist.draw(hist_data, hist_options);
 
             }
         {% endblock %}
