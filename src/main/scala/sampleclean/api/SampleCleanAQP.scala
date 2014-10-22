@@ -8,6 +8,8 @@ import scala.util.Random
 
 import sampleclean.util.TypeUtils._
 
+
+
 /* This class provides the approximate query processing 
 * for SampleClean. Currently, it supports SUM, COUNT, AVG
 * and returns confidence intervals in the form of CLT variance
@@ -304,7 +306,7 @@ class SampleCleanAQP() {
 			if(hashJoinSet.contains(k1._1.trim.toLowerCase))
 			{
 				val diff = k1._2._1 - hashJoinSet(k1._1.trim.toLowerCase)._1
-				//println(k1._1 + " " + k1._2._1 + " " + hashJoinSet(k1._1)._1)
+				//println(k1._1 + " " + k1._2._1 + " " + hashJoinSet(k1._1.trim.toLowerCase)._1)
 				result = (k1._1, -diff) :: result
 			}
 		}

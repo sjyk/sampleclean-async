@@ -56,6 +56,14 @@ case class GramTokenizer(gramSize: Int) extends Tokenizer {
 }
 
 /**
+ * This class tokenizes a string based on grams.
+ * @param gramSize size of gram.
+ */
+case class WhiteSpacePunctuationTokenizer() extends Tokenizer {
+  def tokenSet(str: String) =  str.trim.split("([.,!?:;'\"-]|\\s)+").toList
+}
+
+/**
  * This class builds a method to tokenize rows of data.
  * @param cols indices of columns to be tokenized.
  * @param tokenizer chosen tokenizer to be used.
@@ -71,13 +79,22 @@ case class BlockingKey(cols: Seq[Int],
    */
   def tokenSet(row: Row): Seq[String] = {
     cols.flatMap{x =>
-      var value = row.getString(x)
+      var value = row(x).asInstanceOf[String]
       if (lowerCase)
         value = value.toLowerCase()
 
       tokenizer.tokenSet(value)
     }
   }
+
+    /**
+   * Returns string values from a row that are located on the chosen set of columns.
+   * @param row row to be parsed.
+   */
+  def tokenString(row: Row): String = {
+    return tokenSet(row).mkString(" ")
+  }
+
 }
 
 /**
@@ -90,7 +107,7 @@ case class BlockingKey(cols: Seq[Int],
  */
 case class SimilarityParameters(simFunc: String = "WJaccard",
                              threshold: Double = 0.5,
-                             tokenizer: Tokenizer = WordTokenizer(),
+                             tokenizer: Tokenizer = WhiteSpacePunctuationTokenizer(),
                              lowerCase: Boolean = true,
                              bitSize: Int = 1,
                              skipWords: List[String] = List())
@@ -190,9 +207,9 @@ case class BlockingStrategy(blockedColNames: List[String]){
    *                            in the small table into a list of those columns' indices.
    */
   def blocking(@transient sc: SparkContext,
-               largeTable: SchemaRDD,
+               largeTable: RDD[Row],
                largeTableColMapper: List[String] => List[Int],
-               smallTable: SchemaRDD,
+               smallTable: RDD[Row],
                smallTableColMapper: List[String] => List[Int]
                ): RDD[(Row, Row)] = {
 
@@ -230,7 +247,7 @@ case class BlockingStrategy(blockedColNames: List[String]){
    *                  into a list of those columns' indices.
    */
   def blocking(@transient sc: SparkContext,
-               table: SchemaRDD,
+               table: RDD[Row],
                colMapper: List[String] => List[Int]): RDD[(Row, Row)] = {
 
     val genKey = BlockingKey(colMapper(blockedColNames), similarityParameters.tokenizer)
@@ -256,13 +273,17 @@ case class BlockingStrategy(blockedColNames: List[String]){
         new WeightedDiceJoin().broadcastJoin(sc, threshold, table, genKey)
       case "WCosine" =>
         new WeightedCosineJoin().broadcastJoin(sc, threshold, table, genKey)
+      case "MinHash" =>  
+        return table.map(x => minHash(x,similarityParameters.bitSize,genKey)).groupByKey().flatMap(x => prunedCartesianProduct(x._2,genKey))
+      case "SortMerge" => 
+        return sortFilter(sc, table, genKey, similarityParameters.skipWords)
       case _ => println("Cannot support "+simFunc); null
     }
   }
 
-  def coarseBlocking(@transient sc: SparkContext, 
+  /*def coarseBlocking(@transient sc: SparkContext, 
                                 sampleTable: SchemaRDD, 
-                                col:Int): RDD[(Row, Row)] = {
+                                key: BlockingKey): RDD[(Row, Row)] = {
 
       val bits = similarityParameters.bitSize
       val simFunc = similarityParameters.simFunc
@@ -270,35 +291,29 @@ case class BlockingStrategy(blockedColNames: List[String]){
       //println(sampleTable.map(x => x(col).asInstanceOf[String].trim().split("\\s+").length).filter(_ < 3).count())
 
       simFunc match {
-        case "MinHash" =>  return sampleTable.map(x => minHash(x,bits,col)).groupByKey().flatMap(x => prunedCartesianProduct(x._2,col))
-        case "SortMerge" => return sortFilter(sc, sampleTable, col, similarityParameters.skipWords)
+
         case _ => println("Cannot support "+simFunc); return null
       }
-  }
+  }*/
 
-  def minHash(row:Row, modulus:Int, attr:Int): (Set[String], Row) = {
-      val attrText = row(attr).asInstanceOf[String]
-
-      if(attrText == null)
-        return (Set(),row)
-
-      val attrList = attrText.trim.toLowerCase.split("([.,!?:;'\"-]|\\s)+").sortBy(_.hashCode())
+  def minHash(row:Row, modulus:Int, key: BlockingKey): (Set[String], Row) = {
+      val attrList = key.tokenSet(row).sortBy(_.hashCode())
       val minHashSet = attrList.slice(0,Math.min(attrList.length,modulus)).toSet
 
       return (minHashSet,row)
   }
 
    def sortFilter(@transient sc: SparkContext, 
-                                sampleTable: SchemaRDD, 
-                                col:Int,
+                                sampleTable: RDD[Row], 
+                                key: BlockingKey,
                                 skipWords:List[String]): RDD[(Row, Row)] = {
 
-    val rows = sampleTable.map(x => (sanitizeString(x(col).asInstanceOf[String],skipWords),x)).sortByKey(true)
+    val rows = sampleTable.map(x => (sanitizeString(key.tokenString(x),skipWords),x)).sortByKey(true)
     return rows.mapPartitions(mergePartitions)
   }
 
   def sanitizeString(input:String, skipWords:List[String]):String = {
-    var result = input.trim().toLowerCase().split("\\s+").mkString(" ")
+    var result = input.trim().toLowerCase().split("\\W+").mkString(" ")
 
     for(word <- skipWords)
       result = result.replace(" "+word+" "," ")
@@ -335,12 +350,12 @@ case class BlockingStrategy(blockedColNames: List[String]){
   }
 
 
-  def prunedCartesianProduct(rows:Iterable[Row],attr:Int): List[(Row,Row)]=
+  def prunedCartesianProduct(rows:Iterable[Row],key:BlockingKey): List[(Row,Row)]=
   {
      var result = List[(Row,Row)]()
      for (a <- rows; b <- rows) {
-        val key1 = a(attr).asInstanceOf[String]
-        val key2 = b(attr).asInstanceOf[String]
+        val key1 = key.tokenString(a).asInstanceOf[String]
+        val key2 = key.tokenString(b).asInstanceOf[String]
         if(a != b && key1 != key2)
           result = (a, b) :: result
       }
