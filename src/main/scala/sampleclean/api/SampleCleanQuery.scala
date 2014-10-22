@@ -24,13 +24,16 @@ import scala.util.{Failure, Success}
  * @type {[type]}
  */
 class SampleCleanQuery(scc:SampleCleanContext, 
-					  saqp:SampleCleanAQP,
-		              sampleName: String, 
+					    saqp:SampleCleanAQP,
+		          sampleName: String, 
 	  				  attr: String, 
 	  				  expr: String, 
 	  				  pred:String, 
 	  				  group:String, 
-	  				  rawSC:Boolean = true){
+	  				  rawSC:Boolean = true,
+              querystring:String = ""){
+
+  var vizServer = "localhost:8000"
 
 	/** The execute method provies a way to execute the query
 	 *  the result is the current time and tuple result of estimate + confidence interval
@@ -68,27 +71,27 @@ class SampleCleanQuery(scc:SampleCleanContext,
 
 		if(dashboard){
 			implicit val formats = Serialization.formats(NoTypeHints)
-    		val requestData = compact(render(
-      		("querystring" -> "Query") ~
+    		/*val requestData = compact(render(
+      		("querystring" -> querystring) ~
         	("query_id" -> 1 ) ~
           	("pipeline_id" -> 1 ) ~
           	("grouped" -> true ) ~
           	("grouped_result" -> query2Map(query))))
-          	println(requestData)
+          	println(requestData)*/
 
           	val client: Service[HttpRequest, HttpResponse] = ClientBuilder()
       		.codec(Http())
-      		.hosts("localhost:8000")
+      		.hosts(vizServer)
       		.hostConnectionLimit(1)
       		.tlsWithoutValidation() // TODO: ONLY IN DEVELOPMENT
       		.build()
 
     		val request = RequestBuilder()
-      		.url("https://localhost:8000/dashboard/results/")
+      		.url("https://"+vizServer+"/dashboard/results/")
       		.addHeader("Charset", "UTF-8")
-      		.addFormElement(("querystring", "Query"))
-      		.addFormElement(("result_col_name", "Count"))
-      		.addFormElement(("query_id", "1"))
+      		.addFormElement(("querystring", querystring))
+      		.addFormElement(("result_col_name", "Query Result"))
+      		.addFormElement(("query_id", querystring.hashCode()+""))
       		.addFormElement(("pipeline_id", "1"))
       		.addFormElement(("grouped", "true"))
       		.addFormElement(("results", compact(render(query2Map(query)))))
@@ -102,7 +105,7 @@ class SampleCleanQuery(scc:SampleCleanContext,
         case HttpResponseStatus.OK =>
           implicit val formats = DefaultFormats
           (parse(responseData) \ "status").extract[String] match {
-            case "ok" =>  println("[SampleClean] Created AMT HIT")
+            case "ok" =>  println("[SampleClean] Sent Query")
             case other: String => println("Error! Bad request: " + other)
           }
         case other: HttpResponseStatus =>

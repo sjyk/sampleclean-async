@@ -161,7 +161,8 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
    									parsedExpr._1,
    									pred,
    									group,
-                    rawSC)
+                    rawSC,
+                    command)
    		
    }
 
@@ -296,7 +297,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
        return ("Dedup", (System.nanoTime - now)/1000000)
      }
   	 else if(firstToken.equals("selectrawsc")){
-  		  printQuery(queryParser(command).execute(false))
+  		  printQuery(queryParser(command).execute(true))
   		  return ("Complete", (System.nanoTime - now)/1000000)
   	  }
       else if(firstToken.equals("selectnsc")){
