@@ -79,7 +79,7 @@ case class BlockingKey(cols: Seq[Int],
    */
   def tokenSet(row: Row): Seq[String] = {
     cols.flatMap{x =>
-      var value = row.getString(x)
+      var value = row(x).asInstanceOf[String]
       if (lowerCase)
         value = value.toLowerCase()
 

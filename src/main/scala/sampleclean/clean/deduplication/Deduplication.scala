@@ -153,6 +153,13 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
     val similarityParameters = params.get("similarityParameters").asInstanceOf[SimilarityParameters]
     val mergeStrategy = params.get("mergeStrategy").asInstanceOf[String]
 
+    var iterations = 1
+    if(params.exist("iterations"))
+      iterations = params.get("iterations").asInstanceOf[Int]
+
+
+    for(iter <- 0 until iterations) {
+
     val sc = scc.getSparkContext()
     val attrCountRdd = sampleTableRDD.map(x => 
                                           (x(attrCol).asInstanceOf[String],1)).
@@ -233,6 +240,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
                               attrCol)
     
     } 
+    }
   }
 
   def onReceiveCandidatePairs(candidatePairs: Array[(Row, Row)], 
@@ -318,7 +326,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
     var resultSet = Set(vertex)
     for(neighbor <- graph(vertex)){
        if(! (traverseSet contains neighbor))
-         resultSet = resultSet ++ (dfs(neighbor, traverseSet + vertex) + vertex)
+         resultSet = resultSet ++ (dfs(neighbor, traverseSet ++ graph(vertex)) + vertex)
     }
 
     return resultSet

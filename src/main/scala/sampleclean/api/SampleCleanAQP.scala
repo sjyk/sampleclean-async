@@ -306,7 +306,7 @@ class SampleCleanAQP() {
 			if(hashJoinSet.contains(k1._1.trim.toLowerCase))
 			{
 				val diff = k1._2._1 - hashJoinSet(k1._1.trim.toLowerCase)._1
-				//println(k1._1 + " " + k1._2._1 + " " + hashJoinSet(k1._1)._1)
+				//println(k1._1 + " " + k1._2._1 + " " + hashJoinSet(k1._1.trim.toLowerCase)._1)
 				result = (k1._1, -diff) :: result
 			}
 		}
