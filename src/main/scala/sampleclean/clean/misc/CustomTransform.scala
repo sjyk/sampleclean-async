@@ -26,6 +26,10 @@ class CustomTransform(params:AlgorithmParameters,scc: SampleCleanContext)
     					)
 
     def customTransform(input:String): String ={
+        
+        if(input == null)
+            return input
+
     	var x = pipeSplit(input)
     	x = x.replace("UC ", "University of California ")
     	x = x.replace("Univ.", "University")

@@ -293,7 +293,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   		  return ("Dedup", (System.nanoTime - now)/1000000)
   	 }
      else if(firstToken.equals("dedupattr")){
-       demoDedupAttr()
+       dedupAttr(command)
        return ("Dedup", (System.nanoTime - now)/1000000)
      }
   	 else if(firstToken.equals("selectrawsc")){
@@ -378,10 +378,41 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     pp.exec("restaurant_sample")
   }
 
+  def dedupAttr(command:String) = {
+    val splitComponents = command.split("\\s+") //split on whitespace
+    
+    if(splitComponents.length != 6){
+      throw new ParseError("Usage \"dedupattr samplename attr algorithm primaryArg strategy\" ")
+    }
 
-  def demoDedupAttr() = {
+    val samplename = splitComponents(1)
+    val attr = splitComponents(2)
+    val algorithm = splitComponents(3)
+    val primaryArg = splitComponents(4)
+    val strategy = splitComponents(5)
 
     val algoPara = new AlgorithmParameters()
+    algoPara.put("attr", "affiliation")
+
+    if(algorithm.toLowerCase.equals("minhash") || 
+      algorithm.toLowerCase.equals("sortmerge")){
+
+      algoPara.put("iterations", primaryArg.toInt)
+      algoPara.put("similarityParameters", SimilarityParameters(simFunc=algorithm))
+    }
+    else{
+        algoPara.put("similarityParameters", SimilarityParameters(simFunc=algorithm, threshold=primaryArg.toDouble))
+    } 
+
+    algoPara.put("mergeStrategy", strategy)
+
+    val d = new AttributeDeduplication(algoPara, scc)
+    d.blocking = false
+    d.name = algorithm + " Attribute Deduplication"
+    val pp = new SampleCleanPipeline(saqp, List(d))
+    pp.exec(samplename)
+
+    /*val algoPara = new AlgorithmParameters()
 
     algoPara.put("dedupAttr", "affiliation")
     algoPara.put("similarityParameters", SimilarityParameters(simFunc="WJaccard", threshold=0.6))
@@ -426,7 +457,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
 
     val pp = new SampleCleanPipeline(saqp, List(d2,d))//,
-    pp.exec("paper_aff_sample")
+    pp.exec("paper_aff_sample")*/
   }
 
 

@@ -80,8 +80,12 @@ case class BlockingKey(cols: Seq[Int],
   def tokenSet(row: Row): Seq[String] = {
     cols.flatMap{x =>
       var value = row(x).asInstanceOf[String]
+
+      if (value == null)
+        value = ""
+
       if (lowerCase)
-        value = value.toLowerCase()
+        value = value.toLowerCase
 
       tokenizer.tokenSet(value)
     }
@@ -216,24 +220,24 @@ case class BlockingStrategy(blockedColNames: List[String]){
     val genKeyLargeTable = BlockingKey(largeTableColMapper(blockedColNames), similarityParameters.tokenizer)
     val genKeySmallTable = BlockingKey(smallTableColMapper(blockedColNames), similarityParameters.tokenizer)
 
-    val simFunc = similarityParameters.simFunc
+    val simFunc = similarityParameters.simFunc.toLowerCase
     val threshold = similarityParameters.threshold
     simFunc match {
-      case "Jaccard" =>
+      case "jaccard" =>
         new JaccardJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
-      case "Overlap" =>
+      case "overlap" =>
         new OverlapJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
-      case "Dice" =>
+      case "dice" =>
         new DiceJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
-      case "Cosine" =>
+      case "cosine" =>
         new CosineJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
-      case "WJaccard" =>
+      case "wjaccard" =>
         new WeightedJaccardJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
-      case "WOverlap" =>
+      case "woverlap" =>
         new WeightedOverlapJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
-      case "WDice" =>
+      case "wdice" =>
         new WeightedDiceJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
-      case "WCosine" =>
+      case "wcosine" =>
         new WeightedCosineJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
       case _ => println("Cannot support "+simFunc); null
     }
@@ -253,29 +257,29 @@ case class BlockingStrategy(blockedColNames: List[String]){
     val genKey = BlockingKey(colMapper(blockedColNames), similarityParameters.tokenizer)
 
 
-    val simFunc = similarityParameters.simFunc
+    val simFunc = similarityParameters.simFunc.toLowerCase
     val threshold = similarityParameters.threshold
     println("simFunc = " + simFunc + " threshold = " + threshold.toString)
     simFunc match {
-      case "Jaccard" =>
+      case "jaccard" =>
         new JaccardJoin().broadcastJoin(sc, threshold, table, genKey)
-      case "Overlap" =>
+      case "overlap" =>
         new OverlapJoin().broadcastJoin(sc, threshold, table, genKey)
-      case "Dice" =>
+      case "dice" =>
         new DiceJoin().broadcastJoin(sc, threshold, table, genKey)
-      case "Cosine" =>
+      case "cosine" =>
         new CosineJoin().broadcastJoin(sc, threshold, table, genKey)
-      case "WJaccard" =>
+      case "wjaccard" =>
         new WeightedJaccardJoin().broadcastJoin(sc, threshold, table, genKey)
-      case "WOverlap" =>
+      case "woverlap" =>
         new WeightedOverlapJoin().broadcastJoin(sc, threshold, table, genKey)
-      case "WDice" =>
+      case "wdice" =>
         new WeightedDiceJoin().broadcastJoin(sc, threshold, table, genKey)
-      case "WCosine" =>
+      case "wcosine" =>
         new WeightedCosineJoin().broadcastJoin(sc, threshold, table, genKey)
-      case "MinHash" =>  
+      case "minhash" =>  
         return table.map(x => minHash(x,similarityParameters.bitSize,genKey)).groupByKey().flatMap(x => prunedCartesianProduct(x._2,genKey))
-      case "SortMerge" => 
+      case "sortmerge" => 
         return sortFilter(sc, table, genKey, similarityParameters.skipWords)
       case _ => println("Cannot support "+simFunc); null
     }

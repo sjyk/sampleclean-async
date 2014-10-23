@@ -110,6 +110,10 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
    * @param out is returned if strings are equal.
    */
   def replaceIfEqual(x:String, test:Map[String,String]): String ={
+      
+      if(x == null)
+        return x
+
       if(test.contains(x.trim().toLowerCase()))
         return test(x.trim().toLowerCase())
       else
@@ -128,7 +132,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
    */
   def exec(sampleTableName: String) = {
 
-    val attr = params.get("dedupAttr").asInstanceOf[String]
+    val attr = params.get("attr").asInstanceOf[String]
     val attrCol = scc.getColAsIndex(sampleTableName,attr)
     val hashCol = scc.getColAsIndex(sampleTableName,"hash")
     //println("attr = " + attr)
@@ -347,9 +351,9 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
 
       var sortedList = comp.toList
 
-      if(mergeStrategy.equals("MostConcise"))
+      if(mergeStrategy.toLowerCase.equals("mostconcise"))
           sortedList = comp.toList.sortWith(mcCompOperator)
-      else if (mergeStrategy.equals("MostFrequent"))
+      else if (mergeStrategy.toLowerCase.equals("mostfrequent"))
           sortedList = comp.toList.sortWith(mfCompOperator)
 
       for(i <- 0 until (sortedList.length - 1) )
