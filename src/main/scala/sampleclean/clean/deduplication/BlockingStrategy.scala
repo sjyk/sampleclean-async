@@ -56,8 +56,7 @@ case class GramTokenizer(gramSize: Int) extends Tokenizer {
 }
 
 /**
- * This class tokenizes a string based on grams.
- * @param gramSize size of gram.
+ * This class tokenizes a string based on white space punctuation.
  */
 case class WhiteSpacePunctuationTokenizer() extends Tokenizer {
   def tokenSet(str: String) =  str.trim.split("([.,!?:;'\"-]|\\s)+").toList
@@ -87,6 +86,20 @@ case class BlockingKey(cols: Seq[Int],
     }
   }
 
+  /**
+   * Tokenizes specified columns and concatenates the results with white spaces
+   * @param row Row to be used
+   */
+  def concat(row: Row): String = {
+    cols.flatMap{x =>
+      var value = row.getString(x)
+      if (lowerCase)
+        value = value.toLowerCase()
+
+      tokenizer.tokenSet(value)
+    }.mkString(" ")
+  }
+
     /**
    * Returns string values from a row that are located on the chosen set of columns.
    * @param row row to be parsed.
@@ -95,7 +108,9 @@ case class BlockingKey(cols: Seq[Int],
     return tokenSet(row).mkString(" ")
   }
 
+
 }
+
 
 /**
  * This class defines default similarity parameters for the blocking strategy
@@ -235,7 +250,9 @@ case class BlockingStrategy(blockedColNames: List[String]){
         new WeightedDiceJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
       case "WCosine" =>
         new WeightedCosineJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
-      case _ => println("Cannot support "+simFunc); null
+      case "EditDist" =>
+        new PassJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
+      case _ => println("Cannot support " + simFunc); null
     }
   }
 
@@ -277,6 +294,8 @@ case class BlockingStrategy(blockedColNames: List[String]){
         return table.map(x => minHash(x,similarityParameters.bitSize,genKey)).groupByKey().flatMap(x => prunedCartesianProduct(x._2,genKey))
       case "SortMerge" => 
         return sortFilter(sc, table, genKey, similarityParameters.skipWords)
+      case "EditDist" =>
+        new PassJoin().broadcastJoin(sc, threshold, table, genKey)
       case _ => println("Cannot support "+simFunc); null
     }
   }
