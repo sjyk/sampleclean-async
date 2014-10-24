@@ -16,10 +16,10 @@ import json
 
 AMT_NO_ASSIGNMENT_ID = 'ASSIGNMENT_ID_NOT_AVAILABLE'
 
-def get_amt_connection():
+def get_amt_connection(sandbox):
     ''' Get a connection object to communicate with the AMT API. '''
     host = (settings.AMT_SANDBOX_HOST
-            if settings.AMT_SANDBOX else settings.AMT_HOST)
+            if sandbox else settings.AMT_HOST)
     return MTurkConnection(aws_access_key_id=settings.AMT_ACCESS_KEY,
                            aws_secret_access_key=settings.AMT_SECRET_KEY,
                            host=host)
@@ -57,7 +57,7 @@ def create_hit(hit_options):
     question = ExternalQuestion(
         external_url=url,
         frame_height=options['frame_height'])
-    conn = get_amt_connection()
+    conn = get_amt_connection(options['sandbox'])
 
     create_response = conn.create_hit(
         question=question,
@@ -70,9 +70,10 @@ def create_hit(hit_options):
 
     return create_response[0].HITId
 
-def disable_hit(hit_id) :
-    conn = get_amt_connection()
+def disable_hit(task) :
+    crowd_config = json.loads(task.group.crowd_config)
+    conn = get_amt_connection(crowd_config['sandbox'])
     try:
-        conn.disable_hit(hit_id)
+        conn.disable_hit(task.task_id)
     except MTurkRequestError, e:
-        raise ValueError("Couldn't delete HIT " + hit_id + ": " + str(e))
+        raise ValueError("Couldn't delete HIT " + task.task_id + ": " + str(e))

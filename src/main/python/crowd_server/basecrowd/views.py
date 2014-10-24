@@ -45,7 +45,8 @@ def create_task_group(request, crowd_name):
         group_id=group_id,
         tasks_finished=0,
         callback_url=configuration['callback_url'],
-        group_context=group_context)
+        group_context=group_context,
+        crowd_config = json.dumps(configuration[crowd_name]))
 
     # Call the group hook function, then save the new group to the database.
     interface.group_pre_save(current_group)
@@ -142,10 +143,11 @@ def get_assignment(request, crowd_name):
             current_worker.tasks.add(current_task)
 
     # Add task data to the context.
+    crowd_config = json.loads(current_task.group.crowd_config)
     context.update(group_context=group_context,
                    content=content,
                    backend_submit_url=interface.get_backend_submit_url(),
-                   frontend_submit_url=interface.get_frontend_submit_url())
+                   frontend_submit_url=interface.get_frontend_submit_url(crowd_config))
 
     # Get the base template name, preferring a crowd-specific base template.
     try:

@@ -91,7 +91,7 @@ $ ./run.sh -d # Debug mode
   1. Run the sample script which could create a couple of sample HITs on AMT:
 
         ```shell
-        python post.py -t TASK_TYPES   # You pick 1 or more of 'sa', 'er', 'ft', described below.
+        python post.py -c amt -t TASK_TYPES   # You pick 1 or more of 'sa', 'er', 'ft', described below.
         ```
 
   2. Log into the AMT management interface (https://requestersandbox.mturk.com/mturk/manageHITs) and 
@@ -346,7 +346,7 @@ The following crowds can be used to process tasks with the crowd server:
 Amazon Mechanical Turk (https://www.mturk.com)
 ----------------------------------------------
 - CROWD_NAME: 'amt'
-- special configuration keys: None
+- special configuration keys: sandbox : true/false  which indicates using sandbox/real amt
 - `assignment_context`: urlencoded key-value pairs that must include the
   following keys:
 

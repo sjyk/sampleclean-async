@@ -9,10 +9,26 @@ from connection import create_hit, disable_hit, AMT_NO_ASSIGNMENT_ID
 from models import Request
 
 class AMTCrowdInterface(CrowdInterface):
+
+    @staticmethod
+    def validate_configuration(configuration):
+        # Validate the configuration specific to amt
+        try : 
+            CrowdInterface.require_context(
+                configuration, 
+                ['sandbox'],
+                ValueError())
+
+        except ValueError:
+            return False
+
+        return True
+
     @staticmethod
     def create_task(configuration, content):
         # Use the boto API to create an AMT HIT
-        additional_options = {'num_responses' : configuration['num_assignments']}
+        additional_options = {'num_responses' : configuration['num_assignments'],
+                              'sandbox' : configuration['amt']['sandbox']}
         return create_hit(additional_options)
 
     @staticmethod
@@ -20,7 +36,7 @@ class AMTCrowdInterface(CrowdInterface):
         # Use the boto API to delete the HITs
         for task in task_objects:
             try:
-                disable_hit(task.task_id)
+                disable_hit(task)
             except ValueError:
                 pass
 
@@ -61,8 +77,8 @@ class AMTCrowdInterface(CrowdInterface):
                 'assignment_id': request.POST.get('assignmentId')
             }
 
-    @staticmethod
-    def get_frontend_submit_url():
-        return settings.AMT_SANDBOX_WORKER_SUBMIT
+    def get_frontend_submit_url(self, crowd_config):
+        return (settings.POST_BACK_AMT_SANDBOX
+                if crowd_config['sandbox'] else POST_BACK_AMT)
 
 AMT_INTERFACE = AMTCrowdInterface('amt')
