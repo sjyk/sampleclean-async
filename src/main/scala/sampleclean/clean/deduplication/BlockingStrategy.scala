@@ -86,6 +86,10 @@ case class BlockingKey(cols: Seq[Int],
     }
   }
 
+  /**
+   * Tokenizes specified columns and concatenates the results with white spaces
+   * @param row Row to be used
+   */
   def concat(row: Row): String = {
     cols.flatMap{x =>
       var value = row.getString(x)
@@ -247,7 +251,7 @@ case class BlockingStrategy(blockedColNames: List[String]){
       case "WCosine" =>
         new WeightedCosineJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
       case "EditDist" =>
-        new EditJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
+        new PassJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
       case _ => println("Cannot support " + simFunc); null
     }
   }
@@ -291,7 +295,7 @@ case class BlockingStrategy(blockedColNames: List[String]){
       case "SortMerge" => 
         return sortFilter(sc, table, genKey, similarityParameters.skipWords)
       case "EditDist" =>
-        new EditJoin().broadcastJoin(sc, threshold, table, genKey)
+        new PassJoin().broadcastJoin(sc, threshold, table, genKey)
       case _ => println("Cannot support "+simFunc); null
     }
   }

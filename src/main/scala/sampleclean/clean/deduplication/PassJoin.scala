@@ -11,13 +11,27 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql._
 import org.apache.spark.SparkContext._
 
-class EditJoin extends Serializable {
+/**
+ * This class represents a similarity join using the edit distance similarity measure.
+ */
+class PassJoin extends Serializable {
 
-
+  /**
+   * Compares two strings and returns whether they are similar or not, relative to the specified threshold.
+   * @param _s first string
+   * @param _t second string
+   * @param threshold specified threshold (integer)
+   */
   def isSimilar(_s: String, _t: String, threshold: Int): Boolean = {
     thresholdLCS(_s, _t, threshold) <= threshold
   }
 
+  /**
+   * Calculates the Edit Distance by calculating the Levenshtein distance between two strings.
+   * @param _s first string
+   * @param _t secind string
+   * @param threshold specified threshold (integer)
+   */
   def thresholdLevenshtein(_s: String, _t: String, threshold: Int): Int = {
     val (s, t) = if (_s.length > _t.length) (_s, _t) else (_t, _s)
     val slen = s.length
@@ -44,6 +58,12 @@ class EditJoin extends Serializable {
     prev(tlen)
   }
 
+  /**
+   * Optimized version of the Levenshtein distance.
+   * @param _s first string
+   * @param _t second string
+   * @param threshold specified threshold (integer)
+   */
   def thresholdLCS(_s: String, _t: String, threshold: Int): Int = {
     val (s, t) = if (_s.length > _t.length) (_s, _t) else (_t, _s)
     val n = s.length
@@ -74,7 +94,11 @@ class EditJoin extends Serializable {
 
   }
 
-  // generate even string segments
+  /**
+   * Generates string segments for faster pair filtering, as per PassJoin algorithm.
+   * @param seg_str_len length of string to be segmented
+   *@param threshold specified threshold
+   */
   def genEvenSeg(seg_str_len: Int, threshold: Int): Seq[(Int, Int, Int, Int)] = {
     val partNum = threshold + 1
     var segLength = seg_str_len / partNum
@@ -95,7 +119,13 @@ class EditJoin extends Serializable {
     }
   }
 
-  // strLength is length of string to be divided into substrings
+  /**
+   * Generates optimal tuples with substring information for a given string length.
+   * This is part of the PassJoin algorithm.
+   * @param strLength string length
+   * @param threshold specified threshold
+   * @param selfJoin if true, assumes a self-join is being performed
+   */
   def genOptimalSubs(strLength: Int, threshold: Int, selfJoin: Boolean = false): Seq[(Int, Int, Int, Int)] = {
 
     val candidateLengths = {
@@ -106,7 +136,14 @@ class EditJoin extends Serializable {
 
   }
 
-  // returns starting position and length
+
+  /**
+   * Generates tuples with substring information for a given string length.
+   * This is part of the PassJoin algorithm.
+   * @param seg_str_len segment length
+   * @param sub_str_len substring length
+   * @param threshold specified threshold
+   */
   def genSubstrings(seg_str_len: Int, sub_str_len: Int, threshold: Int): Seq[(Int, Int, Int, Int)] = {
     val partNum = threshold + 1
     // first value is segment starting position, second value is segment length
@@ -120,7 +157,16 @@ class EditJoin extends Serializable {
 
   }
 
-
+  /**
+   * Performs a similarity join between two data sets using the Edit Distance
+   * similarity measure, the PassJoin algorithm and a broadcasting procedure.
+   * @param sc SparkContext
+   * @param threshold maximum Edit Distance that will be used for comparison
+   * @param fullTable large table
+   * @param getAttrFull strategy that will be used for column concatenation in large table
+   * @param sampleTable small table
+   * @param getAttrSample strategy that will be used for column concatenation in small table
+   */
   def broadcastJoin(@transient sc: SparkContext,
                     threshold: Double,
                     fullTable: RDD[Row],
@@ -194,6 +240,14 @@ class EditJoin extends Serializable {
 
   }
 
+  /**
+   * Performs a similarity self-join on a data set using the Edit Distance
+   * similarity measure, the PassJoin algorithm and a broadcasting procedure.
+   * @param sc SparkContext
+   * @param threshold maximum Edit Distance that will be used for comparison
+   * @param fullTable table
+   * @param getAttrFull strategy that will be used for column concatenation
+   */
   def broadcastJoin(@transient sc: SparkContext,
                     threshold: Double,
                     fullTable: RDD[Row],
