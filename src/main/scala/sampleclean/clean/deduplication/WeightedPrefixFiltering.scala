@@ -101,9 +101,9 @@ trait WeightedPrefixFiltering extends Serializable {
    */
    def broadcastJoin (@transient sc: SparkContext,
                       threshold: Double,
-                      fullTable: SchemaRDD,
+                      fullTable: RDD[Row],
                       fullKey: BlockingKey,
-                      sampleTable: SchemaRDD,
+                      sampleTable: RDD[Row],
                       sampleKey: BlockingKey): RDD[(Row,Row)] = {
 
    //Add a record ID into sampleTable. Id is a unique id assigned to each row.
@@ -174,7 +174,7 @@ trait WeightedPrefixFiltering extends Serializable {
    */
   def broadcastJoin (@transient sc: SparkContext,
                      threshold: Double,
-                     fullTable: SchemaRDD,
+                     fullTable: RDD[Row],
                      fullKey: BlockingKey): RDD[(Row,Row)] = {
 
     // Add record ID into sampleData: RDD[(Id, (Seq[K], Value))]
@@ -223,7 +223,7 @@ trait WeightedPrefixFiltering extends Serializable {
             // Avoid double checking
             if (id2 >= id1) (null, null, false)
             else {
-              val (key2, row2) = broadcastDataValue(id1)
+              val (key2, row2) = broadcastDataValue(id2)
               val similar: Boolean = isSimilar(key1, key2, threshold, weightsValue)
               (key2, row2, similar)
             }

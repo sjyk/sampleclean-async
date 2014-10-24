@@ -98,15 +98,28 @@ class QueryBuilder(scc: SampleCleanContext) {
 		/** This builds a select query that joins with a larger table. Same syntax as above just specifying
 	* an additional table and join key
 	*/
-	def buildSelectQuery(attrs:List[String],table:String,pred:String,table2:String,joinKey:String,joinKey2:String ):String = {
+	def buildSelectQuery(attrs:List[String],table:String,pred:String,table2:String,joinKey:String,joinKey2:String, dirty:Boolean =false):String = {
 		 val query =    " SELECT " + forceMapJoin(table,table2) +
    			            attrsToSelectionList(attrs) +" FROM "+
    			            table+" LEFT OUTER JOIN " + 
    			            table2+" ON ("+
-   			            table+"." + joinKey+ 
-   			            " = "+table2+"."+joinKey2+")" +
+   			            formatJoinKey(joinKey,table,dirty) +
+   			            " = "+formatJoinKey(joinKey2,table2,dirty)+")" +
 						" WHERE " + pred
 		return query  
+	}
+
+	def formatJoinKey(joinKey:String, table:String, dirty:Boolean):String = {
+		if(joinKey.indexOf(".") < 0){
+			return table+"." + joinKey
+		}
+		else{
+				var suffix = "_dirty"
+				if(!dirty)
+					suffix = "_clean"
+
+				return joinKey.replace(".",suffix+".")
+		}
 	}
 
 	def forceMapJoin(table1:String, table2:String):String = {
@@ -257,12 +270,20 @@ class QueryBuilder(scc: SampleCleanContext) {
 	}
 
 	def countSumVarianceSQL(k: Double, attr: String, sampleRatio: Double):String = {
-		val p = "(count(1)"+"/"+k+")"
-		val pm = "(1 -"+p+")"
-		val means = "avg("+attr+")*avg("+attr+")"
-		val stds = "var_samp("+attr+")"
+		val realCount = "sum("+predicateToCase("agg != 0")+")" //todo fix
 
-		return "("+p+"*("+pm+"*"+means+"+"+stds+"))/"+sampleRatio
+		val n = "("+k/sampleRatio+")"
+		val p = realCount +"/" + k
+		val ps = p + " * (1.0 - " + p + ")"
+		val sf = k + "/" + realCount
+
+		val means = "sum(agg)/"+realCount
+		val meansS = "("+means+")*(" + means+")"
+		val stds = "var_samp("+attr+")*"+sf
+		val firstTerm = ps+"*"+n+"*"+n+"*"+meansS
+		val secondTerm = p+"*"+n+"*"+n+"*"+stds
+
+		return "("+firstTerm+"+"+secondTerm+")/"+k
 	}
 
 	/** Returns the "dirty" sample name

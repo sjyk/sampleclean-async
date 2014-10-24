@@ -10,5 +10,5 @@ then
     gunicorn -b 0.0.0.0:8000 -w 1 --access-logfile access-gunicorn.log --error-logfile error-gunicorn.log --log-level debug  --certfile=crowd_server/ssl/development.crt --keyfile=crowd_server/ssl/development.key crowd_server.wsgi:application
 else
     python manage.py celeryd_detach
-    gunicorn -D -b 0.0.0.0:8000 -w 1 --access-logfile access-gunicorn.log --error-logfile error-gunicorn.log --log-level debug  --certfile=crowd_server/ssl/development.crt --keyfile=crowd_server/ssl/development.key crowd_server.wsgi:application
+    gunicorn -D -b 0.0.0.0:8000 -w 10 --access-logfile access-gunicorn.log --error-logfile error-gunicorn.log --log-level debug  --certfile=crowd_server/ssl/development.crt --keyfile=crowd_server/ssl/development.key crowd_server.wsgi:application
 fi

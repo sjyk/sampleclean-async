@@ -60,7 +60,7 @@ case class DeduplicationGroupLabelingContext(taskType : String, data : Map[Strin
   */
 case class CrowdLabelGetterParameters
 (
-  responseServerPort: Int=8080,
+  responseServerPort: Int=8082,
   responseServerHost: String="127.0.0.1",
   crowdName: String="internal",
   crowdServerPort: Int=8000,

@@ -10,3 +10,10 @@
         };
     }
 {% endblock get_submit_context_func %}
+
+{% block form_tag %}
+    {{ block.super }}
+    <input type="hidden" value="{{ task_id }}" name="task_id"/>
+    <input type="hidden" value="{{ worker_id }}" name="worker_id"/>
+    <input type="hidden" value="{{ assignment_id }}" name="assignment_id"/>
+{% endblock %}

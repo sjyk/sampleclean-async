@@ -19,6 +19,9 @@ import SampleCleanContext._
 import sampleclean.util.TypeUtils._
 import sampleclean.util.QueryBuilder
 
+import scala.concurrent._
+import scala.concurrent.duration._
+
 /** As an analog to the SparkContext, the SampleCleanContext
 *gives a handle to the current session. This class provides
 *the basic API to manipulate the data structures. We assume
@@ -365,6 +368,8 @@ class SampleCleanContext(@transient sc: SparkContext) {
 	*/
 	def getHiveTableSchema(tableName:String):List[String] = {
 		var schemaList = List[String]()
+		blocking { 
+		
 		try{
 			val msc:HiveMetaStoreClient = new HiveMetaStoreClient(new HiveConf());
 			val sd:StorageDescriptor = msc.getTable(tableName).getSd();
@@ -374,6 +379,8 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		}
 		catch {
      		case e: Exception => 0
+   		}
+
    		}
 
 		return schemaList.reverse

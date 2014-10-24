@@ -8,6 +8,8 @@ import scala.util.Random
 
 import sampleclean.util.TypeUtils._
 
+
+
 /* This class provides the approximate query processing 
 * for SampleClean. Currently, it supports SUM, COUNT, AVG
 * and returns confidence intervals in the form of CLT variance
@@ -35,14 +37,14 @@ class SampleCleanAQP() {
 	  				  pred:String,
 	  				  group: String, 
 	  				  sampleRatio: Double,
-	  				  dirty:Boolean = false): (Long, List[(String, (Double, Double))])=
+	  				  preserveTableName:Boolean =false): (Long, List[(String, (Double, Double))])=
 	  {
 	  	  	val hc:HiveContext = scc.getHiveContext()
+
 	  	  	var hiveTableName = scc.qb.getCleanSampleName(sampleName)
 
-	  	  	if(dirty)
-	  	  		hiveTableName = scc.qb.getDirtySampleName(sampleName)
-
+	  	  	if(preserveTableName)
+	  	  		hiveTableName = sampleName
 
 	  	  	var defaultPred = "true"
 	  	  	val dup = scc.qb.exprToDupString(sampleName)
@@ -54,7 +56,7 @@ class SampleCleanAQP() {
 
 	  	  	val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
 
-	  	  	val k = hc.hql("SELECT 1 from " + scc.qb.getCleanFactSampleName(sampleName,true)).count()
+	  	  	val k = hc.hql("SELECT 1 from " + hiveTableName).count()
 
 	  	  	if(pred != "")
 	  	  		defaultPred = scc.qb.transformExplicitExpr(pred,sampleName)
@@ -77,7 +79,8 @@ class SampleCleanAQP() {
 	  	  	 println(aggQuery)
 	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
-	  	  	 					      row(2).asInstanceOf[Double]))).collect()
+	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double])))).collect()
+
 	  	  	 return (System.nanoTime, result.toList)
 	  	  	}
 	  	  	else if (expr.toLowerCase() == "sum"){
@@ -99,7 +102,7 @@ class SampleCleanAQP() {
 	  	  	 println(aggQuery)
 	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
-	  	  	 					      row(2).asInstanceOf[Double]))).collect()
+	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double])))).collect()
 	  	  	 return (System.nanoTime, result.toList)
 	  	  	}
 	  	  	else
@@ -118,9 +121,9 @@ class SampleCleanAQP() {
 	  	  	 				" group by group"
 
 	  	  	 println(aggQuery)
-	  	  	 val result = hc.hql(aggQuery).map(row => (row(0).asInstanceOf[String],
+	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
-	  	  	 					      row(2).asInstanceOf[Double]))).collect()
+	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double])))).collect()
 	  	  	 return (System.nanoTime, result.toList)
 	  	  	}
 
@@ -140,13 +143,17 @@ class SampleCleanAQP() {
 	 	val dirtyName1 = scc.qb.getDirtySampleName(sampleName1)
 	 	val dirtyName2 = scc.qb.getDirtySampleName(sampleName2)
 
+	 	val query = scc.qb.createTableAs(scc.qb.getCleanSampleName(tableName))+
+	 						scc.qb.buildSelectQuery(scc.qb.getTableJoinSchemaList(cleanName1,cleanName2),
+	 												cleanName1,"true",cleanName2,key1,key2,false)
+
 	 	val query1 = hc.hql(scc.qb.createTableAs(scc.qb.getCleanSampleName(tableName))+
 	 						scc.qb.buildSelectQuery(scc.qb.getTableJoinSchemaList(cleanName1,cleanName2),
-	 												cleanName1,"true",cleanName2,key1,key2))
+	 												cleanName1,"true",cleanName2,key1,key2,false))
 
 	 	val query2 = hc.hql(scc.qb.createTableAs(scc.qb.getDirtySampleName(tableName))+
 	 						scc.qb.buildSelectQuery(scc.qb.getTableJoinSchemaList(dirtyName1,dirtyName2),
-	 											    dirtyName1,"true",dirtyName2,key1,key2))
+	 											    dirtyName1,"true",dirtyName2,key1,key2,true))
 
 	 	return (query1, query2)
 	 }
@@ -228,7 +235,7 @@ class SampleCleanAQP() {
 	  	  	 println(aggQuery)
 	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
-	  	  	 					      row(2).asInstanceOf[Double]))).collect()
+	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double])))).collect()
 	  	  	 return (System.nanoTime, result.toList)
 	  	  }
 	  	  else if (expr.toLowerCase() == "sum"){
@@ -249,14 +256,14 @@ class SampleCleanAQP() {
 	  	  	 println(aggQuery)
 	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
-	  	  	 					      row(2).asInstanceOf[Double]))).collect()
+	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double])))).collect()
 	  	  	 return (System.nanoTime, result.toList)
 	  	  	}
 	  	  else
 	  	  {
-	  	  	val cleanCount = rawSCQueryGroup(scc, sampleName, attr, expr, pred, group, sampleRatio)
-	  	  	val dirtyCount = rawSCQueryGroup(scc, sampleName, attr, expr, pred, group, sampleRatio, true)
-	  	  	val comparedResult = compareQueryResults(cleanCount,dirtyCount)
+	  	  	val cleanCount = rawSCQueryGroup(scc, baseTableClean, attr, expr, pred, group, sampleRatio, true)
+	  	  	val dirtyCount = rawSCQueryGroup(scc, baseTableDirty, attr, expr, pred, group, sampleRatio, true)
+	  	  	val comparedResult = compareQueryResults(dirtyCount,cleanCount)
 
 			/*val buildQuery = scc.qb.buildSelectQuery(List(selectionStringCOUNT+ " as agg", gattr + " as group"),
 				                           baseTableClean,
@@ -283,7 +290,8 @@ class SampleCleanAQP() {
 	  }
 
 	def deltaCountToVariance(c:Double,k:Double,sampleRatio:Double):Double={
-		return ((1-c/k)*c/k)/sampleRatio
+		val n = k/sampleRatio
+		return n*Math.sqrt((1-c/n)*c/n)/Math.sqrt(k)
 	}
 
 
@@ -291,15 +299,15 @@ class SampleCleanAQP() {
 							qr2:(Long, List[(String, (Double, Double))])): (Long, List[(String, Double)]) = {
 
 		val timeStamp = Math.max(qr1._1,qr2._1)
-		val hashJoinSet = qr2._2.toMap
+		val hashJoinSet = qr2._2.map(x => (x._1.trim.toLowerCase,x._2)).toMap
 		var result = List[(String, Double)]()
 		for(k1 <- qr1._2)
 		{
-			if(hashJoinSet.contains(k1._1))
+			if(hashJoinSet.contains(k1._1.trim.toLowerCase))
 			{
-				val diff = k1._2._1 - hashJoinSet(k1._1)._1
-				println(k1._1 + " " + k1._2._1 + " " + hashJoinSet(k1._1)._1)
-				result = (k1._1, diff) :: result
+				val diff = k1._2._1 - hashJoinSet(k1._1.trim.toLowerCase)._1
+				//println(k1._1 + " " + k1._2._1 + " " + hashJoinSet(k1._1.trim.toLowerCase)._1)
+				result = (k1._1, -diff) :: result
 			}
 		}
 		println("Finished")

@@ -46,11 +46,11 @@ def create_query_results(query_ids):
     for query_id, num_groups in query_ids.iteritems():
         is_grouped = num_groups > 1
         if is_grouped:
-            results = { 'group%d' % (i+1) : random.uniform(1,100)
+            results = { 'group%d' % (i+1) : random.uniform(10000,20000)
                         for i in range(num_groups) }
             query_string = "SELECT count(*) FROM the_best_table GROUP BY awesomeness;"
         else:
-            results = random.uniform(1, 100)
+            results = random.uniform(10000, 20000)
             query_string = "SELECT count(*) FROM the_best_table;"
         data = {
             'querystring': query_string,

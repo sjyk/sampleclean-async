@@ -18,7 +18,6 @@
             CHART_DATA = {};
             CHARTS = {};
             TOP_K_GROUPS = {};
-            TIME_STAMP = 0;
             NUM_GROUPS_FOR_CHART = 5;
             function update_chart_data(results, query_id, is_grouped){
                 // Initialize the chart data if this is a new chart.
@@ -156,7 +155,6 @@
                     view_indices[0] = 0;
                     view_indices[1] = 1;
                 }
-                TIME_STAMP++;
                 chart_data.addRow(row);
 
                 var data_view = new google.visualization.DataView(chart_data);
@@ -292,22 +290,31 @@
         {% endblock poll_func %}
 
         {% block get_results_func %}
+            var LAST_POLL;
             function get_results(query_id) {
                 var url = '/dashboard/results/' + query_id;
-                $.get(url, function(data){update_results_display(query_id, data)});
+                var data = {};
+                if (LAST_POLL != undefined) {
+                    data.as_of = LAST_POLL.toUTCString();
+                }
+                LAST_POLL = new Date();
+                $.get(url, data, function(data){update_results_display(query_id, data)});
             }
         {% endblock get_results_func %}
 
         {% block update_results_func %}
+            TIME_STAMP = 0;
             function update_results_display(query_id, data) {
                 var chart_div = $("#" + query_id + "-chart");
                 var table_div = $("#" + query_id + "-table");
                 var noresult_div = $("#" + query_id + "-no-result");
-                if (data.results == null) {
+                if (data.results == 'none') {
                     chart_div.hide();
                     table_div.hide();
                     noresult_div.show();
-                } else {
+                } else if (data.results == 'old') {
+                    // do nothing, no new results.
+                }else {
                     noresult_div.hide();
                     chart_div.show();
                     table_div.show();
@@ -315,6 +322,7 @@
                     update_chart_data(data, query_id, is_grouped);
                     draw_table(data, query_id, is_grouped);
                 }
+                TIME_STAMP++;
             }
         {% endblock update_results_func %}
 
@@ -431,7 +439,7 @@
 </head>
 
 <body>
-<div class="container">
+<div class="container" style="width:95%">
     <div class="row task-container">
         {% block page_header %}
             <div class="jumbotron">

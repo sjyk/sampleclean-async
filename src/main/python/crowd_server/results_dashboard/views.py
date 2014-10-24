@@ -1,5 +1,7 @@
 import json
+import pytz
 import uuid
+from datetime import datetime
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
@@ -58,17 +60,24 @@ def post_result(request):
 def get_result(request, query_id):
     as_of = request.GET.get('as_of')
     if as_of:
-        # TODO: quick return if there are no new results
-        pass
+        # Date comes in from as 'Wed, 15 Oct 2014 13:19:37 GMT'
+        as_of = datetime.strptime(
+            as_of, '%a, %d %b %Y %H:%M:%S GMT').replace(tzinfo=pytz.UTC)
 
     try:
-        result = (QueryResult.objects
-                  .filter(query__query_id=query_id)
-                  .order_by('-posted_at')
-                  [0])
-    except IndexError: # No query results for this query yet.
-        return HttpResponse(json.dumps({'results': None}), content_type="application/json")
+        results = (QueryResult.objects
+                   .filter(query__query_id=query_id)
+                   .order_by('-posted_at'))
 
+        # If there are no new results, return a status of 'old'
+        if as_of and results[0].posted_at < as_of:
+            return HttpResponse(json.dumps({'results':'old'}),
+                                content_type="application/json"
+)
+        result = results[0]
+    except IndexError: # No query results at all for this query yet.
+        return HttpResponse(json.dumps({'results': 'none'}),
+                            content_type="application/json")
 
     if result.ungrouped_result:
         result_value = result.ungrouped_result
