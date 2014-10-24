@@ -1,3 +1,6 @@
+Using the Script
+================
+
 This folder contains a script, `sampleclean-ec2`, for launching SampleClean
 instances on Amazon EC2.
 
@@ -27,7 +30,12 @@ credentials needed for using AWS and EC2:
 
 For help with `SPARK-EC2-ARGs`, run `./sampleclean-ec2 --help`.
 
-For example, to launch a cluster with 8 slaves, then run the crowd server:
+
+Launching a cluster
+===================
+
+For example, to launch a cluster named sampleclean with 8 slaves, then run the
+crowd server:
 ```shell
 # Alternatively, use a pre-saved ami with --master-ami AMI_ID
 ./sampleclean-ec2 ~/.ssh/aws/sampleclean/ -s 8 -t x1.large launch sampleclean
@@ -40,3 +48,36 @@ For example, to launch a cluster with 8 slaves, then run the crowd server:
 > ./run.sh -d
 # ... and the crowd server should be available at the master's hostname on port 8000 ... #
 ```
+
+Running code on the cluster
+===========================
+
+To actually get code running on a cluster you've launched, you'll need to:
+
+* ssh into the cluster:
+  `./sampleclean-ec2 ~/.ssh/aws/sampleclean/ login CLUSTER_NAME`
+
+* Make sure the crowd server is running (see above).
+
+* Copy data to the master's hdfs instance:
+  `/root/ephemeral-hdfs/bin/hadoop dfs -put LOCAL/PATH/TO/data HDFS/PATH/TO/data`
+
+* Build and package the code:
+  ```shell
+  cd /root/sampleclean-async
+  sbt/sbt assembly
+  ```
+
+* Figure out the cluster's master url by navigating a browser to port 8080
+  of the master machine and looking for a URL like
+  `spark://ec2-##-##-##-##.compute-1.amazonaws.com:7077`.
+
+* Run the job:
+  `/root/spark/spark-submit --class <main-class> --master <master_url>
+  [OTHER SPARK_SUBMIT OPTIONS ...]
+  /root/sampleclean-async/target/scala2.10.0/SampleClean-Spark-1.0.jar`
+
+* Monitor the job: Spark creates a UI on port 4040 for the running application.
+  You can also look at the cluster UI on port 8080 to confirm that the
+  application has started. See
+  http://spark.apache.org/docs/latest/monitoring.html for more details.
