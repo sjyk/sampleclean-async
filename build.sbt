@@ -2,7 +2,7 @@ import AssemblyKeys._
 
 assemblySettings
 
-name := "SampleClean Spark 1.0"
+name := "SampleClean-Spark-1.0"
 
 version := "1.0"
 
