@@ -73,9 +73,9 @@ To actually get code running on a cluster you've launched, you'll need to:
   `spark://ec2-##-##-##-##.compute-1.amazonaws.com:7077`.
 
 * Run the job:
-  `/root/spark/spark-submit --class <main-class> --master <master_url>
+  `/root/spark/bin/spark-submit --class <main-class> --master <master_url>
   [OTHER SPARK_SUBMIT OPTIONS ...]
-  /root/sampleclean-async/target/scala2.10.0/SampleClean-Spark-1.0.jar`
+  /root/sampleclean-async/target/scala-2.10/SampleClean-Spark-1.0-assembly-1.0.jar`
 
 * Monitor the job: Spark creates a UI on port 4040 for the running application.
   You can also look at the cluster UI on port 8080 to confirm that the
