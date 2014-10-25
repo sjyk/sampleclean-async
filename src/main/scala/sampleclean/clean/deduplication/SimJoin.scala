@@ -192,9 +192,9 @@ class CosineJoin extends PrefixFiltering{
 
 }
 
-
-
 /*
+
+
 object SimJoin {
   def main(args: Array[String]) {
 
@@ -316,20 +316,3 @@ object SimJoin {
     }).groupByKey().map(x => (x._1, x._2.distinct)).foreach(println)*/
   }
 */
-
-//}
-
-//object SimJoin {
-
-  /**
-   * Return all pairs of tuples between sampleData and fullData
-   * such that overlap(K1, K2)>= threshold.
-
-  def overlapJoin(sampleData: RDD[(K1, K1)], fullData: RDD[(K2, K2)], threshold: Int)
-      : RDD[((K1, K1), (K2, K2), simvalue)] = {
-    new SimJoin().overlapJoin(sampleData, fullData, threshold)
-  }*/
-
-
-
-//}
