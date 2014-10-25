@@ -18,6 +18,9 @@ class AbstractCrowdTaskGroup(models.Model):
     # Context for rendering the tasks to the crowd, as a JSON blob.
     group_context = models.TextField()
 
+    # The configuration specific to current crowd type
+    crowd_config = models.TextField()
+
     def __unicode__(self):
         return self.group_id
 

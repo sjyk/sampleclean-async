@@ -147,7 +147,7 @@ class CrowdInterface(object):
         # Dummy implementation, do nothing
         pass
 
-    def get_frontend_submit_url(self):
+    def get_frontend_submit_url(self, crowd_config):
         """ Returns a url path to redirect to after a worker submits a task."""
         # Dummy implementation, just refresh the page on submit.
         return ''

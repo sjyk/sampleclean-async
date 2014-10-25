@@ -346,7 +346,7 @@ The following crowds can be used to process tasks with the crowd server:
 Amazon Mechanical Turk (https://www.mturk.com)
 ----------------------------------------------
 - CROWD_NAME: 'amt'
-- special configuration keys: None
+- special configuration keys: sandbox : a 0/1 number which indicates using real amt/sandbox
 - `assignment_context`: urlencoded key-value pairs that must include the
   following keys:
 

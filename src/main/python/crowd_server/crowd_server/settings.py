@@ -20,14 +20,14 @@ BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
 
 # Settings for the AMT app
-AMT_SANDBOX = True # run on the sandbox, or on the real deal?
+# AMT_SANDBOX = True # run on the sandbox, or on the real deal?
 AMT_SANDBOX_HOST = 'mechanicalturk.sandbox.amazonaws.com'
-AMT_SANDBOX_WORKER_SUBMIT = 'https://workersandbox.mturk.com/mturk/externalSubmit'
+# AMT_SANDBOX_WORKER_SUBMIT = 'https://workersandbox.mturk.com/mturk/externalSubmit'
 AMT_HOST = 'mechanicalturk.amazonaws.com'
 POST_BACK_AMT = 'https://www.mturk.com/mturk/externalSubmit'
 POST_BACK_AMT_SANDBOX = 'https://workersandbox.mturk.com/mturk/externalSubmit'
 
-HAVE_PUBLIC_IP = False # run on a server with public ip or just run locally?
+HAVE_PUBLIC_IP = True # run on a server with public ip or just run locally?
 
 AMT_DEFAULT_HIT_OPTIONS = { # See documentation in amt/connection.py:create_hit
     'title': 'Generic HIT',

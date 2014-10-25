@@ -63,6 +63,7 @@ def create_tasks(crowds, task_types):
         data['configuration']['task_batch_size'] = 3
         data['configuration']['num_assignments'] = num_assignments
         data['configuration']['callback_url'] = 'www.google.com'
+        data['configuration']['amt'] = {'sandbox' : 1}
 
         data['group_id'] = 'test1'
         data['group_context'] = {}  # Empty group contest for sentiment analysis
@@ -87,6 +88,7 @@ def create_tasks(crowds, task_types):
         data['configuration']['task_batch_size'] = 2
         data['configuration']['num_assignments'] = num_assignments
         data['configuration']['callback_url'] = 'www.google.com'
+        data['configuration']['amt'] = {'sandbox' : 1}
 
         data['group_id'] = 'test2'
         data['group_context'] = {'fields' : ['price', 'location']}
@@ -109,6 +111,7 @@ def create_tasks(crowds, task_types):
         data['configuration']['task_batch_size'] = 2
         data['configuration']['num_assignments'] = num_assignments
         data['configuration']['callback_url'] = 'www.google.com'
+        data['configuration']['amt'] = {'sandbox' : 1}
 
         data['group_id'] = 'test3'
         data['group_context'] = {'fields' : ['city', 'cuisine']}
