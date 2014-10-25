@@ -38,7 +38,7 @@ For example, to launch a cluster named sampleclean with 8 slaves, then run the
 crowd server:
 ```shell
 # Alternatively, use a pre-saved ami with --master-ami AMI_ID
-./sampleclean-ec2 ~/.ssh/aws/sampleclean/ -s 8 -t x1.large launch sampleclean
+./sampleclean-ec2 ~/.ssh/aws/sampleclean/ -s 8 -t m1.large launch sampleclean
 # ... lots of output ...
 ./sampleclean-ec2 ~/.ssh/aws/sampleclean/ get-master sampleclean
 # ... get the master's hostname ...
@@ -81,3 +81,10 @@ To actually get code running on a cluster you've launched, you'll need to:
   You can also look at the cluster UI on port 8080 to confirm that the
   application has started. See
   http://spark.apache.org/docs/latest/monitoring.html for more details.
+
+Destroying a Cluster
+====================
+The `sampleclean-ec2.sh` script can also be used to terminate a cluster. The following
+command will terminate all running instances and delete security groups associated with
+the cluster: 
+`sampleclean-ec2.sh ~/.ssh/aws/sampleclean/ --delete-groups destroy <cluster_name>`
