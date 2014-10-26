@@ -19,7 +19,7 @@ AMT_NO_ASSIGNMENT_ID = 'ASSIGNMENT_ID_NOT_AVAILABLE'
 def get_amt_connection(sandbox):
     ''' Get a connection object to communicate with the AMT API. '''
     host = (settings.AMT_SANDBOX_HOST
-            if sandbox == 1 else settings.AMT_HOST)
+            if sandbox else settings.AMT_HOST)
     return MTurkConnection(aws_access_key_id=settings.AMT_ACCESS_KEY,
                            aws_secret_access_key=settings.AMT_SECRET_KEY,
                            host=host)
