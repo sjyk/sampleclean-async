@@ -23,6 +23,7 @@ import scala.util.{Failure, Success}
  * This class defines a sampleclean query object
  * @type {[type]}
  */
+@serializable
 class SampleCleanQuery(scc:SampleCleanContext, 
 					    saqp:SampleCleanAQP,
 		          sampleName: String, 

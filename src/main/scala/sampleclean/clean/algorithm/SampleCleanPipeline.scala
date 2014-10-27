@@ -16,7 +16,7 @@ import scala.util.{Failure, Success}
 @serializable
 class SampleCleanPipeline(saqp: SampleCleanAQP,
 						  var execList:List[SampleCleanAlgorithm]=List[SampleCleanAlgorithm](),
-	                      var queryList:List[SampleCleanQuery]=List[SampleCleanQuery]()) {
+	                      var queryList:Set[SampleCleanQuery]=Set[SampleCleanQuery]()) {
 
 	//execute this on construction
 	setPipelineOnQueries()
@@ -34,7 +34,8 @@ class SampleCleanPipeline(saqp: SampleCleanAQP,
 	 * This notifies the pipeline of an update
 	 */
 	def notification()={
-		
+		for(q <- queryList)
+			q.execute(true)
 	}
 
 	/**Executes the algorithms in the pipeline

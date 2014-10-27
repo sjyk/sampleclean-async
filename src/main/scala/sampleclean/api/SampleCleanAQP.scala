@@ -299,11 +299,11 @@ class SampleCleanAQP() {
 							qr2:(Long, List[(String, (Double, Double))])): (Long, List[(String, Double)]) = {
 
 		val timeStamp = Math.max(qr1._1,qr2._1)
-		val hashJoinSet = qr2._2.map(x => (x._1.trim.toLowerCase,x._2)).toMap
+		val hashJoinSet = qr2._2.filter(x => x._1 != null).map(x => (x._1.trim.toLowerCase,x._2)).toMap
 		var result = List[(String, Double)]()
 		for(k1 <- qr1._2)
 		{
-			if(hashJoinSet.contains(k1._1.trim.toLowerCase))
+			if(k1._1 != null && hashJoinSet.contains(k1._1.trim.toLowerCase))
 			{
 				val diff = k1._2._1 - hashJoinSet(k1._1.trim.toLowerCase)._1
 				//println(k1._1 + " " + k1._2._1 + " " + hashJoinSet(k1._1.trim.toLowerCase)._1)
