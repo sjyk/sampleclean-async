@@ -51,8 +51,8 @@ class CustomTransform(params:AlgorithmParameters,scc: SampleCleanContext)
     			
     			return university.split("\\s+").mkString(" ")
     		} 
-    		else if (x.trim.indexOf("D") == 0 && x.split("\\s+").length <=6){
-    			return "Ambiguous"
+    		else if (x.trim.indexOf("Depart") == 0 && x.split("\\s+").length <=6){
+    			return "[Ambiguous] " + input
     		}
 
     		return x.split("\\s+").mkString(" ")
@@ -61,7 +61,8 @@ class CustomTransform(params:AlgorithmParameters,scc: SampleCleanContext)
 
     def pipeSplit(x:String):String = {
     	val comps = x.split("\\|")
-    	return comps(Math.min(1,comps.length-1)).trim()
+        var splitIndex = comps.indexWhere(_.toLowerCase.contains("univ"))
+    	return comps(Math.max(splitIndex,0)).trim()
     }
 
 	def exec(tableName:String)={

@@ -292,6 +292,9 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
                               mergeStrategy, 
                               hashCol, 
                               attrCol)
+
+
+      this.onUpdateNotify()
  }  
 
   /**
