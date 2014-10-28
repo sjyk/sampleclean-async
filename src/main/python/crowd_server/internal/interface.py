@@ -36,7 +36,7 @@ class InternalCrowdInterface(CrowdInterface):
         }
 
 
-    def get_frontend_submit_url(self):
+    def get_frontend_submit_url(self, crowd_config):
         return reverse('internal:fake_submit_endpoint')
 
 INTERNAL_CROWD_INTERFACE = InternalCrowdInterface('internal')
