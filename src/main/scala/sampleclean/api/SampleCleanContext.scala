@@ -306,6 +306,24 @@ class SampleCleanContext(@transient sc: SparkContext) {
     		return -1
     }
 
+    	/**
+	 * Given a column name, a row, and a sampleName it returns the column as
+	 * a string.
+	 * @param sampleName a sample from which the row comes
+	 * @param colName the name of the col you want to access
+	 * @return in
+	 */
+	def getColAsIndexFromBaseTable(sampleName:String, colName:String):Int=
+    {
+    	val tableNameClean = getParentTable(qb.getCleanSampleName(sampleName))
+    	val schemaString = getHiveTableSchema(tableNameClean)
+    	val index = schemaString.indexOf(colName.toLowerCase)
+    	if(index >= 0)
+    		return index
+    	else
+    		return -1
+    }
+
     /**
 	 * Given a column name, a row, and a sampleName it returns the column as
 	 * a string.

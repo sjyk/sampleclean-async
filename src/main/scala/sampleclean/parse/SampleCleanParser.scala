@@ -411,13 +411,13 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     algoPara.put("id","id")
 
     val blockedCols = List("title", "year", "keyword")
-    algoPara.put("blockingStrategy", BlockingStrategy(blockedCols).setThreshold(0.8))
+    algoPara.put("blockingStrategy", BlockingStrategy(blockedCols).setThreshold(0.95))
 
-    val displayedCols = List("id","entity_id", "name", "address", "city", "type")
+    val displayedCols = List("title", "year", "keyword")
     var featureList = List[Feature]()
     featureList = Feature(List("title"), List("Levenshtein", "JaroWinkler")) :: featureList
     featureList = Feature(List("year"), List("Levenshtein")) :: featureList
-    featureList = Feature(List("keyword"), List("Levenshtein", "JaroWinkler")) :: featureList
+    featureList = Feature(List("keyword"), List("Levenshtein")) :: featureList
     //featureList = Feature(List("type"), List("JaccardSimilarity", "JaroWinkler")) :: featureList
 
     algoPara.put("activeLearningStrategy",
@@ -436,7 +436,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   def demoDedupAttr() = {
     val algoPara3 = new AlgorithmParameters()
     algoPara3.put("attr", "affiliation")
-    algoPara3.put("similarityParameters", SimilarityParameters(simFunc="WJaccard", threshold=0.4))
+    algoPara3.put("similarityParameters", SimilarityParameters(simFunc="WJaccard", threshold=0.6))
     algoPara3.put("mergeStrategy", "MostFrequent")
 
     val displayedCols = List("attr","count")

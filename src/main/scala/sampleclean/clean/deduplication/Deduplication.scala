@@ -43,12 +43,16 @@ class RecordDeduplication(params:AlgorithmParameters, scc: SampleCleanContext)
     val sampleTableColMapper = scc.getSampleTableColMapper(sampleTableName)
     val fullTableColMapper = scc.getFullTableColMapper(sampleTableName)
 
-    val candidatePairs = blockingStrategy.blocking(sc, fullTableRDD, fullTableColMapper, sampleTableRDD, sampleTableColMapper)
+    val candidatePairs = blockingStrategy.blocking(sc, fullTableRDD, fullTableColMapper, sampleTableRDD, sampleTableColMapper, 3)
+    val sampleCol = scc.getColAsIndex(sampleTableName, idCol)
+    val fullTableCol = scc.getColAsIndexFromBaseTable(sampleTableName, idCol)
 
     // Remove those pairs that have the same id from candidatePairs because they must be duplicate
     val shrinkedCandidatePairs = candidatePairs.filter{ case (fullRow, sampleRow) =>
-      scc.getColAsStringFromBaseTable(fullRow, sampleTableName, idCol) != scc.getColAsString(sampleRow, sampleTableName, idCol)
+      fullRow(fullTableCol).asInstanceOf[String] != sampleRow(sampleCol).asInstanceOf[String]
     }
+
+    //shrinkedCandidatePairs.collect().foreach(println)
 
     /**
      * This is a call-back function that will be called by active learning for each iteration.

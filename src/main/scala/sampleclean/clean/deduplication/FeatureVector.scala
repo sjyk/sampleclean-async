@@ -42,7 +42,7 @@ case class FeatureVector (features: List[Feature],
 
   // Returns chosen metrics for two records
   def toFeatureVector(row1: Row, row2: Row): Array[Double] = {
-
+    //println(row1 + " / " + row2(7))
     features.map {
       case feature: Feature => {
         val cols1 = colMapper1(feature.colNames)
@@ -50,9 +50,9 @@ case class FeatureVector (features: List[Feature],
         val simMeasures = feature.simMeasures
 
         var concatenateCols1 = cols1.foldLeft("")((result, current) =>
-          result + " " + (if (row1.isNullAt(current) || row1.isDefinedAt(current)) row1(current).toString else ""))
+          result + " " + (if (row1.isNullAt(current) || row1.isDefinedAt(current)) row1(current).asInstanceOf[String] else ""))
         var concatenateCols2 = cols2.foldLeft("")((result, current) =>
-          result + " " + (if (row2.isNullAt(current) || row2.isDefinedAt(current)) row2(current).toString else ""))
+          result + " " + (if (row2.isNullAt(current) || row2.isDefinedAt(current)) row2(current).asInstanceOf[String] else ""))
         if (lowerCase) {
           concatenateCols1 = concatenateCols1.toLowerCase()
           concatenateCols2 = concatenateCols2.toLowerCase()
