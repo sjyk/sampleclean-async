@@ -104,7 +104,8 @@ trait WeightedPrefixFiltering extends Serializable {
                       fullTable: RDD[Row],
                       fullKey: BlockingKey,
                       sampleTable: RDD[Row],
-                      sampleKey: BlockingKey): RDD[(Row,Row)] = {
+                      sampleKey: BlockingKey,
+                      minSize:Int = 0): RDD[(Row,Row)] = {
 
    //Add a record ID into sampleTable. Id is a unique id assigned to each row.
     val sampleTableWithId: RDD[(Long, (Seq[String], Row))] = sampleTable.zipWithUniqueId
@@ -136,7 +137,7 @@ trait WeightedPrefixFiltering extends Serializable {
     val broadcastIndex: Broadcast[collection.Map[String, Seq[Long]]] = sc.broadcast(invertedIndex.collectAsMap())
     val broadcastData: Broadcast[collection.Map[Long, (Seq[String], Row)]] = sc.broadcast(sampleTableWithId.collectAsMap())
     val broadcastWeights: Broadcast[collection.Map[String, Double]] =  sc.broadcast(tokenWeightMap)
-
+    println("Sample Broadcast")
     //Generate the candidates whose prefixes have overlap, and then verify their overlap similarity
     fullTable.flatMap({
       case (row1) =>
@@ -145,21 +146,26 @@ trait WeightedPrefixFiltering extends Serializable {
         val broadcastIndexValue = broadcastIndex.value
 
         val key1 = fullKey.tokenSet(row1)
+        if(key1.length >= minSize){
         val sorted: Seq[String] = sortTokenSet(key1, broadcastRank)
         val removedSize = getRemovedSize(sorted, threshold, weightsValue)
         val filtered = sorted.dropRight(removedSize)
-
+        val now = System.nanoTime
         filtered.foldLeft(List[Long]()) {
           case (a, b) =>
               a ++ broadcastIndexValue.getOrElse(b, List())
         }.distinct.map {
           case id =>
             val (key2, row2) = broadcastDataValue(id)
-            val similar: Boolean = isSimilar(key1, key2, threshold, weightsValue)
+            val similar: Boolean = isSimilar(key1, key2, threshold, weightsValue) && 
+                                                  (key2.length >= minSize)//todo fix
             (key2, row2, similar)
         }.withFilter(_._3).map {
           case (key2, row2, similar) => (row1, row2)
         }
+        }
+        else
+          List()
     })
   }
 

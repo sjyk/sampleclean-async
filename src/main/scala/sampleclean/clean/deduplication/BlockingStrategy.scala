@@ -214,8 +214,8 @@ case class BlockingStrategy(blockedColNames: List[String]){
                largeTable: RDD[Row],
                largeTableColMapper: List[String] => List[Int],
                smallTable: RDD[Row],
-               smallTableColMapper: List[String] => List[Int]
-               ): RDD[(Row, Row)] = {
+               smallTableColMapper: List[String] => List[Int],
+               minSize:Int = 0): RDD[(Row, Row)] = {
 
     val genKeyLargeTable = BlockingKey(largeTableColMapper(blockedColNames), similarityParameters.tokenizer)
     val genKeySmallTable = BlockingKey(smallTableColMapper(blockedColNames), similarityParameters.tokenizer)
@@ -232,13 +232,13 @@ case class BlockingStrategy(blockedColNames: List[String]){
       case "cosine" =>
         new CosineJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
       case "wjaccard" =>
-        new WeightedJaccardJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
+        new WeightedJaccardJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable,minSize)
       case "woverlap" =>
-        new WeightedOverlapJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
+        new WeightedOverlapJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable,minSize)
       case "wdice" =>
-        new WeightedDiceJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
+        new WeightedDiceJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable,minSize)
       case "wcosine" =>
-        new WeightedCosineJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
+        new WeightedCosineJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable,minSize)
       case _ => println("Cannot support "+simFunc); null
     }
   }
