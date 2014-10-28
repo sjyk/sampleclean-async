@@ -18,7 +18,7 @@
             CHART_DATA = {};
             CHARTS = {};
             TOP_K_GROUPS = {};
-            NUM_GROUPS_FOR_CHART = 5;
+            NUM_GROUPS_FOR_CHART = 10;
             function update_chart_data(results, query_id, is_grouped){
                 // Initialize the chart data if this is a new chart.
                 var chart_div = $("#" + query_id + "-chart");
@@ -196,7 +196,7 @@
         {% endblock %}
 
         {% block draw_table %}
-            NUM_GROUPS_FOR_TABLE = 6;
+            NUM_GROUPS_FOR_TABLE = 10;
             COLOR_MAP = {
                 1: "blue",
                 2: "red",

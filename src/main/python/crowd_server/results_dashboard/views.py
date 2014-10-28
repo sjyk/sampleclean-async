@@ -91,7 +91,8 @@ def get_result(request, query_id):
 
 @require_GET
 def purge_queries(request):
-    Query.objects.delete()
+    Query.objects.all().delete()
+    return HttpResponse("{}", content_type="application/json")
 
 @require_POST
 @csrf_exempt

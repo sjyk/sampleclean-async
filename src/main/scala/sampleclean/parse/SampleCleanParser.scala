@@ -398,9 +398,9 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     hiveContext.hql("DROP TABLE IF EXISTS paper_affiliation")
     hiveContext.hql("CREATE TABLE paper_affiliation as SELECT paperid, affiliation from paper_author where length(affiliation) > 1 group by paperid,affiliation")
   
-    scc.initializeConsistent("paper", "paper_sample", "id", 100000)
-    scc.initializeConsistent("paper_affiliation", "paper_aff_sample", "paperid", 100000)
-    scc.initializeConsistent("paper_author", "paper_auth_sample", "paperid", 1000000)
+    scc.initializeConsistent("paper", "paper_sample", "id", 50)
+    scc.initializeConsistent("paper_affiliation", "paper_aff_sample", "paperid", 50)
+    scc.initializeConsistent("paper_author", "paper_auth_sample", "paperid", 50)
 
   }
 
@@ -436,7 +436,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   def demoDedupAttr() = {
     val algoPara3 = new AlgorithmParameters()
     algoPara3.put("attr", "affiliation")
-    algoPara3.put("similarityParameters", SimilarityParameters(simFunc="WJaccard", threshold=0.4))
+    algoPara3.put("similarityParameters", SimilarityParameters(simFunc="WJaccard", threshold=0.6))
     algoPara3.put("mergeStrategy", "MostFrequent")
 
     val displayedCols = List("attr","count")

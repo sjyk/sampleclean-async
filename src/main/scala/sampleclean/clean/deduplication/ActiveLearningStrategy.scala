@@ -123,8 +123,8 @@ case class ActiveLearningStrategy(displayedColNames: List[String]) {
      */
     def toPointLabelingContext(row1: Row, row2: Row): PointLabelingContext = {
 
-      val displayedRow1 = displayedColIndices1.map(row1(_).asInstanceOf[String]).toList
-      val displayedRow2 = displayedColIndices2.map(row2(_).asInstanceOf[String]).toList
+      val displayedRow1 = displayedColIndices1.map(row1(_).toString()).toList
+      val displayedRow2 = displayedColIndices2.map(row2(_).toString()).toList
 
       DeduplicationPointLabelingContext(List(displayedRow1, displayedRow2))
     }
