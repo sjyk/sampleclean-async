@@ -1,6 +1,8 @@
 package sampleclean.clean.deduplication
 
 import sampleclean.activeml._
+import scala.util.{Failure, Success}
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await}
 import scala.concurrent.duration.Duration
 
@@ -26,6 +28,21 @@ case class CrowdsourcingStrategy() {
 
     // wait for the crowd to finish
     return Await.result(resultFuture, Duration.Inf)
+  }
+
+  def asyncRun(points:Seq[(String, PointLabelingContext)],
+               groupContext: GroupLabelingContext,
+               onNewCrowdResult: CrowdResult => Unit) = {
+
+    // Split points into small groups of points; Collect crowd results asynchronously
+    points.grouped(labelGetterParameters.maxPointsPerHIT).toSeq.map { smallPoints =>
+      val groupId = utils.randomUUID() // random group id for the request.
+      val resultFuture = CrowdHTTPServer.makeRequest(groupId, smallPoints, groupContext, labelGetterParameters)
+      resultFuture.onComplete {
+        case Success(result) => onNewCrowdResult(result)
+        case Failure(e) => e.printStackTrace
+      }
+    }
   }
 }
 
