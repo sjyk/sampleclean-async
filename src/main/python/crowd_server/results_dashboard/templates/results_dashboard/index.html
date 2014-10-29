@@ -167,12 +167,12 @@
                         duration: 0
                     },
                     chartArea: {
-                        width:"85%",
+                        width:"100%",
                         left: "15%",
                         height: "80%",
                         top: "5%"
                     },
-                    backgroundColor: "#f5f5f5",
+                    backgroundColor: "#FEFEFE",
                     hAxis: {
                         textPosition: "none",
                         title: "Time",
@@ -202,7 +202,12 @@
                 2: "red",
                 3: "orange",
                 4: "green",
-                5: "purple"
+                5: "purple",
+                6: "black",
+                7: "yellow",
+                8: "gray",
+                9: "#e2431e",
+                10: "#e7711b"
             };
             function draw_table(results, query_id, is_grouped){
                 var table_div = $("#" + query_id + "-table");
@@ -466,8 +471,8 @@
                                 <div class="well">
                                     <h4>{{ query.querystring }} ({{ query.query_id }})</h4>
                                     <div class="query-result row" id="{{ query.query_id }}">
-                                        <div class="col-xs-7" id="{{ query.query_id }}-chart"></div>
-                                        <div class="col-xs-5" id="{{ query.query_id }}-table"></div>
+                                        <div class="col-xs-12" id="{{ query.query_id }}-chart"></div>
+                                        <div class="col-xs-12" id="{{ query.query_id }}-table"></div>
                                         <div class="col-xs-12" id="{{ query.query_id }}-no-result" style="display:none">
                                             <p>No results available</p>
                                         </div>

@@ -284,7 +284,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     algoPara.put("mergeStrategy", strategy)
 
     val d = new AttributeDeduplication(algoPara, scc)
-    d.blocking = false
+    d.blocking = true
     d.name = algorithm + " Attribute Deduplication"
     val pp = new SampleCleanPipeline(saqp, List(d), watchedQueries)
     pp.exec(samplename)
@@ -347,6 +347,10 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
        dedupAttr(command)
        return ("Dedup", (System.nanoTime - now)/1000000)
      }
+     else if(firstToken.equals("playdemo")){
+       playDemoDedup()
+       return ("Dedup", (System.nanoTime - now)/1000000)
+     }
      else if(firstToken.equals("crowddedupattr")){
        demoDedupAttr()
        return ("Dedup", (System.nanoTime - now)/1000000)
@@ -396,12 +400,21 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     hiveContext.hql("LOAD DATA LOCAL INPATH 'msac-datasets/PaperAuthor-reg.csv' OVERWRITE INTO TABLE paper_author")
 
     hiveContext.hql("DROP TABLE IF EXISTS paper_affiliation")
-    hiveContext.hql("CREATE TABLE paper_affiliation as SELECT paperid, affiliation from paper_author where length(affiliation) > 1 group by paperid,affiliation")
+    hiveContext.hql("CREATE TABLE paper_affiliation as SELECT paperid, affiliation from paper_author where length(affiliation) > 1 and  (lower(affiliation) like '%berkeley%'  or lower(affiliation) like '%stanford%') group by paperid,affiliation")
   
-    scc.initializeConsistent("paper", "paper_sample", "id", 50)
-    scc.initializeConsistent("paper_affiliation", "paper_aff_sample", "paperid", 50)
-    scc.initializeConsistent("paper_author", "paper_auth_sample", "paperid", 50)
+    scc.initializeConsistent("paper", "paper_sample", "id", 10)
+    scc.initializeConsistent("paper_affiliation", "paper_aff_sample", "paperid", 10)
+    scc.initializeConsistent("paper_author", "paper_auth_sample", "paperid", 10)
 
+    parseAndExecute("democustom paper_aff_sample affiliation")
+
+  }
+
+  def playDemoDedup() ={
+      parseAndExecute("dedupattr paper_aff_sample affiliation wjaccard 0.9 mostfrequent")
+      parseAndExecute("dedupattr paper_aff_sample affiliation wjaccard 0.8 mostfrequent")
+      parseAndExecute("dedupattr paper_aff_sample affiliation wjaccard 0.7 mostfrequent")
+      parseAndExecute("dedupattr paper_aff_sample affiliation wjaccard 0.6 mostfrequent")
   }
 
   def demoDedupRec() = {
@@ -436,18 +449,18 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   def demoDedupAttr() = {
     val algoPara3 = new AlgorithmParameters()
     algoPara3.put("attr", "affiliation")
-    algoPara3.put("similarityParameters", SimilarityParameters(simFunc="WJaccard", threshold=0.6))
+    algoPara3.put("similarityParameters", SimilarityParameters(simFunc="WJaccard", threshold=0.4))
     algoPara3.put("mergeStrategy", "MostFrequent")
 
     val displayedCols = List("attr","count")
     var featureList = List[Feature](Feature(List("attr"), List("Levenshtein", "JaroWinkler")))
-    algoPara3.put("activeLearningStrategy",
-      ActiveLearningStrategy(displayedCols)
-        .setFeatureList(featureList)
-        .setActiveLearningParameters(ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10)))
+    //algoPara3.put("activeLearningStrategy",
+    //  ActiveLearningStrategy(displayedCols)
+    //    .setFeatureList(featureList)
+    //    .setActiveLearningParameters(ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10)))
 
-    //val crowdParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 10)
-    //algoPara3.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdLabelGetterParameters(crowdParameters))
+    val crowdParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 10)
+    algoPara3.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdLabelGetterParameters(crowdParameters))
     val d3 = new AttributeDeduplication(algoPara3, scc)
     d3.blocking = false
     d3.name = "Crowd Attribute Deduplication"

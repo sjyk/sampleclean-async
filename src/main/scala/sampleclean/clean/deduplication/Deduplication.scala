@@ -279,6 +279,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
       resultRDD = resultRDD.map(x => (x._1, replaceIfEqual(x._2, connectedPairs)))
 
       scc.updateTableAttrValue(sampleTableName, attr, resultRDD)
+      this.onUpdateNotify()
  }  
 
  def onReceiveCandidatePairs(candidatePairs: RDD[(Row, Row)], 
@@ -296,9 +297,6 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
                               mergeStrategy, 
                               hashCol, 
                               attrCol)
-
-
-      this.onUpdateNotify()
  }  
 
   /**
