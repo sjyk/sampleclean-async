@@ -321,15 +321,17 @@
         {% endblock get_queries_func %}
 
         {% block get_results_func %}
-            var LAST_POLL;
+            var LAST_POLL = {};
             function get_results(query_id) {
                 var url = '/dashboard/results/' + query_id;
                 var data = {};
-                if (LAST_POLL != undefined) {
-                    data.as_of = LAST_POLL.toUTCString();
+                if (LAST_POLL[query_id] != undefined) {
+                    data.as_of = LAST_POLL[query_id].toISOString();
                 }
-                LAST_POLL = new Date();
-                $.get(url, data, function(data){update_results_display(query_id, data)});
+                LAST_POLL[query_id] = new Date();
+                $.get(url, data, function(results){
+                    update_results_display(query_id, results)
+                });
             }
         {% endblock get_results_func %}
 
