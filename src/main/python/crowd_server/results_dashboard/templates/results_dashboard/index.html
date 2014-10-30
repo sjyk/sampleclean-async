@@ -296,14 +296,29 @@
         {% endblock %}
 
         {% block poll_func %}
+            TIME_STAMP = -1;
             function poll_for_results() {
+                TIME_STAMP++;
                 if (!POLLING) return;
-                $(".query-result").each(function(){
-                    var query_id = $(this).attr("id");
-                    get_results(query_id);
-                })
+                var query_ids = $(".query-result").map(function() { return this.id; }).get();
+                get_queries(query_ids);
+                query_ids.forEach(get_results);
             }
         {% endblock poll_func %}
+
+        {% block get_queries_func %}
+            function get_queries(query_ids) {
+                var url = '/dashboard/queries/';
+                var data = {seen: JSON.stringify(query_ids)};
+                $.get(url, data, function(data) {
+                    data.forEach(function(el) {
+                        build_query_panel(el.query_id, el.querystring);
+                        get_results(el.query_id);
+                    })
+                })
+
+            }
+        {% endblock get_queries_func %}
 
         {% block get_results_func %}
             var LAST_POLL;
@@ -319,7 +334,6 @@
         {% endblock get_results_func %}
 
         {% block update_results_func %}
-            TIME_STAMP = 0;
             function update_results_display(query_id, data) {
                 var chart_div = $("#" + query_id + "-chart");
                 var table_div = $("#" + query_id + "-table");
@@ -379,6 +393,12 @@
                 // delete from the database.
                 $.post("/dashboard/queries/" + query_id + "/delete", function(){
                     $("#" + query_id).parent().parent().remove(); // delete from the interface.
+
+                    // delete from our global client state
+                    delete CHART_DATA[query_id];
+                    delete CHARTS[query_id];
+                    delete TOP_K_GROUPS[query_id];
+                    delete LAST_POLL[query_id];
                 });
             }
         {% endblock delete_query_func %}
