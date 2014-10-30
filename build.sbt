@@ -26,6 +26,8 @@ libraryDependencies += "org.apache.hive" % "hive" % "0.14.0-SNAPSHOT"
 
 libraryDependencies += "javax.servlet" % "javax.servlet-api" % "3.1.0"
 
+libraryDependencies += "com.lambdaworks" %% "jacks" % "2.3.3"
+
 
 libraryDependencies ++= Seq(
     "org.eclipse.jetty.orbit" % "javax.servlet" % "3.0.0.v201112011016" artifacts Artifact("javax.servlet", "jar", "jar"),
