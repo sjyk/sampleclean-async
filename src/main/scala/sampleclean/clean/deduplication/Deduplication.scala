@@ -43,7 +43,7 @@ class RecordDeduplication(params:AlgorithmParameters, scc: SampleCleanContext)
     val sampleTableColMapper = scc.getSampleTableColMapper(sampleTableName)
     val fullTableColMapper = scc.getFullTableColMapper(sampleTableName)
 
-    val candidatePairs = blockingStrategy.blocking(sc, fullTableRDD, fullTableColMapper, sampleTableRDD, sampleTableColMapper, 3)
+    val candidatePairs = blockingStrategy.blocking(sc, fullTableRDD, fullTableColMapper, sampleTableRDD, sampleTableColMapper)
     val sampleCol = scc.getColAsIndex(sampleTableName, idCol)
     val fullTableCol = scc.getColAsIndexFromBaseTable(sampleTableName, idCol)
 

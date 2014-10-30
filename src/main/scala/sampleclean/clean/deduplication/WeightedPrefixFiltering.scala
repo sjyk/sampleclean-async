@@ -70,9 +70,9 @@ trait WeightedPrefixFiltering extends Serializable {
    * @param tokens  list to be sorted.
    * @param tokenRanks Key-Value map of tokens and global ranks in ascending order (i.e. token with smallest value is rarest)
    */
-  private def sortTokenSet(tokens: Seq[String], tokenRanks: Broadcast[Map[String, Int]])
+  private def sortTokenSet(tokens: Seq[String], tokenRanks: Map[String, Int])
   : Seq[String] = {
-    tokens.map(token => (token, tokenRanks.value.getOrElse(token, 0))).toSeq.sortBy(_._2).map(_._1)
+    tokens.map(token => (token, tokenRanks.getOrElse(token, 0))).toSeq.sortBy(_._2).map(_._1)
   }
 
  /**
@@ -97,7 +97,8 @@ trait WeightedPrefixFiltering extends Serializable {
    * @param fullKey second blocking method that will be used to calculate similarities between records.
    * @param sampleTable first data set (e.g. sample table)
    * @param sampleKey first blocking method that will be used to calculate similarities between records.
-   *
+   * @param minSize minimum number of tokens allowed per record. The algorithm will filter out those records
+   * whose token length is smaller than this value.
    */
    def broadcastJoin (@transient sc: SparkContext,
                       threshold: Double,
@@ -105,7 +106,7 @@ trait WeightedPrefixFiltering extends Serializable {
                       fullKey: BlockingKey,
                       sampleTable: RDD[Row],
                       sampleKey: BlockingKey,
-                      minSize:Int = 0): RDD[(Row,Row)] = {
+                      minSize:Int): RDD[(Row,Row)] = {
 
    //Add a record ID into sampleTable. Id is a unique id assigned to each row.
     val sampleTableWithId: RDD[(Long, (Seq[String], Row))] = sampleTable.zipWithUniqueId
@@ -128,9 +129,12 @@ trait WeightedPrefixFiltering extends Serializable {
     // Build an inverted index for the prefixes of sample data
     val invertedIndex: RDD[(String, Seq[Long])] = sampleTableWithId.flatMap {
       case (id, (tokens, value)) =>
-        val sorted = sortTokenSet(tokens, broadcastRank) // To Juan: Why do you use broadcast here?
-        for (x <- sorted)
+        if (tokens.size < minSize) Seq()
+        else {
+          val sorted = sortTokenSet(tokens, tokenRankMap)
+          for (x <- sorted)
           yield (x, id)
+        }
     }.groupByKey().map(x => (x._1, x._2.toSeq.distinct))
 
     //Broadcast data to all nodes
@@ -138,6 +142,7 @@ trait WeightedPrefixFiltering extends Serializable {
     val broadcastData: Broadcast[collection.Map[Long, (Seq[String], Row)]] = sc.broadcast(sampleTableWithId.collectAsMap())
     val broadcastWeights: Broadcast[collection.Map[String, Double]] =  sc.broadcast(tokenWeightMap)
     println("Sample Broadcast")
+
     //Generate the candidates whose prefixes have overlap, and then verify their overlap similarity
     fullTable.flatMap({
       case (row1) =>
@@ -146,23 +151,21 @@ trait WeightedPrefixFiltering extends Serializable {
         val broadcastIndexValue = broadcastIndex.value
 
         val key1 = fullKey.tokenSet(row1)
-        if(key1.length >= minSize){
-        val sorted: Seq[String] = sortTokenSet(key1, broadcastRank)
-        val removedSize = getRemovedSize(sorted, threshold, weightsValue)
-        val filtered = sorted.dropRight(removedSize)
-        val now = System.nanoTime
-        filtered.foldLeft(List[Long]()) {
-          case (a, b) =>
-              a ++ broadcastIndexValue.getOrElse(b, List())
-        }.distinct.map {
-          case id =>
-            val (key2, row2) = broadcastDataValue(id)
-            val similar: Boolean = isSimilar(key1, key2, threshold, weightsValue) && 
-                                                  (key2.length >= minSize)//todo fix
-            (key2, row2, similar)
-        }.withFilter(_._3).map {
-          case (key2, row2, similar) => (row1, row2)
-        }
+        if (key1.length >= minSize){
+          val sorted: Seq[String] = sortTokenSet(key1, broadcastRank.value)
+          val removedSize = getRemovedSize(sorted, threshold, weightsValue)
+          val filtered = sorted.dropRight(removedSize)
+          filtered.foldLeft(List[Long]()) {
+            case (a, b) =>
+                a ++ broadcastIndexValue.getOrElse(b, List())
+          }.distinct.map {
+            case id =>
+              val (key2, row2) = broadcastDataValue(id)
+              val similar: Boolean = isSimilar(key1, key2, threshold, weightsValue)
+              (key2, row2, similar)
+          }.withFilter(_._3).map {
+            case (key2, row2, similar) => (row1, row2)
+          }
         }
         else
           List()
@@ -177,11 +180,14 @@ trait WeightedPrefixFiltering extends Serializable {
    * @param threshold specified threshold.
    * @param fullTable second data set (e.g. full table)
    * @param fullKey second blocking method that will be used to calculate similarities between records.
+   * @param minSize minimum number of tokens allowed per record. The algorithm will filter out those records
+   * whose token length is smaller than this value.
    */
   def broadcastJoin (@transient sc: SparkContext,
                      threshold: Double,
                      fullTable: RDD[Row],
-                     fullKey: BlockingKey): RDD[(Row,Row)] = {
+                     fullKey: BlockingKey,
+                     minSize:Int): RDD[(Row,Row)] = {
 
     // Add record ID into sampleData: RDD[(Id, (Seq[K], Value))]
     val fullTableId: RDD[(Long, (Seq[String], Row))] = fullTable.zipWithUniqueId()
@@ -200,9 +206,12 @@ trait WeightedPrefixFiltering extends Serializable {
     // Build an inverted index for the prefixes of sample data
     val invertedIndex: RDD[(String, Seq[Long])] = fullTableId.flatMap {
       case (id, (tokens, value)) =>
-        val sorted = sortTokenSet(tokens, broadcastRank)
-        for (x <- sorted)
-        yield (x, id)
+        if (tokens.size < minSize) Seq()
+        else {
+          val sorted = sortTokenSet(tokens, tokenRankMap)
+          for (x <- sorted)
+          yield (x, id)
+        }
     }.groupByKey().map(x => (x._1, x._2.toSeq.distinct))
 
     //Broadcast data to all nodes
@@ -213,29 +222,32 @@ trait WeightedPrefixFiltering extends Serializable {
     //Generate the candidates whose prefixes have overlap, and then verify their overlap similarity
     fullTableId.flatMap({
       case (id1, (key1, row1)) =>
-        val weightsValue = broadcastWeights.value
-        val broadcastDataValue = broadcastData.value
-        val broadcastIndexValue = broadcastIndex.value
+        if (key1.length >= minSize) {
+          val weightsValue = broadcastWeights.value
+          val broadcastDataValue = broadcastData.value
+          val broadcastIndexValue = broadcastIndex.value
 
-        val sorted: Seq[String] = sortTokenSet(key1, broadcastRank)
-        val removedSize = getRemovedSize(sorted, threshold, weightsValue)
-        val filtered = sorted.dropRight(removedSize)
+          val sorted: Seq[String] = sortTokenSet(key1, broadcastRank.value)
+          val removedSize = getRemovedSize(sorted, threshold, weightsValue)
+          val filtered = sorted.dropRight(removedSize)
 
-        filtered.foldLeft(List[Long]()) {
-          case (a, b) =>
-            a ++ broadcastIndexValue.getOrElse(b, List())
-        }.distinct.map {
-          case id2 =>
-            // Avoid double checking
-            if (id2 >= id1) (null, null, false)
-            else {
-              val (key2, row2) = broadcastDataValue(id2)
-              val similar: Boolean = isSimilar(key1, key2, threshold, weightsValue)
-              (key2, row2, similar)
-            }
-        }.withFilter(_._3).map {
-          case (key2, row2, similar) => (row1, row2)
+          filtered.foldLeft(List[Long]()) {
+            case (a, b) =>
+              a ++ broadcastIndexValue.getOrElse(b, List())
+          }.distinct.map {
+            case id2 =>
+              // Avoid double checking
+              if (id2 >= id1) (null, null, false)
+              else {
+                val (key2, row2) = broadcastDataValue(id2)
+                val similar: Boolean = isSimilar(key1, key2, threshold, weightsValue)
+                (key2, row2, similar)
+              }
+          }.withFilter(_._3).map {
+            case (key2, row2, similar) => (row1, row2)
+          }
         }
+        else List()
     })
   }
 }
