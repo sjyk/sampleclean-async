@@ -8,7 +8,7 @@ import com.twitter.finagle.Service
 import com.twitter.finagle.builder.{ClientBuilder, Server, ServerBuilder}
 import com.twitter.finagle.http._
 import com.twitter.finagle.http.service.RoutingService
-import com.twitter.util.{Future => TFuture}
+import com.twitter.util.{Future => TFuture, Await}
 import org.jboss.netty.handler.codec.http.{HttpRequest, HttpResponse, HttpResponseStatus}
 import org.json4s.JsonDSL._
 import org.json4s._
@@ -145,6 +145,8 @@ object CrowdHTTPServer {
       println("Failure!")
       throw exc
     }
+
+    Await.result(responseFuture)
 
     // Register the point ids in the group map.
     groupMap.put(groupId, points map {p => p._1} toSet)

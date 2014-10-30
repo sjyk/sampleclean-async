@@ -449,7 +449,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   def demoDedupAttr() = {
     val algoPara3 = new AlgorithmParameters()
     algoPara3.put("attr", "affiliation")
-    algoPara3.put("similarityParameters", SimilarityParameters(simFunc="WJaccard", threshold=0.4))
+    algoPara3.put("similarityParameters", SimilarityParameters(simFunc="WJaccard", threshold=0.98))
     algoPara3.put("mergeStrategy", "MostFrequent")
 
     val displayedCols = List("attr","count")
@@ -464,7 +464,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     val d3 = new AttributeDeduplication(algoPara3, scc)
     d3.blocking = false
     d3.name = "Crowd Attribute Deduplication"
-    val pp = new SampleCleanPipeline(saqp, List(d3))
+    val pp = new SampleCleanPipeline(saqp, List(d3), watchedQueries)
     pp.exec("paper_aff_sample")
   }
 
