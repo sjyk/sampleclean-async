@@ -259,7 +259,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
                               hashCol, 
                               attrCol)
     
-    } 
+      }
     }
   }
 
@@ -289,7 +289,6 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
 
       val connectedPairs = connectedComponentsToExecOrder(connectedComponents(), mergeStrategy)
       resultRDD = resultRDD.map(x => (x._1, replaceIfEqual(x._2, connectedPairs)))
-
       scc.updateTableAttrValue(sampleTableName, attr, resultRDD)
       this.onUpdateNotify()
  }  

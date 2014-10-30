@@ -97,7 +97,7 @@ class SampleCleanQuery(scc:SampleCleanContext,
       		.addFormElement(("grouped", "true"))
       		.addFormElement(("results", compact(render(query2Map(query)))))
       		.buildFormPost()
-    		
+
     		val responseFuture = client(request)
 
     		responseFuture onSuccess { resp: HttpResponse =>

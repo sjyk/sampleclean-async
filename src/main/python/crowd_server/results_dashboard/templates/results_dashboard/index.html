@@ -169,13 +169,19 @@
                     chartArea: {
                         width:"100%",
                         left: "15%",
-                        height: "80%",
-                        top: "5%"
+                        height: "88%",
+                        top: "2%"
                     },
-                    backgroundColor: "#FEFEFE",
+                    backgroundColor: "#F5F5F5",
+                    fontSize: "25px",
                     hAxis: {
                         textPosition: "none",
                         title: "Time",
+                        titleTextStyle: {
+                            fontSize: 20,
+                            bold: true,
+                            italic: true
+                        },
                         minValue: 0
                     },
                     height: 280,
@@ -187,7 +193,12 @@
                     },
                     pointSize: 5 / Math.pow(chart_data.getNumberOfRows(), 0.5),
                     vAxis: {
-                        title: value_col_name
+                        title: value_col_name,
+                        titleTextStyle: {
+                            fontSize: 20,
+                            bold: true,
+                            italic: true
+                        }
                     }
                 };
                 chart.draw(data_view, chart_options);
@@ -218,7 +229,7 @@
                 var table_header = $("<thead>").appendTo(table);
                 $("<tr>")
                         .append($("<th>"))
-                        .append($("<th>").text("group"))
+                        .append($("<th>").text("Group"))
                         .append($("<th>").text(results.result_col_name))
                         .appendTo(table_header);
                 var table_body = $("<tbody>").appendTo(table);
@@ -285,30 +296,46 @@
         {% endblock %}
 
         {% block poll_func %}
+            TIME_STAMP = -1;
             function poll_for_results() {
+                TIME_STAMP++;
                 if (!POLLING) return;
-                $(".query-result").each(function(){
-                    var query_id = $(this).attr("id");
-                    get_results(query_id);
-                })
+                var query_ids = $(".query-result").map(function() { return this.id; }).get();
+                get_queries(query_ids);
+                query_ids.forEach(get_results);
             }
         {% endblock poll_func %}
 
+        {% block get_queries_func %}
+            function get_queries(query_ids) {
+                var url = '/dashboard/queries/';
+                var data = {seen: JSON.stringify(query_ids)};
+                $.get(url, data, function(data) {
+                    data.forEach(function(el) {
+                        build_query_panel(el.query_id, el.querystring);
+                        get_results(el.query_id);
+                    })
+                })
+
+            }
+        {% endblock get_queries_func %}
+
         {% block get_results_func %}
-            var LAST_POLL;
+            var LAST_POLL = {};
             function get_results(query_id) {
                 var url = '/dashboard/results/' + query_id;
                 var data = {};
-                if (LAST_POLL != undefined) {
-                    data.as_of = LAST_POLL.toUTCString();
+                if (LAST_POLL[query_id] != undefined) {
+                    data.as_of = LAST_POLL[query_id].toISOString();
                 }
-                LAST_POLL = new Date();
-                $.get(url, data, function(data){update_results_display(query_id, data)});
+                LAST_POLL[query_id] = new Date();
+                $.get(url, data, function(results){
+                    update_results_display(query_id, results)
+                });
             }
         {% endblock get_results_func %}
 
         {% block update_results_func %}
-            TIME_STAMP = 0;
             function update_results_display(query_id, data) {
                 var chart_div = $("#" + query_id + "-chart");
                 var table_div = $("#" + query_id + "-table");
@@ -327,30 +354,12 @@
                     update_chart_data(data, query_id, is_grouped);
                     draw_table(data, query_id, is_grouped);
                 }
-                TIME_STAMP++;
             }
         {% endblock update_results_func %}
 
-        {% block create_query_func %}
-            function create_query() {
-                var querystring_div =  $("#new-query-string");
-                var querystring = querystring_div.val();
-                $.post('/dashboard/queries/', {querystring: querystring},
-                        function(data){
-                            build_query_panel(data.query_id, querystring);
-                            querystring_div.val("");
-                });
-            }
-
-            function build_no_results_div(query_id) {
-                return $("<div>")
-                        .addClass("col-xs-12")
-                        .attr("id", query_id + "-no-result")
-                        .html("<p>No results available.</p>")
-            }
-
+        {% block build_query_panel_func %}
             function build_query_panel(query_id, querystring) {
-                var panel_html = $("<div>").addClass("col-xs-6");
+                var panel_html = $("<div>").addClass("col-xs-12");
                 var close_button_html = $("<button>")
                         .attr("type", "button")
                         .css("padding-right", "4px")
@@ -364,24 +373,34 @@
                                 .text("Close"))
                         .appendTo(panel_html);
                 var well_html = $("<div>").addClass("well").appendTo(panel_html);
-                $("<h4>").text(querystring + " (" + query_id + ")").appendTo(well_html);
+                $("<h4>")
+                        .css("font-weight", "bold")
+                        .css("text-decoration", "underline")
+                        .text(querystring)
+                        .appendTo(well_html);
                 var result_div = $("<div>")
                         .addClass("query-result row")
                         .attr("id", query_id)
                         .appendTo(well_html);
-                $("<div>").addClass("col-xs-7").attr("id", query_id + "-chart").appendTo(result_div);
-                $("<div>").addClass("col-xs-5").attr("id", query_id + "-table").appendTo(result_div);
-                build_no_results_div(query_id).appendTo(result_div);
-                $("#panel-root > div:last").before(panel_html);
+                $("<div>").addClass("col-xs-5 vcenter").attr("id", query_id + "-chart").appendTo(result_div);
+                $("<div>").addClass("col-xs-7 vcenter").attr("id", query_id + "-table").appendTo(result_div);
+                $("<div>").addClass("col-xs-12").attr("id", query_id + "-no-result").appendTo(result_div);
+                $("#panel-root").append(panel_html);
                 close_button_html.click(function() {delete_query(query_id);});
             }
-        {% endblock create_query_func %}
+        {% endblock build_query_panel_func %}
 
         {% block delete_query_func %}
             function delete_query(query_id) {
                 // delete from the database.
                 $.post("/dashboard/queries/" + query_id + "/delete", function(){
                     $("#" + query_id).parent().parent().remove(); // delete from the interface.
+
+                    // delete from our global client state
+                    delete CHART_DATA[query_id];
+                    delete CHARTS[query_id];
+                    delete TOP_K_GROUPS[query_id];
+                    delete LAST_POLL[query_id];
                 });
             }
         {% endblock delete_query_func %}
@@ -398,22 +417,7 @@
 
             // set up charts, and start polling for data once they're ready.
             chart_setup(ready_func);
-            $(document).ready(function()
-            {
-                // Setup the form to create new queries
-                $("#query-create").click(create_query);
-                $("form").submit(function(event) {
-                    event.preventDefault;
-                    $("#query-create").click();
-                    return false;
-                });
-
-                // Setup delete buttons for queries
-                $(".query-result").each(function(){
-                    result_div = $(this);
-                    var query_id = result_div.attr("id");
-                    result_div.parent().prev().click(function(){delete_query(query_id);});
-                });
+            $(document).ready(function() {
             });
         {% endblock ready_func %}
     </script>
@@ -434,6 +438,12 @@
             width: 15px;
             height: 15px;
         }
+
+        .vcenter {
+            display: inline-block;
+            vertical-align: middle;
+            float: none;
+        }
     </style>
 {% endblock custom_css %}
 
@@ -449,7 +459,7 @@
         {% block page_header %}
             <div class="jumbotron">
                 <h1>SampleClean Dashboard</h1>
-                <p>Run queries on dirty data, and watch your results update as the data gets cleaned.</p>
+                <p>Monitor query results as the underlying data is cleaned.</p>
             </div>
         {% endblock page_header %}
     </div>
@@ -463,35 +473,6 @@
                 </div>
                 <div class="panel-body">
                     <div class="row" id="panel-root">
-                        {% for query in queries %}
-                            <div class="col-xs-6">
-                                <button type="button" class="close" id="{{ query.query_id }}-delete" style="padding-right:4px;">
-                                    <span aria-hidden="true">&times;</span><span class="sr-only">Close</span>
-                                </button>
-                                <div class="well">
-                                    <h4>{{ query.querystring }} ({{ query.query_id }})</h4>
-                                    <div class="query-result row" id="{{ query.query_id }}">
-                                        <div class="col-xs-12" id="{{ query.query_id }}-chart"></div>
-                                        <div class="col-xs-12" id="{{ query.query_id }}-table"></div>
-                                        <div class="col-xs-12" id="{{ query.query_id }}-no-result" style="display:none">
-                                            <p>No results available</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        {% endfor %}
-                        <div class="col-xs-6">
-                            <div class="well">
-                                <form role="form">
-                                    <div class="form-group">
-                                        <input id="new-query-string" type="text" class="form-control" placeholder="SQL query" />
-                                    </div>
-                                    <button type="button" class="btn btn-primary btn-lg center-block" id="query-create">
-                                        <span class="glyphicon glyphicon-plus"></span> Add a new query
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
