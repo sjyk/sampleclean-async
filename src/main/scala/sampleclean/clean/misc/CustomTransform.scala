@@ -46,13 +46,13 @@ class CustomTransform(params:AlgorithmParameters,scc: SampleCleanContext)
     		{
     			val university = x.substring(x.indexOf("  ")).trim
 
-    			if(customMaps.contains(university.toLowerCase))
-    				return customMaps.get(university.toLowerCase).get
+    			//if(customMaps.contains(university.toLowerCase))
+    			//	return customMaps.get(university.toLowerCase).get
     			
     			return university.split("\\s+").mkString(" ")
     		} 
     		else if (x.trim.indexOf("Depart") == 0 && x.split("\\s+").length <=6){
-    			return "[Ambiguous] " + input
+    			return input
     		}
 
     		return x.split("\\s+").mkString(" ")
