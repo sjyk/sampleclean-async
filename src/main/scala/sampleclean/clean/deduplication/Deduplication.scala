@@ -207,19 +207,31 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
         val context = DeduplicationPointLabelingContext(content=List(entity1Data, entity2Data)).asInstanceOf[PointLabelingContext]
         (id, context)
       }
-      val answers = crowdsourcingStrategy.run(crowdData, groupContext).answers
-      candidatePairsArray = answers.withFilter(_.value > 0.5).map{ answer =>
-        assert(contextMap.contains(answer.identifier))
-        contextMap.apply(answer.identifier)
-      }.toArray
 
-      onReceiveCandidatePairs(candidatePairsArray, 
-                              sampleTableRDD,
-                              sampleTableName,
-                              attr,
-                              mergeStrategy,
-                              hashCol, 
-                              attrCol)
+      if (params.exist("sync")) {
+        val crowdResult = crowdsourcingStrategy.run(crowdData, groupContext)
+        onNewCrowdResult(crowdResult)
+      }
+      else {
+        //it is async by default
+        crowdsourcingStrategy.asyncRun(crowdData, groupContext, onNewCrowdResult)
+      }
+      def onNewCrowdResult(crowdResult: CrowdResult) {
+        val answers = crowdResult.answers
+        candidatePairsArray = answers.withFilter(_.value > 0.5).map{ answer =>
+          assert(contextMap.contains(answer.identifier))
+          contextMap.apply(answer.identifier)
+        }.toArray
+
+        onReceiveCandidatePairs(candidatePairsArray,
+          sampleTableRDD,
+          sampleTableName,
+          attr,
+          mergeStrategy,
+          hashCol,
+          attrCol)
+      }
+
     }
     else if(params.exist("activeLearningStrategy") && candidatePairs.count() != 0){
       
@@ -247,7 +259,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
                               hashCol, 
                               attrCol)
     
-    } 
+      }
     }
   }
 
@@ -277,8 +289,8 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
 
       val connectedPairs = connectedComponentsToExecOrder(connectedComponents(), mergeStrategy)
       resultRDD = resultRDD.map(x => (x._1, replaceIfEqual(x._2, connectedPairs)))
-
       scc.updateTableAttrValue(sampleTableName, attr, resultRDD)
+      this.onUpdateNotify()
  }  
 
  def onReceiveCandidatePairs(candidatePairs: RDD[(Row, Row)], 
@@ -296,9 +308,6 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
                               mergeStrategy, 
                               hashCol, 
                               attrCol)
-
-
-      this.onUpdateNotify()
  }  
 
   /**

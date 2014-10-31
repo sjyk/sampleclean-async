@@ -57,12 +57,21 @@ def post_result(request):
                         content_type='application/json')
 
 @require_GET
+def get_new_queries(request):
+    already_seen = json.loads(request.GET.get('seen', "[]"))
+    results = (Query.objects
+               .exclude(query_id__in=already_seen)
+               .values('query_id', 'querystring'))
+    return HttpResponse(json.dumps(list(results)),
+                        content_type='application/json')
+
+@require_GET
 def get_result(request, query_id):
     as_of = request.GET.get('as_of')
     if as_of:
-        # Date comes in from as 'Wed, 15 Oct 2014 13:19:37 GMT'
+        # Date format is ISO (example: 2014-10-15T13:19:37.273Z)
         as_of = datetime.strptime(
-            as_of, '%a, %d %b %Y %H:%M:%S GMT').replace(tzinfo=pytz.UTC)
+            as_of, '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=pytz.UTC)
 
     try:
         results = (QueryResult.objects
@@ -93,18 +102,6 @@ def get_result(request, query_id):
 def purge_queries(request):
     Query.objects.all().delete()
     return HttpResponse("{}", content_type="application/json")
-
-@require_POST
-@csrf_exempt
-def create_query(request):
-    querystring = request.POST.get('querystring', '')
-    query = Query.objects.create(
-        query_id=str(uuid.uuid4()),
-        querystring=querystring,
-        pipeline_id=str(uuid.uuid4())
-    )
-    result_json = json.dumps({'query_id': query.query_id})
-    return HttpResponse(result_json, content_type="application/json")
 
 @require_POST
 @csrf_exempt

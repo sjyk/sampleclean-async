@@ -253,11 +253,9 @@ case class BlockingStrategy(blockedColNames: List[String]){
       case "wdice" =>
         new WeightedDiceJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable,minSize)
       case "wcosine" =>
-        new WeightedCosineJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
+        new WeightedCosineJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable, minSize)
       case "EditDist" =>
         new PassJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable)
-      case _ => println("Cannot support " + simFunc); null
-        new WeightedCosineJoin().broadcastJoin(sc, threshold, largeTable, genKeyLargeTable, smallTable, genKeySmallTable,minSize)
       case _ => println("Cannot support "+simFunc); null
     }
   }
