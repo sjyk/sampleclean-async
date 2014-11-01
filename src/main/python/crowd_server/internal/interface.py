@@ -22,8 +22,8 @@ class InternalCrowdInterface(CrowdInterface):
                 # No tasks the worker has already worked on.
                 .filter(~Q(responses__worker__worker_id=worker_id))
 
-                # Pick a random one
-                .order_by('?')[0])
+                # Pick the oldest one
+                .order_by('create_time')[0])
 
         # generate a random assignment id for this assignment.
         assignment_id = uuid.uuid4()

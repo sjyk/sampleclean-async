@@ -185,7 +185,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
     /* Use crowd to refine candidate pairs*/
     if (params.exist("crowdsourcingStrategy") && candidatePairs.count() != 0){
       
-      var candidatePairsArray = candidatePairs.collect()
+      var candidatePairsArray = candidatePairs.collect().sortBy(pair => -math.min(pair._1.getInt(1), pair._2.getInt(1)))
 
       println("[SampleClean] Publish %d pairs to AMT".format(candidatePairsArray.size))
       val crowdsourcingStrategy = params.get("crowdsourcingStrategy").asInstanceOf[CrowdsourcingStrategy]
