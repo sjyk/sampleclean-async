@@ -101,11 +101,13 @@ object CrowdHTTPServer {
     implicit val formats = Serialization.formats(NoTypeHints)
     val pointsJSON = (points map {point => point._1 -> parse(swrite(point._2.content))}).toMap
     val groupContextJSON = parse(swrite(groupContext.data))
+    val crowdConfigJSON = parse(swrite(parameters.crowdConfig))
     val requestData = compact(render(
       ("configuration" ->
         ("task_type" -> groupContext.taskType) ~
           ("task_batch_size" -> parameters.maxPointsPerHIT) ~
           ("num_assignments" -> parameters.maxVotesPerPoint) ~
+          (parameters.crowdName -> crowdConfigJSON) ~
           ("callback_url" -> ("http://" + parameters.responseServerHost + ":" + parameters.responseServerPort))) ~
         ("group_id" -> groupId) ~
         ("group_context" -> groupContextJSON) ~

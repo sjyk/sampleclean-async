@@ -66,7 +66,8 @@ case class CrowdLabelGetterParameters
   crowdServerPort: Int=8000,
   crowdServerHost: String="127.0.0.1",
   maxPointsPerHIT: Int=5,
-  maxVotesPerPoint: Int=1
+  maxVotesPerPoint: Int=1,
+  crowdConfig: Object=Map()
   )
 
 

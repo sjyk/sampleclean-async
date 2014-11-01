@@ -41,7 +41,7 @@ object CrowdDemo {
     val contextMap = crowdData toMap
 
     // set up the crowd parameters
-    val labelGetterParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 20) // So we can do it in one HIT.
+    val labelGetterParameters = CrowdLabelGetterParameters(crowdName = "amt", maxPointsPerHIT = 20, crowdConfig = Map("sandbox" -> true)) // So we can do it in one HIT.
 
     // Group Context for a deduplication task with the restaurant schema.
     val groupContext : GroupLabelingContext = DeduplicationGroupLabelingContext(
