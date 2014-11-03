@@ -3,12 +3,26 @@
 # Kill old processes
 ./stop.sh
 
-# Start new processes
-if [ "$1" == "-d" ] # Print errors directly to console for easy debugging with -d
+# Process options
+
+# Print errors directly to console for easy debugging with -d
+if [ "$1" == "-d" ] || [ "$2" == "-d" ]
 then
+    export DEVELOP=1
     python manage.py celeryd -l DEBUG &
-    gunicorn -b 0.0.0.0:8000 -w 1 --access-logfile access-gunicorn.log --error-logfile error-gunicorn.log --log-level debug  --certfile=crowd_server/ssl/development.crt --keyfile=crowd_server/ssl/development.key crowd_server.wsgi:application
 else
+    export DEVELOP=0
     python manage.py celeryd_detach
-    gunicorn -D -b 0.0.0.0:8000 -w 10 --access-logfile access-gunicorn.log --error-logfile error-gunicorn.log --log-level debug  --certfile=crowd_server/ssl/development.crt --keyfile=crowd_server/ssl/development.key crowd_server.wsgi:application
 fi
+
+# Enable SSL
+if [ "$1" == "-s" ] || [ "$2" == "-s" ]
+then
+    export SSL=1
+else
+    export SSL=0
+fi
+
+# Run the application
+python manage.py collectstatic --noinput
+gunicorn -c gunicorn_config.py crowd_server.wsgi:application
