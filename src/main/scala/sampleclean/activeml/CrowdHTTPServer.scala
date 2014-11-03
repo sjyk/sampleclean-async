@@ -114,14 +114,17 @@ object CrowdHTTPServer {
 
     // Send the request to the crowd server.
     //println("Issuing request...")
-    val client: Service[HttpRequest, HttpResponse] = ClientBuilder()
+    val use_ssl = sys.env.getOrElse("SSL", "0") == "1"
+    val builder = ClientBuilder()
       .codec(Http())
       .hosts(parameters.crowdServerHost + ":" + parameters.crowdServerPort)
       .hostConnectionLimit(1)
-      .tlsWithoutValidation() // TODO: ONLY IN DEVELOPMENT
-      .build()
+
+    val client: Service[HttpRequest, HttpResponse] = if (use_ssl) builder.tlsWithoutValidation().build() else builder.build()
+
+    val url_scheme = if (use_ssl) "https" else "http"
     val request = RequestBuilder()
-      .url("https://" + parameters.crowdServerHost + ":" + parameters.crowdServerPort + "/" + crowdJobURL format parameters.crowdName)
+      .url(url_scheme + "://" + parameters.crowdServerHost + ":" + parameters.crowdServerPort + "/" + crowdJobURL format parameters.crowdName)
       .addHeader("Charset", "UTF-8")
       .addFormElement(("data", requestData))
       .buildFormPost()
