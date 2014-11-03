@@ -12,12 +12,44 @@ https://docs.djangoproject.com/en/1.6/ref/settings/
 import os
 import djcelery
 
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+DEV_MODE = os.environ.get('DEVELOP', False) == "1"
+SSL_MODE = os.environ.get('SSL', False) == "1"
+
+# Settings for production
+if not DEV_MODE:
+    # Don't validate hostnames, since we'll be moving IPs around.
+    ALLOWED_HOSTS = '*'
+
+    # Dump all logs to the file 'django.log'
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': True,
+        'handlers': {
+            'file': {
+                'level': 'DEBUG',
+                'class': 'logging.FileHandler',
+                'filename': 'django.log',
+            },
+        },
+        'loggers': {
+            'django': {
+                'handlers': ['file'],
+                'level': 'DEBUG',
+                'propagate': True,
+            },
+        },
+    }
+else:
+    ALLOWED_HOSTS = []
+
+if SSL_MODE:
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
+
 # Celery Configuration
 djcelery.setup_loader()
 BROKER_URL = "amqp://guest:guest@localhost:5672//"
-
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-
 
 # Settings for the AMT app
 # AMT_SANDBOX = True # run on the sandbox, or on the real deal?
@@ -36,7 +68,7 @@ AMT_DEFAULT_HIT_OPTIONS = { # See documentation in amt/connection.py:create_hit
     'duration': 60,
     'num_responses': 3,
     'frame_height': 800,
-    'use_https': True,
+    'use_https': SSL_MODE,
 }
 
 # AMT Settings that MUST be defined in private_settings.py:
@@ -50,11 +82,9 @@ AMT_DEFAULT_HIT_OPTIONS = { # See documentation in amt/connection.py:create_hit
 SECRET_KEY = '009&#y4^ix8uzt5wt^5d%%+2xp@ym&hfv%%y*xk4obcro-1@r6'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = DEV_MODE
 
-TEMPLATE_DEBUG = True
-
-ALLOWED_HOSTS = []
+TEMPLATE_DEBUG = DEBUG
 
 APPEND_SLASH = True
 
@@ -120,8 +150,8 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.6/howto/static-files/
-
 STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Sites
 # https://docs.djangoproject.com/en/1.6/ref/contrib/sites/
