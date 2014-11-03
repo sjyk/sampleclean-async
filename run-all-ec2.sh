@@ -6,6 +6,14 @@
 # Arguments:
 #   -s: Run the crowd server with ssl
 
+# Enable SSL
+if [ "$1" == "-s" ]
+then
+    export SSL=1
+else
+    export SSL=0
+fi
+
 # Activate the virtualenv
 workon sampleclean
 
