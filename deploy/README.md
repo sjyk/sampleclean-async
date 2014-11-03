@@ -57,25 +57,34 @@ To actually get code running on a cluster you've launched, you'll need to:
 * ssh into the cluster:
   `./sampleclean-ec2 ~/.ssh/aws/sampleclean/ login CLUSTER_NAME`
 
-* Make sure the crowd server is running (see above).
-
 * Copy data to the master's hdfs instance:
   `/root/ephemeral-hdfs/bin/hadoop dfs -put LOCAL/PATH/TO/data HDFS/PATH/TO/data`
 
-* Build and package the code:
+* Run the handy script in the `sampleclean-async` directory to start the crowd
+  server and run the SCDriver program:
   ```shell
   cd /root/sampleclean-async
-  sbt/sbt assembly
+  ./run-all-ec2.sh  # pass `-s` to run the crowd server on ssl.
   ```
 
-* Figure out the cluster's master url by navigating a browser to port 8080
-  of the master machine and looking for a URL like
-  `spark://ec2-##-##-##-##.compute-1.amazonaws.com:7077`.
+* Or to have more control (or to run things in debug mode):
+  * Start the crowd server (see above).
 
-* Run the job:
-  `/root/spark/bin/spark-submit --class <main-class> --master <master_url>
-  [OTHER SPARK_SUBMIT OPTIONS ...]
-  /root/sampleclean-async/target/scala-2.10/SampleClean-Spark-1.0-assembly-1.0.jar`
+  * Build and package the code:
+    ```shell
+    cd /root/sampleclean-async
+    sbt/sbt assembly
+    ```
+
+  * Figure out the cluster's master url by navigating a browser to port 8080
+    of the master machine and looking for a URL like
+    `spark://ec2-##-##-##-##.compute-1.amazonaws.com:7077` (or looking at the
+    contents of `/root/spark-ec2/cluster-url`.
+
+  * Run the job:
+    `/root/spark/bin/spark-submit --class <main-class> --master <master_url>
+    [OTHER SPARK_SUBMIT OPTIONS ...]
+    /root/sampleclean-async/target/scala-2.10/SampleClean-Spark-1.0-assembly-1.0.jar`
 
 * Monitor the job: Spark creates a UI on port 4040 for the running application.
   You can also look at the cluster UI on port 8080 to confirm that the
@@ -86,5 +95,5 @@ Destroying a Cluster
 ====================
 The `sampleclean-ec2.sh` script can also be used to terminate a cluster. The following
 command will terminate all running instances and delete security groups associated with
-the cluster: 
+the cluster:
 `sampleclean-ec2.sh ~/.ssh/aws/sampleclean/ --delete-groups destroy <cluster_name>`
