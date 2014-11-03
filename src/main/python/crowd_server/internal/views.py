@@ -6,6 +6,7 @@ from django.shortcuts import render, redirect
 from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.csrf import csrf_exempt
 
+from basecrowd.interface import CrowdRegistry
 from models import CrowdTask, CrowdWorker
 from interface import INTERNAL_CROWD_INTERFACE as interface
 
@@ -16,6 +17,8 @@ def fake_submit_endpoint(request):
 
 @require_GET
 def index(request):
+    interface, _ = CrowdRegistry.get_registry_entry('internal')
+
     # Get worker id from session, or create one if this is a first-time user.
     worker_id = request.session.get('worker_id')
     if not worker_id:
@@ -27,17 +30,20 @@ def index(request):
         CrowdTask.objects.values_list('task_type')
         .annotate(num_assignments=Sum('num_assignments')))
 
-    # Incomplete task types with the number of available assignments for each.
-    task_types_incomplete = (CrowdTask.objects.values('task_type')
-                             .filter(is_complete=False)
-                             .annotate(num_assignments=Sum('num_assignments'))
-                             .annotate(num_responses=Count('responses')))
-
     task_type_map = {
         'sa': 'Sentiment Analysis',
         'er': 'Entity Resolution',
         'ft': 'Filtering',
     }
+
+    # Eligible task types with the number of available assignments for each.
+    eligible_task_ids = list(interface.get_eligible_tasks(worker_id)
+                             .values_list('task_id', flat=True))
+    task_types_incomplete = (CrowdTask.objects
+                             .filter(task_id__in=eligible_task_ids)
+                             .values('task_type')
+                             .annotate(num_assignments=Sum('num_assignments'))
+                             .annotate(num_responses=Count('responses')))
 
     task_types = { t['task_type'] :
                    build_context(task_type_map, assignments_by_type,
