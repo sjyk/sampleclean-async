@@ -53,7 +53,7 @@ Thing to do to get up and running:
 
 ```shell
 $ sudo apt-get install rabbitmq-server
-$ rabbitmq-server
+$ rabbitmq-server  # run with -detached for daemon mode.
 ```
         
 * create a virtualenv for python dev (I like
@@ -85,6 +85,7 @@ $ ./reset_db.sh
 ```shell
 $ ./run.sh    # Daemon mode
 $ ./run.sh -d # Debug mode
+$ ./run.sh -s # Use ssl (can be combined with -d)
 ```
 
 * Make sure it works:
