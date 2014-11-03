@@ -23,13 +23,13 @@ class InternalCrowdInterface(CrowdInterface):
         # Pick a random task, biased towards older tasks.
         task_index = min(geometric(ORDER_WEIGHT) - 1,
                          eligible_tasks.count() - 1)
-        task = eligible_tasks[task_index]
 
         # generate a random assignment id for this assignment.
         assignment_id = uuid.uuid4()
 
         return {
-            'task_id': task.task_id,
+            'task_id': (eligible_tasks[task_index].task_id
+                        if task_index >= 0 else None),
             'worker_id': worker_id,
             'is_accepted': True,
             'assignment_id': assignment_id,
