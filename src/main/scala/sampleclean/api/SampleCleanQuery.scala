@@ -87,8 +87,9 @@ class SampleCleanQuery(scc:SampleCleanContext,
       		.tlsWithoutValidation() // TODO: ONLY IN DEVELOPMENT
       		.build()
 
+        val url_scheme = if (sys.env("SSL") == "1") "https" else "http"
     		val request = RequestBuilder()
-      		.url("https://"+vizServer+"/dashboard/results/")
+      		.url(url_scheme + "://" +vizServer +"/dashboard/results/")
       		.addHeader("Charset", "UTF-8")
       		.addFormElement(("querystring", querystring))
       		.addFormElement(("result_col_name", "Query Result"))
