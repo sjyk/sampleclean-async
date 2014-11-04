@@ -105,9 +105,15 @@ def get_assignment(request, crowd_name):
 
     # get assignment context
     context = interface.get_assignment_context(request)
-    interface.require_context(
-        context, ['task_id', 'is_accepted'],
-        ValueError('Task id unavailable in assignment request context.'))
+    try:
+        interface.require_context(
+            context, ['task_id', 'is_accepted'],
+            ValueError('Task id unavailable in assignment request context.'))
+    except ValueError:
+        # This task is no longer available (due to a race condition).
+        # Return the 'No available tasks' template.
+        template = get_scoped_template(crowd_name, 'unavailable.html')
+        return HttpResponse(template.render(RequestContext(request, {})))
 
     # Retrieve the tweet based on task_id from the database
     try:
@@ -149,20 +155,23 @@ def get_assignment(request, crowd_name):
                    backend_submit_url=interface.get_backend_submit_url(),
                    frontend_submit_url=interface.get_frontend_submit_url(crowd_config))
 
-    # Get the base template name, preferring a crowd-specific base template.
-    try:
-        base_template_name = os.path.join(crowd_name, 'base.html')
-        t = get_template(base_template_name)
-    except TemplateDoesNotExist:
-        base_template_name = 'basecrowd/base.html'
-    context['base_template_name'] = base_template_name
-
-    # Load the child template, preferring a crowd-specific implementation
-    template = select_template([
-        os.path.join(crowd_name, current_task.task_type + '.html'),
-        os.path.join('basecrowd', current_task.task_type + '.html')])
-
+    # Load the template and render it.
+    template = get_scoped_template(crowd_name, current_task.task_type + '.html',
+                            context=context)
     return HttpResponse(template.render(RequestContext(request, context)))
+
+def get_scoped_template(crowd_name, template_name, context=None):
+    base_template_name = os.path.join(crowd_name, 'base.html')
+    if context is not None:
+        try:
+            t = get_template(base_template_name)
+        except TemplateDoesNotExist:
+            base_template_name = 'basecrowd/base.html'
+        context['base_template_name'] = base_template_name
+
+    return select_template([
+        os.path.join(crowd_name, template_name),
+        os.path.join('basecrowd', template_name)])
 
 # When workers submit assignments, we should send data to this view via AJAX
 # before submitting to AMT.
