@@ -1,0 +1,26 @@
+{% extends "basecrowd/er.html" %}
+
+{% block instruction %}
+Listed below are author affiliation records from our database of academic publications. It is your job to determine whether they refer to the same institution (<strong>regardless</strong> of department).  Next to each affiliation is a count of the number of times it shows up in our database.<br>
+<br>
+ 
+<strong>These are the same</strong>:<br>
+-Stanford University<br>
+-Department of Statistics Stanford University<br>
+<br>
+ 
+<strong>Not the same</strong>:<br>
+-Stanford U<br>
+-U .C Berkeley<br>
+<br>
+ 
+<strong>Not the same</strong>:<br>
+-Lawrence Berkeley Labs <br>
+-U .C Berkeley<br>
+<br/>
+ 
+<strong>Be careful!</strong> Some affiliation tags have multiple affiliations. In this case, if the two entries overlap in any way, mark them as the same.<br>
+-Lawrence Berkeley Labs; University of California Berkeley<br>
+-Department of Mathematics University of California Berkeley<br>
+
+{% endblock %}
