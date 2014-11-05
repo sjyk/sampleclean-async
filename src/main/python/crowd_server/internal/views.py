@@ -56,8 +56,12 @@ def index(request):
                 task_type=t_shortname)
 
     # Render index template
-    return render(request, 'internal/index.html', {'task_types': task_types,
-                                                   'task_map': task_type_map})
+    #print task_types
+    #return render(request, 'internal/index.html', {'task_types': task_types,
+    #                                               'task_map': task_type_map})
+    # auto-redirect to the ER assignment page for our demo.
+    return redirect(task_types['er']['assignment_url'])
+
 
 def build_context(task_type_map, total_tasks_by_type, worker_id, task_type=None,
                   task_type_obj=None):
