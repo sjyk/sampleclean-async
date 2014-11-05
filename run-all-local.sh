@@ -4,8 +4,9 @@
 # for production assuming a deployment on ec2 using the deploy scripts in the
 # repo.
 #
-# This script assumes that you have virtualenvwrapper installed, and that its
-# script is located at /usr/local/bin/virtualenvwrapper.sh
+# This script assumes that if you have virtualenvwrapper installed, its
+# script is located at /usr/local/bin/virtualenvwrapper.sh. If you aren't using
+# virtualenvs, this script will also work.
 #
 # Usage: ./run-all-local.sh [-s] [MAIN_CLASS]
 # Arguments:
@@ -23,9 +24,12 @@ else
     main_class="$1"
 fi
 
-# Activate the virtualenv
-source /usr/local/bin/virtualenvwrapper.sh
-workon sampleclean
+# Activate the virtualenv if it exists.
+if [ -e "/usr/local/bin/virtualenvwrapper.sh" ]
+then
+    source /usr/local/bin/virtualenvwrapper.sh
+    workon sampleclean
+fi
 
 # Start the crowd server
 pushd src/main/python/crowd_server
