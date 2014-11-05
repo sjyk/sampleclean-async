@@ -15,6 +15,7 @@ else
 fi
 
 # Activate the virtualenv
+source /root/.bash_profile
 workon sampleclean
 
 # Start the crowd server
