@@ -459,7 +459,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     //    .setFeatureList(featureList)
     //    .setActiveLearningParameters(ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10)))
 
-    val crowdParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 10, maxVotesPerPoint = 3)
+    val crowdParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 5, maxVotesPerPoint = 3)
     algoPara3.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdLabelGetterParameters(crowdParameters))
     val d3 = new AttributeDeduplication(algoPara3, scc)
     d3.blocking = false
