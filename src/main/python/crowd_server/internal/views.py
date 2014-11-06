@@ -13,7 +13,8 @@ from interface import INTERNAL_CROWD_INTERFACE as interface
 @require_POST
 @csrf_exempt
 def fake_submit_endpoint(request):
-    return redirect('internal:index')
+    # display a cat!
+    return render(request, 'internal/cat.html', {})
 
 @require_GET
 def index(request):
