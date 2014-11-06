@@ -11,9 +11,66 @@
     }
 {% endblock get_submit_context_func %}
 
+{% block customjs %}
+    {{ block.super }}
+
+    var num_completed = 0;
+    var total = {{ content.items|length }};
+    function set_data(input_id, input_val)
+    {
+        $("#" + input_id).val(input_val);
+        num_completed += 1;
+        remaining = total - num_completed;
+        if (num_completed >= total) {
+            var data = prepare_submit_data();
+            $.when(submit_to_backend(data)).then(function(data, status)
+            {
+                submit_to_frontend(data);
+            });
+        } else {
+            $("#tasks_remaining_counter").text(remaining);
+            var current_div = $("#content-" + input_id);
+            current_div.hide();
+            current_div.next().show();
+        }
+    }
+{% endblock customjs %}
+
 {% block form_tag %}
     {{ block.super }}
     <input type="hidden" value="{{ task_id }}" name="task_id"/>
     <input type="hidden" value="{{ worker_id }}" name="worker_id"/>
     <input type="hidden" value="{{ assignment_id }}" name="assignment_id"/>
 {% endblock %}
+
+<!-- No instruction panel -->
+{% block instruction_panel %}
+{% endblock %}
+
+<!-- No error panel -->
+{% block error_panel %}
+{% endblock %}
+
+<!-- Big display of the one item in the task, with no extra stuff -->
+{% block content_item %}
+    <div id="content-{{ id }}" {% if not forloop.first %}style="display:none"{% endif %}>
+        {% block item_data %}
+        {% endblock item_data %}
+        {% block item_labels %}
+        {% endblock item_labels %}
+    </div>
+{% endblock content_item %}
+
+<!-- Batch counter at the bottom -->
+{% block content_items %}
+    {{ block.super }}
+    <div style="font-weight: bold">Tasks remaining until next cat: <span id="tasks_remaining_counter">{{ content.items|length }}</span></div>
+{% endblock content_items %}
+
+<!-- No submit button: submission is controlled from with the item (e.g., in the item_labels block) -->
+{% block submit_button %}
+{% endblock submit_button %}
+
+<!-- No feedback form -->
+{% block feedback %}
+{% endblock feedback %}

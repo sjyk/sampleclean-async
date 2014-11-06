@@ -5,8 +5,8 @@
         <script type='text/javascript' src='https://ajax.aspnetcdn.com/ajax/jquery.validate/1.13.0/jquery.validate.min.js'></script>
     {% endblock jslibraries %}
 
-    {% block customjs %}
-        <script type="text/javascript">
+    <script type="text/javascript">
+        {% block customjs %}
             {% block get_answer_inputs_func %}
                 function get_answer_inputs()
                 {
@@ -139,8 +139,8 @@
                     initialize_form_validation();
                 });
             {% endblock ready_func %}
-        </script>
-    {% endblock customjs %}
+        {% endblock customjs %}
+    </script>
 
     {% block css_includes %}
         <link href="https://s3.amazonaws.com/mturk-public/bs30/css/bootstrap.min.css" rel="stylesheet" />

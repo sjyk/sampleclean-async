@@ -1,27 +1,20 @@
-{% extends "basecrowd/er.html" %}
+{% extends base_template_name %}
 
-{% block instruction %}
-<p> Listed below are author affiliation records from our database of academic publications. It is your job to determine whether they refer to the same institution (<strong>regardless</strong> of department).  Next to each affiliation is a count of the number of times it shows up in our database.<br>
-<br>
- 
-<strong>These are the same</strong>:<br>
--Stanford University<br>
--Department of Statistics Stanford University<br>
-<br>
- 
-<strong>Not the same</strong>:<br>
--Stanford U<br>
--U .C Berkeley<br>
-<br>
- 
-<strong>Not the same</strong>:<br>
--Lawrence Berkeley Labs <br>
--U .C Berkeley<br>
-<br/>
- 
-<strong>Be careful!</strong> Some affiliation tags have multiple affiliations. In this case, if the two entries overlap in any way, mark them as the same.<br>
--Lawrence Berkeley Labs; University of California Berkeley<br>
--Department of Mathematics University of California Berkeley<br>
-</p>
+{% block item_data %}
+    <h1 class="text-center">Are these the same institution?</h1>
+    <div class="row text-center">
+        {% for record in point %}
+            <div class="col-xs-6" style="font-size:200%; padding:20px;">{{ record.0 }}</div>
+        {% endfor %}
+    </div>
+
+{% endblock %}
+
+{% block item_labels %}
+    <div class="text-center">
+    <button type="button" class="btn btn-lg btn-success" onclick="set_data('{{ id }}', '1.0');">Yes!</button>
+    <button type="button" class="btn btn-lg btn-danger" onclick="set_data('{{ id }}', '0.0');">No!</button>
+    <input type="hidden" id={{id}} name="{{ forloop.counter }}" value="">
+    </div>
 
 {% endblock %}

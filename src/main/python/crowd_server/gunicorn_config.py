@@ -23,5 +23,3 @@ use_ssl = os.environ.get('SSL', False) == "1"
 if use_ssl:
     keyfile = "crowd_server/ssl/development.key"
     certfile = "crowd_server/ssl/development.crt"
-
-print debug, use_ssl
