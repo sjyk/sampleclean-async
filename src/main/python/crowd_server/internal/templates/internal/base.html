@@ -11,6 +11,25 @@
     }
 {% endblock get_submit_context_func %}
 
+{% block get_answer_inputs_func %}
+    function get_answer_inputs()
+    {
+        return $(".label_container input");
+    }
+{% endblock get_answer_inputs_func %}
+
+{% block build_answer_data_func %}
+    function build_answer_data()
+    {
+        var answers = {};
+        get_answer_inputs().each(function(index, el)
+        {
+            answers[$(el).attr('id')] = $(el).val();
+        });
+        return answers;
+    }
+{% endblock build_answer_data_func %}
+
 {% block customjs %}
     {{ block.super }}
 
@@ -53,7 +72,7 @@
 
 <!-- Big display of the one item in the task, with no extra stuff -->
 {% block content_item %}
-    <div id="content-{{ id }}" {% if not forloop.first %}style="display:none"{% endif %}>
+    <div class="label_container" id="content-{{ id }}" {% if not forloop.first %}style="display:none"{% endif %}>
         {% block item_data %}
         {% endblock item_data %}
         {% block item_labels %}
