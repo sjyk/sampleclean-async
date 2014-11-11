@@ -404,8 +404,9 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     hiveContext.hql("LOAD DATA LOCAL INPATH 'msac-datasets/PaperAuthor-reg.csv' OVERWRITE INTO TABLE paper_author")
 
     hiveContext.hql("DROP TABLE IF EXISTS paper_affiliation")
-    hiveContext.hql("CREATE TABLE paper_affiliation as SELECT paperid, affiliation from paper_author where length(affiliation) > 1 and  (lower(affiliation) like '%berkeley%'  or lower(affiliation) like '%stanford%') group by paperid,affiliation")
-  
+    //hiveContext.hql("CREATE TABLE paper_affiliation as SELECT paperid, affiliation from paper_author where length(affiliation) > 1 and  (lower(affiliation) like '%berkeley%'  or lower(affiliation) like '%stanford%') group by paperid,affiliation")
+    hiveContext.hql("CREATE TABLE paper_affiliation as SELECT paperid, affiliation from paper_author where length(affiliation) > 1 and  (lower(affiliation) like '%berkeley%'  or lower(affiliation) like '%stanford%') and not lower(affiliation) like '%computer science department|stanford university%' and not lower(affiliation) like '%department of physics|stanford university%' group by paperid,affiliation")
+
     scc.initializeConsistent("paper", "paper_sample", "id", 10)
     scc.initializeConsistent("paper_affiliation", "paper_aff_sample", "paperid", 10)
     scc.initializeConsistent("paper_author", "paper_auth_sample", "paperid", 10)
