@@ -174,6 +174,7 @@
                         height: "88%",
                         top: "2%"
                     },
+                    colors: COLORS,
                     backgroundColor: "#F5F5F5",
                     fontSize: "25px",
                     hAxis: {
@@ -193,14 +194,16 @@
                         position: "none",
                         maxLines: 1
                     },
-                    pointSize: 5 / Math.pow(chart_data.getNumberOfRows(), 0.5),
+                    lineWidth: 4,
+                    pointSize: 10 / Math.pow(chart_data.getNumberOfRows(), 0.1),
                     vAxis: {
                         title: value_col_name,
                         titleTextStyle: {
                             fontSize: 20,
                             bold: true,
                             italic: true
-                        }
+                        },
+                        minValue: 5000
                     }
                 };
                 chart.draw(data_view, chart_options);
@@ -210,18 +213,23 @@
 
         {% block draw_table %}
             NUM_GROUPS_FOR_TABLE = 10;
+            COLORS = [
+                "red",
+                "blue",
+                "orange",
+                "green",
+                "purple",
+                "black",
+                "yellow",
+                "gray",
+                "#e2431e",
+                "#e7711b"
+            ];
             COLOR_MAP = {
-                1: "blue",
-                2: "red",
-                3: "orange",
-                4: "green",
-                5: "purple",
-                6: "black",
-                7: "yellow",
-                8: "gray",
-                9: "#e2431e",
-                10: "#e7711b"
             };
+            for (var i = 0; i < COLORS.length; i++) {
+                COLOR_MAP[i+1] = COLORS[i];
+            }
             function draw_table(results, query_id, is_grouped){
                 var table_div = $("#" + query_id + "-table");
                 var result_data = results.results;
@@ -231,7 +239,7 @@
                 var table_header = $("<thead>").appendTo(table);
                 $("<tr>")
                         .append($("<th>"))
-                        .append($("<th>").text("Group"))
+                        .append($("<th>").text("Affiliation"))
                         .append($("<th>").text(results.result_col_name))
                         .appendTo(table_header);
                 var table_body = $("<tbody>").appendTo(table);
@@ -459,10 +467,11 @@
 <div class="container" style="width:95%">
     <div class="row task-container">
         {% block page_header %}
+            <!--
             <div class="jumbotron">
                 <h1>SampleClean Dashboard</h1>
                 <p>Monitor query results as the underlying data is cleaned.</p>
-            </div>
+            </div>-->
         {% endblock page_header %}
     </div>
     <div class="row">
