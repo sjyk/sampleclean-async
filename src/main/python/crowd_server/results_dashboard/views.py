@@ -61,8 +61,9 @@ def get_new_queries(request):
     already_seen = json.loads(request.GET.get('seen', "[]"))
     results = (Query.objects
                .exclude(query_id__in=already_seen)
-               .values('query_id', 'querystring'))
-    return HttpResponse(json.dumps(list(results)),
+               .values('query_id', 'querystring', 'registered_at'))
+    return HttpResponse(json.dumps(list(results),
+                                   default=lambda dt: dt.isoformat()),
                         content_type='application/json')
 
 @require_GET
@@ -95,7 +96,9 @@ def get_result(request, query_id):
                          for g in result.groups.order_by("-value") ]
 
     result_json = json.dumps({'results': result_value,
-                              'result_col_name': result.result_col_name})
+                              'result_col_name': result.result_col_name,
+                              'posted_at': result.posted_at},
+                             default=lambda dt: dt.isoformat())
     return HttpResponse(result_json, content_type="application/json")
 
 @require_GET

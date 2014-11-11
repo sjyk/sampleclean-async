@@ -18,17 +18,19 @@
             CHART_DATA = {};
             CHARTS = {};
             TOP_K_GROUPS = {};
-            NUM_GROUPS_FOR_CHART = 10;
+            QUERY_START = {};
+            NUM_GROUPS_FOR_CHART = 2;
             function update_chart_data(results, query_id, is_grouped){
                 // Initialize the chart data if this is a new chart.
                 var chart_div = $("#" + query_id + "-chart");
                 var result_data = results.results;
+                var posted_at = new Date(results.posted_at);
                 var value_col_name = results.result_col_name;
                 if (CHART_DATA[query_id] == undefined) {
                     var chart = new google.visualization.LineChart(chart_div[0]);
                     var chart_data = new google.visualization.DataTable();
                     var top_groups = {};
-                    chart_data.addColumn('number', 'Time');
+                    chart_data.addColumn('number', 'Data Cleaning Progress (seconds)');
                     top_groups[0] = 0;
 
                     if (is_grouped) {
@@ -46,7 +48,7 @@
 
                 // Build data for the new row, and record the top k columns for display.
                 var row = [];
-                row[0] = TIME_STAMP;
+                row[0] = (posted_at - QUERY_START[query_id]) / 1000;
                 var view_indices = [];
                 if (is_grouped) {
                     var top_k_column_labels = [];
@@ -176,7 +178,7 @@
                     fontSize: "25px",
                     hAxis: {
                         textPosition: "none",
-                        title: "Time",
+                        title: "Data Cleaning Progress (seconds)",
                         titleTextStyle: {
                             fontSize: 20,
                             bold: true,
@@ -296,9 +298,7 @@
         {% endblock %}
 
         {% block poll_func %}
-            TIME_STAMP = -1;
             function poll_for_results() {
-                TIME_STAMP++;
                 if (!POLLING) return;
                 var query_ids = $(".query-result").map(function() { return this.id; }).get();
                 get_queries(query_ids);
@@ -312,6 +312,7 @@
                 var data = {seen: JSON.stringify(query_ids)};
                 $.get(url, data, function(data) {
                     data.forEach(function(el) {
+                        QUERY_START[el.query_id] = new Date(el.registered_at);
                         build_query_panel(el.query_id, el.querystring);
                         get_results(el.query_id);
                     })
@@ -401,6 +402,7 @@
                     delete CHARTS[query_id];
                     delete TOP_K_GROUPS[query_id];
                     delete LAST_POLL[query_id];
+                    delete QUERY_START[query_id];
                 });
             }
         {% endblock delete_query_func %}
