@@ -56,6 +56,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
                                          List("attr", "rule")))
 
   var watchedQueries = Set[SampleCleanQuery]()
+  var activePipelines = Set[SampleCleanPipeline]()
 
   /**
    * This command parses SampleClean "reserved" command. Basically these commands 
@@ -250,6 +251,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
       d.blocking = false
       d.name = classData._1
       val pp = new SampleCleanPipeline(saqp,List(d), watchedQueries)
+      activePipelines += pp
       pp.exec(name)
    }
 
@@ -287,6 +289,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     d.blocking = true
     d.name = algorithm + " Attribute Deduplication"
     val pp = new SampleCleanPipeline(saqp, List(d), watchedQueries)
+    activePipelines += pp
     pp.exec(samplename)
 
     }
@@ -297,6 +300,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
       val scQuery = queryParser(exprClean, exprClean.toLowerCase.contains("rawsc"))
       scQuery.execute(true)
       watchedQueries = watchedQueries + scQuery
+      activePipelines foreach { _.registerQuery(scQuery) }
     }
  
   /**
@@ -443,6 +447,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     d.name = "ActiveLearningDeduplication"
 
     val pp = new SampleCleanPipeline(saqp, List(d))
+    activePipelines += pp
     pp.exec("paper_sample")
   }
 
@@ -465,6 +470,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     d3.blocking = false
     d3.name = "Crowd Attribute Deduplication"
     val pp = new SampleCleanPipeline(saqp, List(d3), watchedQueries)
+    activePipelines += pp
     pp.exec("paper_aff_sample")
   }
 
