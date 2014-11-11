@@ -38,6 +38,11 @@ class SampleCleanPipeline(saqp: SampleCleanAQP,
 			q.execute(true)
 	}
 
+  /**
+   * Registers a new query with the pipeline
+   */
+  def registerQuery(q: SampleCleanQuery) = {queryList += q}
+
 	/**Executes the algorithms in the pipeline
 	*/
 	def exec(sampleName: String)={
