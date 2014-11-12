@@ -45,7 +45,9 @@ object CrowdDemo {
 
     // Group Context for a deduplication task with the restaurant schema.
     val groupContext : GroupLabelingContext = DeduplicationGroupLabelingContext(
-      taskType="er", data=Map("fields" -> List("id", "entity_id", "name", "address", "city", "type"))).asInstanceOf[GroupLabelingContext]
+      taskType="er", 
+      data=Map("fields" -> List("id", "entity_id", "name", "address", "city", "type"),
+               "instruction" -> "Decide whether two records in each group refer to the <b>same entity</b>.")).asInstanceOf[GroupLabelingContext]
 
     // Make the request, which returns a future
     val groupId = utils.randomUUID() // random group id for the request.

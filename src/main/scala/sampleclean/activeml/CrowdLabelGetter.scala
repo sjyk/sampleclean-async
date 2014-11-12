@@ -38,14 +38,14 @@ abstract class GroupLabelingContext {
 * @param taskType the type of all the points in the group
 * @param data the group context that is shared among all the points
 */
-case class SentimentGroupLabelingContext(taskType : String, data : Map[Any, Any]) extends GroupLabelingContext
+case class SentimentGroupLabelingContext(taskType : String, data : Map[String, String]) extends GroupLabelingContext
 
 
 /** Group Context subclass for deduplication
   * @param taskType the type of all the points in the group
   * @param data the group context that is shared among all the points
   * */
-case class DeduplicationGroupLabelingContext(taskType : String, data : Map[String, List[String]])
+case class DeduplicationGroupLabelingContext(taskType : String, data : Map[String, Any])
   extends GroupLabelingContext
 
 
