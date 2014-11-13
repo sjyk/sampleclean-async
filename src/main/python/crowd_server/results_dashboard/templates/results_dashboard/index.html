@@ -385,7 +385,8 @@
                 $("<h4>")
                         .css("font-weight", "bold")
                         .css("text-decoration", "underline")
-                        .text(querystring)
+                        .text("SELECT COUNT(*) FROM paper_affiliation WHERE lower(affiliation) LIKE '%berkeley%' OR lower(affiliation) LIKE '%stanford%' GROUP BY affiliation")
+                        //.text(querystring)
                         .appendTo(well_html);
                 var result_div = $("<div>")
                         .addClass("query-result row")
