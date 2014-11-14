@@ -9,12 +9,17 @@ from django.views.decorators.csrf import csrf_exempt
 from basecrowd.interface import CrowdRegistry
 from models import CrowdTask, CrowdWorker
 from interface import INTERNAL_CROWD_INTERFACE as interface
+from static_task_data import render_static_template
 
 @require_POST
 @csrf_exempt
 def fake_submit_endpoint(request):
     # display a cat!
     return render(request, 'internal/cat.html', {})
+
+@require_GET
+def static_demo_walkthrough(request):
+    return render_static_template(request)
 
 @require_GET
 def index(request):

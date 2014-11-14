@@ -1,0 +1,20 @@
+{% extends base_template_name %}
+
+{% block item_data %}
+    <h1 class="text-center">Are these the same institution?</h1>
+    <div class="row text-center">
+        {% for record in point %}
+            <div class="col-xs-6" style="font-size:200%; padding:20px;">{{ record.0|safe }}</div>
+        {% endfor %}
+    </div>
+
+{% endblock %}
+
+{% block item_labels %}
+    <div class="text-center">
+    <button type="button" class="btn btn-lg btn-success" onclick="set_data('{{ id }}', '1.0');">Yes!</button>
+    <button type="button" class="btn btn-lg btn-danger" onclick="set_data('{{ id }}', '0.0');">No!</button>
+    <input type="hidden" id={{id}} name="{{ forloop.counter }}" value="">
+    </div>
+
+{% endblock %}
