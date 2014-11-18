@@ -356,7 +356,16 @@ The following crowds can be used to process tasks with the crowd server:
 Amazon Mechanical Turk (https://www.mturk.com)
 ----------------------------------------------
 - CROWD_NAME: 'amt'
-- special configuration keys: sandbox : true/false  which indicates using sandbox/real amt
+- special configuration keys: 
+    - **Required**:
+        - `sandbox` : true/false  which indicates using sandbox/real amt
+    - **Optional**:
+        - `title` : the title that will show up in AMT's HIT listings.
+        - `descripton` : the description that will show up in AMT's HIT listings.
+        - `reward` : a float containing the number of dollars to pay for each assignment.
+        - `duration` : the expected amount of time a worker should spend on each assignment, in minutes.
+        - `frame_height` : the height of the iframe in which workers will see the assignment.
+ 
 - `assignment_context`: urlencoded key-value pairs that must include the
   following keys:
 

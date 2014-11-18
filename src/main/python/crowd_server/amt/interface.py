@@ -27,8 +27,8 @@ class AMTCrowdInterface(CrowdInterface):
     @staticmethod
     def create_task(configuration, content):
         # Use the boto API to create an AMT HIT
-        additional_options = {'num_responses' : configuration['num_assignments'],
-                              'sandbox' : configuration['amt']['sandbox']}
+        additional_options = {'num_responses' : configuration['num_assignments']}
+        additional_options.update(configuration['amt'])
         return create_hit(additional_options)
 
     @staticmethod
