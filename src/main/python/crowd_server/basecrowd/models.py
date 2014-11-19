@@ -102,6 +102,9 @@ class AbstractCrowdWorkerResponse(models.Model):
     # The content of the response (specific to the task type).
     content = models.TextField()
 
+    # The content of recorded experimental metrics
+    metrics = models.TextField()
+
     # The assignment id of this response
     assignment_id = models.CharField(max_length=200)
 
