@@ -64,6 +64,7 @@
                     // build the user's answers into the right format
                     var answers = build_answer_data();
                     var metrics = build_metric_data();
+                    alert(JSON.stringify(metrics));
                     
                     // get additional context from the URL or page
                     var paramstr = window.location.search.substring(1);
@@ -71,7 +72,8 @@
                     var data = get_submit_context(parampairs);
                     data.answers = JSON.stringify(answers);
                     data.metrics = JSON.stringify(metrics);
-                    
+                    alert(data);
+
                     return data;
                 }
             {% endblock prepare_submit_data_func %}
@@ -118,20 +120,25 @@
                         delay = 10;
                         
                     {% endblock %}
-                                    
-                    {% Register_event_listeners %}
+                    alert("created global variables");               
+                    {% block Register_event_listeners %}
                     
                         // Register a mouseenter event listener for each task divs.
-                        get_task_divs.mouseenter(function(){
+                        get_task_divs().mouseenter(function(){
                             focus = $(this).find(":radio:first").attr("id");
-                        }
-                        
+                            alert(focus);
+                        });
+                        alert("mouseenter listener set up");
                         // Use setInterval to track timing 
                         setInterval(function(){
                             if (focus != "")
-                                time[focus] += delay;
-                            ), delay);
-                    
+                                if (focus in time)
+                                    time[focus] += delay;
+                                else 
+                                    time[focus] = delay;
+                            }, delay);
+                        alert("setInterval");
+
                     {% endblock %}
                     
                 }
@@ -171,6 +178,7 @@
             {% block ready_func %}
                 $(document).ready(function()
                 {
+                    alert("haha");
                     // Make sure to send data to our backend when the user submits
                     $("#submitButton").click(function(event)
                     {
@@ -191,7 +199,7 @@
                     
                     // Prepare metric collection
                     initialize_metric();
-                    
+                    alert("metric preparation finished!");
                 });
             {% endblock ready_func %}
         </script>
