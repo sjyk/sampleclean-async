@@ -19,6 +19,7 @@ source /root/.bash_profile
 workon sampleclean
 
 # Start the crowd server
+service nginx restart
 pushd src/main/python/crowd_server
 ./run.sh $@
 popd

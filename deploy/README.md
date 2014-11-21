@@ -27,6 +27,10 @@ credentials needed for using AWS and EC2:
 
 * A `*.csv` file containing IAM credentials for accessing AWS on your behalf.
 * A `KEYNAME.pem` file containing the EC2 keypair corresponding to `KEYNAME`.
+* (optional) The `sampleclean1_eecs_berkeley_edu_chained.cer` file containing
+  the chained sampleclean*.eecs.berkeley.edu ssl certificates.
+* (optional) The `sampleclean1.eecs.berkeley.edu-san.key` file containing the
+  private key for the ssl certificate.
 
 For help with `SPARK-EC2-ARGs`, run `./sampleclean-ec2 --help`.
 
@@ -64,7 +68,7 @@ To actually get code running on a cluster you've launched, you'll need to:
   server and run the SCDriver program:
   ```shell
   cd /root/sampleclean-async
-  ./run-all-ec2.sh  # pass `-s` to run the crowd server on ssl.
+  ./run-all-ec2.sh
   ```
 
 * Or to have more control (or to run things in debug mode):
