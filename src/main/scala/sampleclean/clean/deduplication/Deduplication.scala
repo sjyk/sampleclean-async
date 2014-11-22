@@ -15,6 +15,8 @@ import sampleclean.activeml.DeduplicationGroupLabelingContext
 import sampleclean.activeml.DeduplicationPointLabelingContext
 import org.apache.spark.mllib.regression.LabeledPoint
 
+import org.apache.spark.graphx._
+
 
 /**
  * This class is used to execute a deduplication algorithm on a data set.
@@ -95,7 +97,7 @@ class RecordDeduplication(params:AlgorithmParameters, scc: SampleCleanContext)
  * @param attr a specific attribute value
  * @param count the count of the attribute in the data set.
  */
-case class AttrDedup(attr: String, count: Int)
+case class AttrDedup(attr: String, primaryKey:Long)
 
 /**
  * This class is used to execute a deduplication algorithm on a data set.
@@ -124,9 +126,10 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
         return x
     }
 
-
   var graph:Map[Row, Set[Row]] = Map[Row, Set[Row]]()
 
+  //graph with the following vertex properties (String, (Set of Id's which have the string))
+  var graphXGraph:Graph[(String, Set[String]), Double] = null
 
   /**
    * Executes the main deduplication function. If a crowdsourcing
@@ -147,15 +150,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
     val sqlContext = new SQLContext(scc.getSparkContext())
     import sqlContext._
 
-    /*// Get distinct attr values and their counts
-    val attrDedup: SchemaRDD = sampleTableRDD.map(row =>
-      (scc.getColAsString(row, sampleTableName, attr).trim, 1)).filter(_._1 != "")
-      .reduceByKey(_ + _)
-      .map(x => AttrDedup(x._1, x._2)).cache()*/
-
-    //attrDedup.foreach(row => println(row.getString(0)+" "+row.getString(1)))
-
-    val schema = List("attr", "count")
+    val schema = List("attr", "idSet")
     val colMapper = (colNames: List[String]) => colNames.map(schema.indexOf(_))
 
     val similarityParameters = params.get("similarityParameters").asInstanceOf[SimilarityParameters]
@@ -169,18 +164,43 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
     for(iter <- 0 until iterations) {
 
     val sc = scc.getSparkContext()
-    val attrCountRdd = sampleTableRDD.map(x => 
-                                          (x(attrCol).asInstanceOf[String],1)).
-                                          reduceByKey(_ + _).
-                                          map(x => AttrDedup(x._1, x._2))
+    val attrCountGroup = sampleTableRDD.map(x => 
+                                          (x(attrCol).asInstanceOf[String],
+                                           x(hashCol).asInstanceOf[String])).
+                                          groupByKey()
 
+
+    val attrCountRdd  = attrCountGroup.map(x =>
+                                              AttrDedup(x._1, 
+                                              x._1.hashCode())) 
+
+    //attrCountRdd.collect.foreach(println)
+    //graphXGraph = Graph()
+
+    
     // Attribute pairs that are similar
     
     var candidatePairs = BlockingStrategy(List("attr"))
       .setSimilarityParameters(similarityParameters)
       .blocking(sc, attrCountRdd, colMapper)
       //.coarseBlocking(sc, attrCountRdd , 0).collect()
+      //
+    
+    //candidatePairs.collect().foreach(println)  
+    
+    val vertexRDD = attrCountGroup.map(x => (x._1.hashCode().toLong,
+                               (x._1, x._2.toSet))
+                          )
 
+    val edgeRDD = candidatePairs.map( x => Edge(x._1(1).asInstanceOf[Long], 
+                                      x._2(1).asInstanceOf[Long], 1.0) )
+
+    //vertex (Long, (String, Set of records with that string)
+    //edge (Long, Long, 1.0) I added a weight in case we want to use it in the future
+
+    graphXGraph = Graph(vertexRDD, edgeRDD)
+
+    /*//assert(false)  
 
     /* Use crowd to refine candidate pairs*/
     if (params.exist("crowdsourcingStrategy") && candidatePairs.count() != 0){
@@ -259,7 +279,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
                               hashCol, 
                               attrCol)
     
-      }
+      }*/
     }
   }
 
