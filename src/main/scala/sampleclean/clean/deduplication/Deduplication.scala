@@ -124,7 +124,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
     val sqlContext = new SQLContext(scc.getSparkContext())
     import sqlContext._
 
-    val schema = List("attr", "idSet")
+    val schema = List("attr", "count")
     val colMapper = (colNames: List[String]) => colNames.map(schema.indexOf(_))
 
     val similarityParameters = params.get("similarityParameters").asInstanceOf[SimilarityParameters]
