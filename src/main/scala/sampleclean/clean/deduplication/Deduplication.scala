@@ -197,19 +197,10 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
     //edge (Long, Long, 1.0) I added a weight in case we want to use it in the future
     graphXGraph = GraphXInterface.buildGraph(vertexRDD, edgeRDD)
 
-    onReceiveCandidatePairs(candidatePairs,
-      sampleTableRDD,
-      sampleTableName,
-      attr,
-      mergeStrategy,
-      hashCol,
-      attrCol)
-    /*//assert(false)  
-
     /* Use crowd to refine candidate pairs*/
     if (params.exist("crowdsourcingStrategy") && candidatePairs.count() != 0){
       
-      var candidatePairsArray = candidatePairs.collect().sortBy(pair => -math.min(pair._1.getInt(1), pair._2.getInt(1)))
+      var candidatePairsArray = candidatePairs.collect().sortBy(pair => -math.min(pair._1.getLong(1), pair._2.getLong(1)))
 
       println("[SampleClean] Publish %d pairs to AMT".format(candidatePairsArray.size))
       val crowdsourcingStrategy = params.get("crowdsourcingStrategy").asInstanceOf[CrowdsourcingStrategy]
@@ -226,8 +217,8 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
 
       // Construct the point labeling context with a unique id for each point
       val crowdData: Seq[(String, PointLabelingContext)] = candidatePairsWithId.map { case (id, (row1, row2)) =>
-        val entity1Data = List(row1.getString(0), row1.getInt(1))
-        val entity2Data = List(row2.getString(0), row2.getInt(1))
+        val entity1Data = List(row1.getString(0), row1.getLong(1))
+        val entity2Data = List(row2.getString(0), row2.getLong(1))
         val context = DeduplicationPointLabelingContext(content=List(entity1Data, entity2Data)).asInstanceOf[PointLabelingContext]
         (id, context)
       }
@@ -283,7 +274,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
                               hashCol, 
                               attrCol)
     
-      }*/
+      }
     }
   }
 
@@ -307,9 +298,10 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
 
     // Run the connected components algorithm
     def merge_vertices(v1: (String, Set[String]), v2: (String, Set[String])): (String, Set[String]) = {
-      val winner:String = mergeStrategy match {
+      val winner:String = mergeStrategy.toLowerCase.trim match {
         case "mostconcise" => if (v1._1.length < v2._1.length) v1._1 else v2._1
         case "mostfrequent" => if (v1._2.size > v2._2.size) v1._1 else v2._1
+        case None => throw new RuntimeException("Invalid merge strategy: " + mergeStrategy)
       }
       (winner, v1._2 ++ v2._2)
     }
