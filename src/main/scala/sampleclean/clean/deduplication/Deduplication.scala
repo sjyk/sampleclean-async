@@ -93,13 +93,6 @@ class RecordDeduplication(params:AlgorithmParameters, scc: SampleCleanContext)
 }
 
 /**
- * This class is used to create a valid attribute count (i.e. it's a helper class)
- * @param attr a specific attribute value
- * @param count the count of the attribute in the data set.
- */
-case class AttrDedup(attr: String, count:Long)
-
-/**
  * This class is used to execute a deduplication algorithm on a data set.
  * The algorithm finds names of a specified attribute that are similar
  * and performs deduplication on the SampleClean context accordingly.
@@ -151,9 +144,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
                                           groupByKey()
 
 
-    val attrCountRdd  = attrCountGroup.map(x =>
-                                              AttrDedup(x._1, 
-                                              x._2.size)).asInstanceOf[RDD[Row]]
+    val attrCountRdd  = attrCountGroup.map(x => Row(x._1, x._2.size.toLong))
 
     
     // Attribute pairs that are similar
@@ -269,8 +260,8 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
       (x(hashCol).asInstanceOf[String], x(attrCol).asInstanceOf[String]))
 
     // Add new edges to the graph
-    val edges = candidatePairs.map( x => (x._1(0).asInstanceOf[String].hashCode,
-      x._2(0).asInstanceOf[String].hashCode, 1.0) )
+    val edges = candidatePairs.map( x => (x._1(0).asInstanceOf[String].hashCode.toLong,
+      x._2(0).asInstanceOf[String].hashCode.toLong, 1.0) )
     graphXGraph = GraphXInterface.addEdges(graphXGraph, scc.getSparkContext().parallelize(edges))
 
     // Run the connected components algorithm
@@ -278,7 +269,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
       val winner:String = mergeStrategy.toLowerCase.trim match {
         case "mostconcise" => if (v1._1.length < v2._1.length) v1._1 else v2._1
         case "mostfrequent" => if (v1._2.size > v2._2.size) v1._1 else v2._1
-        case None => throw new RuntimeException("Invalid merge strategy: " + mergeStrategy)
+        case _ => throw new RuntimeException("Invalid merge strategy: " + mergeStrategy)
       }
       (winner, v1._2 ++ v2._2)
     }
