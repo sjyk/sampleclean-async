@@ -97,7 +97,7 @@ class RecordDeduplication(params:AlgorithmParameters, scc: SampleCleanContext)
  * @param attr a specific attribute value
  * @param count the count of the attribute in the data set.
  */
-case class AttrDedup(attr: String, primaryKey:Long)
+case class AttrDedup(attr: String, count:Long)
 
 /**
  * This class is used to execute a deduplication algorithm on a data set.
@@ -113,7 +113,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
    * Tests whether two strings are equal and returns specified value if true.
    * @param x first string.
    * @param test second string.
-   * @param out is returned if strings are equal.
+   * @return out is returned if strings are equal.
    */
   def replaceIfEqual(x:String, test:Map[String,String]): String ={
       
@@ -172,7 +172,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
 
     val attrCountRdd  = attrCountGroup.map(x =>
                                               AttrDedup(x._1, 
-                                              x._1.hashCode())) 
+                                              x._2.size)).asInstanceOf[RDD[Row]]
 
     //attrCountRdd.collect.foreach(println)
     //graphXGraph = Graph()
@@ -292,8 +292,8 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
       (x(hashCol).asInstanceOf[String], x(attrCol).asInstanceOf[String]))
 
     // Add new edges to the graph
-    val edges = candidatePairs.map( x => (x._1(1).asInstanceOf[Long],
-      x._2(1).asInstanceOf[Long], 1.0) )
+    val edges = candidatePairs.map( x => (x._1(0).asInstanceOf[String].hashCode,
+      x._2(0).asInstanceOf[String].hashCode, 1.0) )
     graphXGraph = GraphXInterface.addEdges(graphXGraph, scc.getSparkContext().parallelize(edges))
 
     // Run the connected components algorithm
