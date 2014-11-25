@@ -109,25 +109,6 @@ case class AttrDedup(attr: String, count:Long)
 class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext)
   extends SampleCleanDeduplicationAlgorithm(params,scc) {
 
-  /**
-   * Tests whether two strings are equal and returns specified value if true.
-   * @param x first string.
-   * @param test second string.
-   * @return out is returned if strings are equal.
-   */
-  def replaceIfEqual(x:String, test:Map[String,String]): String ={
-      
-      if(x == null)
-        return x
-
-      if(test.contains(x.trim().toLowerCase()))
-        return test(x.trim().toLowerCase())
-      else
-        return x
-    }
-
-  var graph:Map[Row, Set[Row]] = Map[Row, Set[Row]]()
-
   //graph with the following vertex properties (String, (Set of Id's which have the string))
   var graphXGraph:Graph[(String, Set[String]), Double] = null
 
@@ -174,9 +155,6 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
                                               AttrDedup(x._1, 
                                               x._2.size)).asInstanceOf[RDD[Row]]
 
-    //attrCountRdd.collect.foreach(println)
-    //graphXGraph = Graph()
-
     
     // Attribute pairs that are similar
     
@@ -189,12 +167,11 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
     //candidatePairs.collect().foreach(println)  
 
     // Initialize the graph (no edges yet)
+    // Vertices are of the form (Long vertexId, (String attrValue, Set of record Ids with that string)
+    // Edges are of the form (Long srcVertexId, Long dstVertexId, Double weight)
     val vertexRDD = attrCountGroup.map(x => (x._1.hashCode().toLong,
                                (x._1, x._2.toSet)))
     val edgeRDD: RDD[(Long, Long, Double)] = sc.parallelize(List())
-
-    //vertex (Long, (String, Set of records with that string)
-    //edge (Long, Long, 1.0) I added a weight in case we want to use it in the future
     graphXGraph = GraphXInterface.buildGraph(vertexRDD, edgeRDD)
 
     /* Use crowd to refine candidate pairs*/
@@ -342,101 +319,7 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
                               mergeStrategy, 
                               hashCol, 
                               attrCol)
- }  
-
-  /**
-   *
-   * @param vertex
-   * @param edgeTo
-   */
-  def addToGraphUndirected(vertex:Row, edgeTo:Row) ={
-
-    if(graph contains vertex){
-      graph = graph + (vertex -> (graph(vertex) + edgeTo))
-    }
-    else{
-      graph = graph + (vertex -> Set(edgeTo))
-    }
-
-    if(graph contains edgeTo){
-      graph = graph + (edgeTo -> (graph(edgeTo) + vertex))
-    }
-    else{
-      graph = graph + (edgeTo -> Set(vertex))
-    }
-
-  }
-
-  /**
-   *
-   * @param vertex
-   * @param traverseSet
-   * @return
-   */
-  def dfs(vertex:Row, traverseSet:Set[Row]=Set[Row]()):Set[Row]={
-    if(! (graph contains vertex))
-      return Set()
-
-    var resultSet = Set(vertex)
-    for(neighbor <- graph(vertex)){
-       if(! (traverseSet contains neighbor))
-         resultSet = resultSet ++ (dfs(neighbor, traverseSet ++ graph(vertex)) + vertex)
-    }
-
-    return resultSet
-  }
-
-  /**
-   *
-   * @param comps
-   * @return
-   */
-  def connectedComponentsToExecOrder(comps: Set[Set[Row]], mergeStrategy:String): Map[String, String] ={
-    
-    def mfCompOperator(row1:Row, row2:Row) = (row1.getInt(1) < row2.getInt(1))
-    def mcCompOperator(row1:Row, row2:Row) = (row1.getString(0).length > row2.getString(0).length)
-
-    var resultList = List[(String, String)]()
-    for(comp <- comps){
-
-      var sortedList = comp.toList
-
-      if(mergeStrategy.toLowerCase.equals("mostconcise"))
-          sortedList = comp.toList.sortWith(mcCompOperator)
-      else if (mergeStrategy.toLowerCase.equals("mostfrequent"))
-          sortedList = comp.toList.sortWith(mfCompOperator)
-
-      for(i <- 0 until (sortedList.length - 1) )
-        resultList = (sortedList(i).getString(0).trim().toLowerCase(),sortedList(sortedList.length - 1).getString(0))  :: resultList 
-
-    }
-
-    return resultList.toMap
-
-  }
-
-  /**
-   *
-   * @return
-   */
-  def connectedComponents():Set[Set[Row]] = {
-     var resultSet = Set[Set[Row]]()
-     var closedSet = Set[Row]()
-
-     for(v <- graph.keySet){
-        
-        if (!closedSet.contains(v)){
-          println("Processing " + v)
-          val dfsResult = dfs(v)
-          resultSet = resultSet + dfsResult
-          closedSet = closedSet ++ dfsResult
-
-        }
-
-     }
-
-     return resultSet
-  }
+ }
 
   def defer(sampleTableName:String):RDD[(String,Int)] = {
     return null
