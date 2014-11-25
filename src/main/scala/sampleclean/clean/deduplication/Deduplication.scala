@@ -187,19 +187,23 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
       //
     
     //candidatePairs.collect().foreach(println)  
-    
-    val vertexRDD = attrCountGroup.map(x => (x._1.hashCode().toLong,
-                               (x._1, x._2.toSet))
-                          )
 
-    val edgeRDD = candidatePairs.map( x => Edge(x._1(1).asInstanceOf[Long], 
-                                      x._2(1).asInstanceOf[Long], 1.0) )
+    // Initialize the graph (no edges yet)
+    val vertexRDD = attrCountGroup.map(x => (x._1.hashCode().toLong,
+                               (x._1, x._2.toSet)))
+    val edgeRDD: RDD[(Long, Long, Double)] = sc.parallelize(List())
 
     //vertex (Long, (String, Set of records with that string)
     //edge (Long, Long, 1.0) I added a weight in case we want to use it in the future
+    graphXGraph = GraphXInterface.buildGraph(vertexRDD, edgeRDD)
 
-    graphXGraph = Graph(vertexRDD, edgeRDD)
-
+    onReceiveCandidatePairs(candidatePairs,
+      sampleTableRDD,
+      sampleTableName,
+      attr,
+      mergeStrategy,
+      hashCol,
+      attrCol)
     /*//assert(false)  
 
     /* Use crowd to refine candidate pairs*/
@@ -293,25 +297,43 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
 
       println("[SampleClean] Crowd identified %d dup pairs".format(candidatePairs.size))
 
-      candidatePairs.foreach{x=>
-        println("[SampleClean] \"%s (%d)\" = \"%s (%d)\"".format(x._1.getString(0), x._1.getInt(1), x._2.getString(0), x._2.getInt(1)))
+    var resultRDD = sampleTableRDD.map(x =>
+      (x(hashCol).asInstanceOf[String], x(attrCol).asInstanceOf[String]))
+
+    // Add new edges to the graph
+    val edges = candidatePairs.map( x => (x._1(1).asInstanceOf[Long],
+      x._2(1).asInstanceOf[Long], 1.0) )
+    graphXGraph = GraphXInterface.addEdges(graphXGraph, scc.getSparkContext().parallelize(edges))
+
+    // Run the connected components algorithm
+    def merge_vertices(v1: (String, Set[String]), v2: (String, Set[String])): (String, Set[String]) = {
+      val winner:String = mergeStrategy match {
+        case "mostconcise" => if (v1._1.length < v2._1.length) v1._1 else v2._1
+        case "mostfrequent" => if (v1._2.size > v2._2.size) v1._1 else v2._1
       }
+      (winner, v1._2 ++ v2._2)
+    }
+    val connectedPairs = GraphXInterface.connectedComponents(graphXGraph, merge_vertices)
+    println("[Sampleclean] Merging values from "
+      + connectedPairs.map(v => (v._2, 1)).reduceByKey(_ + _).filter(x => x._2 > 1).count
+      + " components...")
 
-      var resultRDD = sampleTableRDD.map(x =>
-        (x(hashCol).asInstanceOf[String], x(attrCol).asInstanceOf[String]))
-
-      for(pair <- candidatePairs){
-        println("Added " + pair)
-        addToGraphUndirected(pair._1, pair._2)
+    // Join with the old data to merge in new values.
+    val flatPairs = connectedPairs.flatMap(vertex => vertex._2._2.map((_, vertex._2._1)))
+    val newAttrs = flatPairs.asInstanceOf[RDD[(String, String)]].reduceByKey((x, y) => x)
+    val joined = resultRDD.leftOuterJoin(newAttrs).mapValues(tuple => {
+      tuple._2 match {
+        case Some(newAttr) => {
+          if (tuple._1 != newAttr) println(tuple._1 + " => " + newAttr)
+          newAttr
+        }
+        case None => tuple._1
       }
+    })
 
-      println("Graph: " + graph)
-
-      val connectedPairs = connectedComponentsToExecOrder(connectedComponents(), mergeStrategy)
-      resultRDD = resultRDD.map(x => (x._1, replaceIfEqual(x._2, connectedPairs)))
-      scc.updateTableAttrValue(sampleTableName, attr, resultRDD)
-      this.onUpdateNotify()
- }  
+    scc.updateTableAttrValue(sampleTableName, attr, joined)
+    this.onUpdateNotify()
+  }
 
  def onReceiveCandidatePairs(candidatePairs: RDD[(Row, Row)], 
                               sampleTableRDD:RDD[Row], 
