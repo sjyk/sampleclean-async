@@ -94,7 +94,7 @@ class SampleCleanQuery(scc:SampleCleanContext,
       		.url(url_scheme + "://" +vizServer +"/dashboard/results/")
       		.addHeader("Charset", "UTF-8")
       		.addFormElement(("querystring", querystring))
-      		.addFormElement(("result_col_name", "Publication Count"))
+      		.addFormElement(("result_col_name", "Query Result"))
       		.addFormElement(("query_id", querystring.hashCode()+""))
       		.addFormElement(("pipeline_id", "1"))
       		.addFormElement(("grouped", "true"))
