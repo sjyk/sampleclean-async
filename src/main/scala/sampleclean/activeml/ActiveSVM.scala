@@ -6,6 +6,7 @@ import org.apache.spark.mllib.classification.{SVMModel, SVMWithSGD}
 import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
+import sampleclean.crowd.{CrowdLabelGetterParameters, GroupLabelingContext, PointLabelingContext}
 
 /**
  * Parameters to train the SVMWithSGD model

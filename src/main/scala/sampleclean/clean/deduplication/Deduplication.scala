@@ -11,11 +11,11 @@ import sampleclean.clean.algorithm.AlgorithmParameters
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SchemaRDD, Row}
 import sampleclean.activeml._
-import sampleclean.activeml.DeduplicationGroupLabelingContext
-import sampleclean.activeml.DeduplicationPointLabelingContext
 import org.apache.spark.mllib.regression.LabeledPoint
 
 import org.apache.spark.graphx._
+import sampleclean.crowd._
+import sampleclean.crowd.context.{DeduplicationPointLabelingContext, DeduplicationGroupLabelingContext}
 
 
 /**

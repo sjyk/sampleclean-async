@@ -1,5 +1,4 @@
-package sampleclean.activeml
-
+package sampleclean.crowd
 
 import java.net.InetSocketAddress
 import java.util.concurrent.ConcurrentHashMap
@@ -8,7 +7,7 @@ import com.twitter.finagle.Service
 import com.twitter.finagle.builder.{ClientBuilder, Server, ServerBuilder}
 import com.twitter.finagle.http._
 import com.twitter.finagle.http.service.RoutingService
-import com.twitter.util.{Future => TFuture, Await}
+import com.twitter.util.{Await, Future => TFuture}
 import org.jboss.netty.handler.codec.http.{HttpRequest, HttpResponse, HttpResponseStatus}
 import org.json4s.JsonDSL._
 import org.json4s._

@@ -8,7 +8,9 @@ import org.apache.spark.sql.{SchemaRDD, Row}
 
 import sampleclean.api.SampleCleanContext;
 import sampleclean.api.SampleCleanAQP;
-import sampleclean.api.SampleCleanQuery;
+import sampleclean.api.SampleCleanQuery
+import sampleclean.crowd.CrowdLabelGetterParameters
+;
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global

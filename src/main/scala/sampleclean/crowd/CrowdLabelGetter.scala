@@ -1,8 +1,9 @@
-package sampleclean.activeml
+package sampleclean.crowd
 
 import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
+import sampleclean.activeml.{LabelGetter, utils}
 
 import scala.concurrent._
 import scala.concurrent.duration.Duration
@@ -15,39 +16,12 @@ abstract class PointLabelingContext {
   def content : Object
 }
 
-/**
-  * Parameters for labeling a single tweet
-  * @param content the text of the tweet.
-  */
-case class SentimentPointLabelingContext(content : String) extends PointLabelingContext
-
-/**
- * Parameters for labeling a entity resolution task
- * @param content a list of two lists, which contains the corresponding values of each record
- */
-case class DeduplicationPointLabelingContext(content : List[List[Any]]) extends PointLabelingContext
-
 
 /** An abstract class used to represent the group labeling contexts */
 abstract class GroupLabelingContext {
   def taskType : String
   def data : Object
 }
-
-/**  Group Context subclass for sentiment analysis, the data should be an empty map
-* @param taskType the type of all the points in the group
-* @param data the group context that is shared among all the points
-*/
-case class SentimentGroupLabelingContext(taskType : String, data : Map[String, String]) extends GroupLabelingContext
-
-
-/** Group Context subclass for deduplication
-  * @param taskType the type of all the points in the group
-  * @param data the group context that is shared among all the points
-  * */
-case class DeduplicationGroupLabelingContext(taskType : String, data : Map[String, Any])
-  extends GroupLabelingContext
-
 
 /**
   * Parameters for the crowd label getter.

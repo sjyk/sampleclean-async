@@ -1,13 +1,10 @@
-package sampleclean.activeml
+package sampleclean.crowd
 
 /* SimpleApp.scala */
 
-import org.apache.spark.mllib.classification.{SVMModel, SVMWithSGD}
-import org.apache.spark.mllib.linalg.Vectors
-import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.SparkContext._
+import sampleclean.activeml._
+import sampleclean.crowd.context.{DeduplicationPointLabelingContext, DeduplicationGroupLabelingContext}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration

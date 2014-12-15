@@ -1,6 +1,7 @@
 package sampleclean.clean.deduplication
 
 import sampleclean.activeml._
+import sampleclean.crowd._
 import scala.util.{Failure, Success}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
