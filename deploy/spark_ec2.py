@@ -41,6 +41,12 @@ from boto import ec2
 # A URL prefix from which to fetch AMI information
 AMI_PREFIX = "https://raw.github.com/mesos/spark-ec2/v2/ami-list"
 
+# A list of sampleclean registered domains and AWS Elastic IPs
+ip_to_domain = {
+    '23.23.183.119': 'sampleclean1.eecs.berkeley.edu',
+    '23.23.176.121': 'sampleclean2.eecs.berkeley.edu',
+    '23.23.183.60': 'sampleclean3.eecs.berkeley.edu',
+}
 
 class UsageError(Exception):
     pass
@@ -141,7 +147,12 @@ def parse_args():
     parser.add_option(
         "--user-data", type="string", default="",
         help="Path to a user-data file (most AMI's interpret this as an initialization script)")
-
+    parser.add_option(
+        "--ssl-cert-file", type="string", default="",
+        help="Path to the chained ssl certificate for setting up HTTPS")
+    parser.add_option(
+        "--ssl-key-file", type="string", default="",
+        help="Path to the ssl key file for setting up HTTPS")
 
     (opts, args) = parser.parse_args()
     if len(args) != 2:
@@ -269,6 +280,47 @@ def get_spark_ami(opts):
 
     return ami
 
+# Associate the master node with an elastic IP (and domain name) for ssl support
+def assign_elastic_ip(conn, master_nodes):
+    if len(master_nodes) != 1:
+        print >> stderr, "More than one master: not assigning EIP!"
+        raise ValueError()
+
+    all_addresses = conn.get_all_addresses()
+    eip = None
+    for address in all_addresses:
+        if not address.instance_id:
+            eip = address
+            break
+
+    if not eip:
+        print >> stderr, "No available EIPs: not assigning!"
+        raise ValueError()
+
+    public_ip = eip.public_ip
+    domain = ip_to_domain[public_ip]
+    print "Associating master with IP address %s (%s)..." % (public_ip, domain)
+    conn.associate_address(instance_id=master_nodes[0].id, public_ip=public_ip)
+    master_nodes[0].public_dns_name = ("ec2-%s.compute-1.amazonaws.com"
+                                       % public_ip.replace('.', '-'))
+
+    # TODO: add domain to variable templates so node can figure out domain name
+    return (public_ip, domain)
+
+def deploy_ssl_cert(opts, master_nodes):
+    if os.path.exists(opts.ssl_cert_file) and os.path.exists(opts.ssl_key_file):
+        print "SSL credentials found: deploying to master..."
+
+        # rsync the cert and key files
+        master_loc = '%s@%s:' % (opts.user, master_nodes[0].public_dns_name)
+        file_dest = master_loc + '/root/spark-ec2/sampleclean/'
+        base_command = [
+            'rsync', '-v', '-e', stringify_command(ssh_command(opts)),
+        ]
+        subprocess.check_call(base_command + [opts.ssl_cert_file, file_dest])
+        subprocess.check_call(base_command + [opts.ssl_key_file, file_dest])
+    else:
+        print >> stderr, "No SSL credentials found: not deploying..."
 
 # Launch a cluster of the given name, by setting up its security groups,
 # and then starting new instances in them.
@@ -306,6 +358,8 @@ def launch_cluster(conn, opts, cluster_name):
 
         # sampleclean crowd server
         master_group.authorize('tcp', 8000, 8000, '0.0.0.0/0')
+        master_group.authorize('tcp', 443, 443, '0.0.0.0/0')
+        master_group.authorize('tcp', 80, 80, '0.0.0.0/0')
 
         # sampleclean web server
         master_group.authorize('tcp', 8082, 8082, '0.0.0.0/0')
@@ -513,7 +567,12 @@ def get_existing_cluster(conn, opts, cluster_name, die_on_error=True):
 # Deploy configuration files and run setup scripts on a newly launched
 # or started EC2 cluster.
 def setup_cluster(conn, master_nodes, slave_nodes, opts, deploy_ssh_key):
+    try:
+        master_ip, master_domain = assign_elastic_ip(conn, master_nodes)
+    except ValueError: # no available domain, just use the default
+        master_ip = master_domain = None
     master = master_nodes[0].public_dns_name
+
     if deploy_ssh_key:
         print "Generating cluster's SSH key on master..."
         key_setup = """
@@ -543,6 +602,7 @@ def setup_cluster(conn, master_nodes, slave_nodes, opts, deploy_ssh_key):
 
     print "Deploying files to master..."
     deploy_files(conn, "deploy.generic", opts, master_nodes, slave_nodes, modules)
+    deploy_ssl_cert(opts, master_nodes)
 
     print "Running setup on master..."
     setup_spark_cluster(master, opts)
@@ -710,7 +770,7 @@ def stringify_command(parts):
 
 
 def ssh_args(opts):
-    parts = ['-o', 'StrictHostKeyChecking=no']
+    parts = ['-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null']
     if opts.identity_file is not None:
         parts += ['-i', opts.identity_file]
     return parts
@@ -898,7 +958,12 @@ def real_main():
 
     elif action == "get-master":
         (master_nodes, slave_nodes) = get_existing_cluster(conn, opts, cluster_name)
-        print master_nodes[0].public_dns_name
+        master = master_nodes[0]
+        print master.public_dns_name or "No assigned IP"
+        if master.ip_address in ip_to_domain:
+            print "(" + ip_to_domain[master.ip_address] + ")"
+        else:
+            print "(No associated domain)"
 
     elif action == "stop":
         response = raw_input(

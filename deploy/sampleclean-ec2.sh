@@ -12,4 +12,4 @@ then
 else
     args=${@:1}
 fi
-./spark-ec2 -i $AWS_EC2_KEY_FILE -k $AWS_EC2_KEY_NAME $args
+./spark-ec2 -i $AWS_EC2_KEY_FILE -k $AWS_EC2_KEY_NAME --ssl-cert-file $SSL_CERT_FILE --ssl-key-file $SSL_KEY_FILE $args

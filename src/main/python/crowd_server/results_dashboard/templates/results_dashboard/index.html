@@ -18,17 +18,19 @@
             CHART_DATA = {};
             CHARTS = {};
             TOP_K_GROUPS = {};
-            NUM_GROUPS_FOR_CHART = 10;
+            QUERY_START = {};
+            NUM_GROUPS_FOR_CHART = 2;
             function update_chart_data(results, query_id, is_grouped){
                 // Initialize the chart data if this is a new chart.
                 var chart_div = $("#" + query_id + "-chart");
                 var result_data = results.results;
+                var posted_at = new Date(results.posted_at);
                 var value_col_name = results.result_col_name;
                 if (CHART_DATA[query_id] == undefined) {
                     var chart = new google.visualization.LineChart(chart_div[0]);
                     var chart_data = new google.visualization.DataTable();
                     var top_groups = {};
-                    chart_data.addColumn('number', 'Time');
+                    chart_data.addColumn('number', 'Data Cleaning Progress (seconds)');
                     top_groups[0] = 0;
 
                     if (is_grouped) {
@@ -46,7 +48,7 @@
 
                 // Build data for the new row, and record the top k columns for display.
                 var row = [];
-                row[0] = TIME_STAMP;
+                row[0] = (posted_at - QUERY_START[query_id]) / 1000;
                 var view_indices = [];
                 if (is_grouped) {
                     var top_k_column_labels = [];
@@ -172,11 +174,12 @@
                         height: "88%",
                         top: "2%"
                     },
+                    colors: COLORS,
                     backgroundColor: "#F5F5F5",
                     fontSize: "25px",
                     hAxis: {
                         textPosition: "none",
-                        title: "Time",
+                        title: "Data Cleaning Progress (seconds)",
                         titleTextStyle: {
                             fontSize: 20,
                             bold: true,
@@ -191,14 +194,16 @@
                         position: "none",
                         maxLines: 1
                     },
-                    pointSize: 5 / Math.pow(chart_data.getNumberOfRows(), 0.5),
+                    lineWidth: 4,
+                    pointSize: 10 / Math.pow(chart_data.getNumberOfRows(), 0.1),
                     vAxis: {
                         title: value_col_name,
                         titleTextStyle: {
                             fontSize: 20,
                             bold: true,
                             italic: true
-                        }
+                        },
+                        minValue: 5000
                     }
                 };
                 chart.draw(data_view, chart_options);
@@ -208,18 +213,23 @@
 
         {% block draw_table %}
             NUM_GROUPS_FOR_TABLE = 10;
+            COLORS = [
+                "red",
+                "blue",
+                "orange",
+                "green",
+                "purple",
+                "black",
+                "yellow",
+                "gray",
+                "#e2431e",
+                "#e7711b"
+            ];
             COLOR_MAP = {
-                1: "blue",
-                2: "red",
-                3: "orange",
-                4: "green",
-                5: "purple",
-                6: "black",
-                7: "yellow",
-                8: "gray",
-                9: "#e2431e",
-                10: "#e7711b"
             };
+            for (var i = 0; i < COLORS.length; i++) {
+                COLOR_MAP[i+1] = COLORS[i];
+            }
             function draw_table(results, query_id, is_grouped){
                 var table_div = $("#" + query_id + "-table");
                 var result_data = results.results;
@@ -229,7 +239,7 @@
                 var table_header = $("<thead>").appendTo(table);
                 $("<tr>")
                         .append($("<th>"))
-                        .append($("<th>").text("Group"))
+                        .append($("<th>").text("Affiliation"))
                         .append($("<th>").text(results.result_col_name))
                         .appendTo(table_header);
                 var table_body = $("<tbody>").appendTo(table);
@@ -296,9 +306,7 @@
         {% endblock %}
 
         {% block poll_func %}
-            TIME_STAMP = -1;
             function poll_for_results() {
-                TIME_STAMP++;
                 if (!POLLING) return;
                 var query_ids = $(".query-result").map(function() { return this.id; }).get();
                 get_queries(query_ids);
@@ -312,6 +320,7 @@
                 var data = {seen: JSON.stringify(query_ids)};
                 $.get(url, data, function(data) {
                     data.forEach(function(el) {
+                        QUERY_START[el.query_id] = new Date(el.registered_at);
                         build_query_panel(el.query_id, el.querystring);
                         get_results(el.query_id);
                     })
@@ -401,6 +410,7 @@
                     delete CHARTS[query_id];
                     delete TOP_K_GROUPS[query_id];
                     delete LAST_POLL[query_id];
+                    delete QUERY_START[query_id];
                 });
             }
         {% endblock delete_query_func %}
@@ -457,10 +467,11 @@
 <div class="container" style="width:95%">
     <div class="row task-container">
         {% block page_header %}
+            <!--
             <div class="jumbotron">
                 <h1>SampleClean Dashboard</h1>
                 <p>Monitor query results as the underlying data is cleaned.</p>
-            </div>
+            </div>-->
         {% endblock page_header %}
     </div>
     <div class="row">

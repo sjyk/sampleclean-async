@@ -52,5 +52,9 @@ key_file=`ls $credentials_dir/*.pem`
 export AWS_EC2_KEY_NAME=$(basename "$key_file" .pem)
 export AWS_EC2_KEY_FILE=$key_file
 
+# file paths for ssl certificates (these may not exist)
+export SSL_CERT_FILE="$credentials_dir/sampleclean1_eecs_berkeley_edu_chained.cer"
+export SSL_KEY_FILE="$credentials_dir/sampleclean1.eecs.berkeley.edu-san.key"
+
 # return whether the credentials directory was in the argument list.
 return $ret

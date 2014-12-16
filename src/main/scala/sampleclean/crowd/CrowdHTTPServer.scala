@@ -1,5 +1,4 @@
-package sampleclean.activeml
-
+package sampleclean.crowd
 
 import java.net.InetSocketAddress
 import java.util.concurrent.ConcurrentHashMap
@@ -8,7 +7,7 @@ import com.twitter.finagle.Service
 import com.twitter.finagle.builder.{ClientBuilder, Server, ServerBuilder}
 import com.twitter.finagle.http._
 import com.twitter.finagle.http.service.RoutingService
-import com.twitter.util.{Future => TFuture, Await}
+import com.twitter.util.{Await, Future => TFuture}
 import org.jboss.netty.handler.codec.http.{HttpRequest, HttpResponse, HttpResponseStatus}
 import org.json4s.JsonDSL._
 import org.json4s._
@@ -101,11 +100,13 @@ object CrowdHTTPServer {
     implicit val formats = Serialization.formats(NoTypeHints)
     val pointsJSON = (points map {point => point._1 -> parse(swrite(point._2.content))}).toMap
     val groupContextJSON = parse(swrite(groupContext.data))
+    val crowdConfigJSON = parse(swrite(parameters.crowdConfig))
     val requestData = compact(render(
       ("configuration" ->
         ("task_type" -> groupContext.taskType) ~
           ("task_batch_size" -> parameters.maxPointsPerHIT) ~
           ("num_assignments" -> parameters.maxVotesPerPoint) ~
+          (parameters.crowdName -> crowdConfigJSON) ~
           ("callback_url" -> ("http://" + parameters.responseServerHost + ":" + parameters.responseServerPort))) ~
         ("group_id" -> groupId) ~
         ("group_context" -> groupContextJSON) ~
@@ -114,14 +115,17 @@ object CrowdHTTPServer {
 
     // Send the request to the crowd server.
     //println("Issuing request...")
-    val client: Service[HttpRequest, HttpResponse] = ClientBuilder()
+    val use_ssl = sys.env.getOrElse("SSL", "0") == "1"
+    val builder = ClientBuilder()
       .codec(Http())
       .hosts(parameters.crowdServerHost + ":" + parameters.crowdServerPort)
       .hostConnectionLimit(1)
-      .tlsWithoutValidation() // TODO: ONLY IN DEVELOPMENT
-      .build()
+
+    val client: Service[HttpRequest, HttpResponse] = if (use_ssl) builder.tlsWithoutValidation().build() else builder.build()
+
+    val url_scheme = if (use_ssl) "https" else "http"
     val request = RequestBuilder()
-      .url("https://" + parameters.crowdServerHost + ":" + parameters.crowdServerPort + "/" + crowdJobURL format parameters.crowdName)
+      .url(url_scheme + "://" + parameters.crowdServerHost + ":" + parameters.crowdServerPort + "/" + crowdJobURL format parameters.crowdName)
       .addHeader("Charset", "UTF-8")
       .addFormElement(("data", requestData))
       .buildFormPost()

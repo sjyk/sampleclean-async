@@ -24,13 +24,13 @@ import scala.util.{Failure, Success}
  * @type {[type]}
  */
 @serializable
-class SampleCleanQuery(scc:SampleCleanContext, 
+class SampleCleanQuery(scc:SampleCleanContext,
 					    saqp:SampleCleanAQP,
-		          sampleName: String, 
-	  				  attr: String, 
-	  				  expr: String, 
-	  				  pred:String, 
-	  				  group:String, 
+		          sampleName: String,
+	  				  attr: String,
+	  				  expr: String,
+	  				  pred:String,
+	  				  group:String,
 	  				  rawSC:Boolean = true,
               querystring:String = ""){
 
@@ -57,20 +57,21 @@ class SampleCleanQuery(scc:SampleCleanContext,
 									attr.trim(),
 									expr.trim(),
 									pred.trim(),
-									group.trim(), 
+									group.trim(),
 									sampleRatio)
-		} 
+		}
 		else{
 			query = saqp.normalizedSCQueryGroup(scc,
 									sampleName.trim(),
 									attr.trim(),
 									expr.trim(),
 									pred.trim(),
-									group.trim(), 
+									group.trim(),
 									sampleRatio)
 		}
 
 		if(dashboard){
+      val use_ssl = sys.env.getOrElse("SSL", "0") == "1"
 			implicit val formats = Serialization.formats(NoTypeHints)
     		/*val requestData = compact(render(
       		("querystring" -> querystring) ~
@@ -80,15 +81,17 @@ class SampleCleanQuery(scc:SampleCleanContext,
           	("grouped_result" -> query2Map(query))))
           	println(requestData)*/
 
-          	val client: Service[HttpRequest, HttpResponse] = ClientBuilder()
+          	val builder = ClientBuilder()
       		.codec(Http())
       		.hosts(vizServer)
       		.hostConnectionLimit(1)
-      		.tlsWithoutValidation() // TODO: ONLY IN DEVELOPMENT
-      		.build()
+
+      val client: Service[HttpRequest, HttpResponse] = if (use_ssl) {
+        builder.tlsWithoutValidation().build() } else builder.build()
+      val url_scheme = if(use_ssl) "https" else "http"
 
     		val request = RequestBuilder()
-      		.url("https://"+vizServer+"/dashboard/results/")
+      		.url(url_scheme + "://" +vizServer +"/dashboard/results/")
       		.addHeader("Charset", "UTF-8")
       		.addFormElement(("querystring", querystring))
       		.addFormElement(("result_col_name", "Query Result"))
@@ -121,7 +124,7 @@ class SampleCleanQuery(scc:SampleCleanContext,
 		}
 
 		return query
-		
+
 	}
 
 	def query2Map(query:(Long, List[(String, (Double, Double))])):Map[String,Double] ={

@@ -1,6 +1,9 @@
 package sampleclean.clean.deduplication
 
 
+import sampleclean.crowd._
+import sampleclean.crowd.context.{DeduplicationGroupLabelingContext, DeduplicationPointLabelingContext}
+
 import scala.List
 import sampleclean.activeml._
 import org.apache.spark.SparkContext._
@@ -13,11 +16,8 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import sampleclean.activeml.SVMParameters
 import scala.Some
-import sampleclean.activeml.DeduplicationGroupLabelingContext
-import sampleclean.activeml.DeduplicationPointLabelingContext
 import sampleclean.activeml.ActiveLearningParameters
 import org.apache.spark.mllib.regression.LabeledPoint
-import sampleclean.activeml.CrowdLabelGetterParameters
 
 /**
  * This class is used to create an Active Learning strategy that will

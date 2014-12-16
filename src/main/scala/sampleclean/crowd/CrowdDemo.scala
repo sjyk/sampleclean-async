@@ -1,13 +1,10 @@
-package sampleclean.activeml
+package sampleclean.crowd
 
 /* SimpleApp.scala */
 
-import org.apache.spark.mllib.classification.{SVMModel, SVMWithSGD}
-import org.apache.spark.mllib.linalg.Vectors
-import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.SparkContext._
+import sampleclean.activeml._
+import sampleclean.crowd.context.{DeduplicationPointLabelingContext, DeduplicationGroupLabelingContext}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -41,11 +38,13 @@ object CrowdDemo {
     val contextMap = crowdData toMap
 
     // set up the crowd parameters
-    val labelGetterParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 20) // So we can do it in one HIT.
+    val labelGetterParameters = CrowdLabelGetterParameters(crowdName = "amt", maxPointsPerHIT = 20, crowdConfig = Map("sandbox" -> true)) // So we can do it in one HIT.
 
     // Group Context for a deduplication task with the restaurant schema.
     val groupContext : GroupLabelingContext = DeduplicationGroupLabelingContext(
-      taskType="er", data=Map("fields" -> List("id", "entity_id", "name", "address", "city", "type"))).asInstanceOf[GroupLabelingContext]
+      taskType="er", 
+      data=Map("fields" -> List("id", "entity_id", "name", "address", "city", "type"),
+               "instruction" -> "Decide whether two records in each group refer to the <b>same entity</b>.")).asInstanceOf[GroupLabelingContext]
 
     // Make the request, which returns a future
     val groupId = utils.randomUUID() // random group id for the request.

@@ -5,6 +5,7 @@ class Query(models.Model):
     querystring = models.TextField()
     is_grouped = models.NullBooleanField(null=True)
     pipeline_id = models.CharField(max_length=40)
+    registered_at = models.DateTimeField(auto_now_add=True)
 
 class QueryResult(models.Model):
     query = models.ForeignKey(Query, related_name='results')

@@ -53,7 +53,7 @@ Thing to do to get up and running:
 
 ```shell
 $ sudo apt-get install rabbitmq-server
-$ rabbitmq-server
+$ rabbitmq-server  # run with -detached for daemon mode.
 ```
         
 * create a virtualenv for python dev (I like
@@ -85,6 +85,7 @@ $ ./reset_db.sh
 ```shell
 $ ./run.sh    # Daemon mode
 $ ./run.sh -d # Debug mode
+$ ./run.sh -s # Use ssl (can be combined with -d)
 ```
 
 * Make sure it works:
@@ -123,22 +124,32 @@ Web Service User-Facing APIs
       - **CROWD_NAME**: A json dictionary with configuration specific to the crowd running the tasks. See 
         below for the settings for specific crowds.
     - **group_id**: A unique identifier for this group of points.
-    - **group_context**: The context that is shared among all the points in the group.
+    - **group_context**: A json dictionary that represents the context that is shared among all the points in the group. Each type of task has an **optional** field 'instruction' which let users pass in custom HTML-based instructions. For each specific task :
 
-      1. 'sa'(Sentiment Analysis). The group_context is an empty json dictionary, i.e, `{}`.
+      1. 'sa'(Sentiment Analysis). The group_context is a json dictionary which is empty or only consists of custom instructions, e.g, 
+	  
+	    ```json
+		{"instruction":"<p>For each tweet, decide whether it is positive, negative, or neutral</p>"}
+		```
 
-      2. 'er'(Entity Resolution). The group_context consists of the shared schema for each pair of record. 
+      2. 'er'(Entity Resolution). In addition to custome instructions, the group_context consists of the shared schema for each pair of record . 
          For example, the following:
 
         ```json
-        {"fields": ["price", "location"]}
+        {
+		   "instruction":"Decide whether two records in each group refer to the <b>same entity</b>.",
+		   "fields":["price", "location"]
+		}
         ```
 
-      3. 'ft'(Filtering). The group_context consists of the shared schema of the records in each question. 
+      3. 'ft'(Filtering). In addition to the custom instructions, the group_context consists of the shared schema of the records in each question. 
          It is similar to the group_context of an entity resolution task. For example :
 
         ```json
-        {"fields": ["Conference", "First Author"]}
+        {
+		   "instruction":"<p>Answer the question in each group.</p>",
+		   "fields":["Conference", "First Author"]
+		}
         ```
 
     - **content** : Data necessary to render the crowd interface for the selected task type. Available types are:
