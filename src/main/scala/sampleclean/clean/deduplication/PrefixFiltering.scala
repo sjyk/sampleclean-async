@@ -36,12 +36,12 @@ trait PrefixFiltering extends Serializable {
  /**
    * Sorts a token list based on token's frequency
    * @param tokens  list to be sorted.
-   * @param tokenRank Key-Value map of tokens and global ranks in ascending order (i.e. token with smallest value is rarest)
+   * @param tokenRanks Key-Value map of tokens and global ranks in ascending order (i.e. token with smallest value is rarest)
    */
-  private def sortTokenSet(tokens: Seq[String], tokenRank: Broadcast[Map[String, Int]])
-  : Seq[String] = {
-    tokens.map(token => (token, tokenRank.value.getOrElse(token, 0))).toSeq.sortBy(_._2).map(_._1)
-  }
+ private def sortTokenSet(tokens: Seq[String], tokenRanks: Map[String, Int])
+ : Seq[String] = {
+   tokens.map(token => (token, tokenRanks.getOrElse(token, 0))).toSeq.sortBy(_._2).map(_._1)
+ }
 
  /**
    * Counts the number of times that each token shows up in the data
@@ -65,13 +65,16 @@ trait PrefixFiltering extends Serializable {
    * @param fullKey second blocking method that will be used to calculate similarities between records.
    * @param sampleTable first data set (e.g. sample table)
    * @param sampleKey first blocking method that will be used to calculate similarities between records.
+   * @param minSize minimum number of tokens allowed per record. The algorithm will filter out those records
+   * whose token length is smaller than this value.
    */
   def broadcastJoin (@transient sc: SparkContext,
                      threshold: Double,
                      fullTable: RDD[Row],
                      fullKey: BlockingKey,
                      sampleTable: RDD[Row],
-                     sampleKey: BlockingKey): RDD[(Row,Row)] = {
+                     sampleKey: BlockingKey,
+                     minSize:Int): RDD[(Row,Row)] = {
 
 
     //Add a record ID into sampleTable. Id is a unique id assigned to each row.
@@ -87,13 +90,16 @@ trait PrefixFiltering extends Serializable {
     val broadcastRank = sc.broadcast(tokenRankMap)
 
 
-    // Build an inverted index for the prefixes of sample data
-    val invertedIndex = sampleTableWithId.flatMap {
-      case (id, (tokens, value)) =>
-        val sorted = sortTokenSet(tokens, broadcastRank)
-        for (x <- sorted)
-          yield (x, id)
-    }.groupByKey().map(x => (x._1, x._2.toSeq.distinct))
+   // Build an inverted index for the prefixes of sample data
+   val invertedIndex: RDD[(String, Seq[Long])] = sampleTableWithId.flatMap {
+     case (id, (tokens, value)) =>
+       if (tokens.size < minSize) Seq()
+       else {
+         val sorted = sortTokenSet(tokens, tokenRankMap)
+         for (x <- sorted)
+         yield (x, id)
+       }
+   }.groupByKey().map(x => (x._1, x._2.toSeq.distinct))
 
 
     //Broadcast sample data to all nodes
@@ -108,21 +114,24 @@ trait PrefixFiltering extends Serializable {
         val broadcastIndexValue = broadcastIndex.value
 
         val key1 = fullKey.tokenSet(row1)
-        val removedSize = getRemovedSize(key1.size, threshold)
-        val sorted: Seq[String] = sortTokenSet(key1, broadcastRank).dropRight(removedSize)
-
-
-       sorted.foldLeft(List[Long]()) {
-          case (a, b) =>
-            a ++ broadcastIndexValue.getOrElse(b, List())
-       }.distinct.map {
-          case id =>
+        if (key1.length >= minSize){
+          val sorted: Seq[String] = sortTokenSet(key1, broadcastRank.value)
+          val removedSize = getRemovedSize(key1.length, threshold)
+          val filtered = sorted.dropRight(removedSize)
+          filtered.foldLeft(List[Long]()) {
+            case (a, b) =>
+              a ++ broadcastIndexValue.getOrElse(b, List())
+          }.distinct.map {
+            case id =>
               val (key2, row2) = broadcastDataValue(id)
               val similar: Boolean = isSimilar(key1, key2, threshold)
               (key2, row2, similar)
-        }.withFilter(_._3).map {
-          case (key2, row2, similar) => (row1, row2)
+          }.withFilter(_._3).map {
+            case (key2, row2, similar) => (row1, row2)
+          }
         }
+        else
+          List()
     })
 
   }
@@ -136,11 +145,14 @@ trait PrefixFiltering extends Serializable {
    * @param threshold specified threshold.
    * @param fullTable second data set (e.g. full table)
    * @param fullKey second blocking method that will be used to calculate similarities between records.
+   * @param minSize minimum number of tokens allowed per record. The algorithm will filter out those records
+   * whose token length is smaller than this value.
    */
   def broadcastJoin[K: ClassTag, V:ClassTag] (@transient sc: SparkContext,
                                                   threshold: Double,
                                                   fullTable: RDD[Row],
-                                                  fullKey: BlockingKey
+                                                  fullKey: BlockingKey,
+                                                  minSize:Int
                                                   ) : RDD[(Row,Row)] = {
 
     // Add record ID into fullData: RDD[(Id, (Seq[K], Value))]
@@ -156,9 +168,12 @@ trait PrefixFiltering extends Serializable {
     // Build an inverted index for the prefixes of sample data
     val invertedIndex: RDD[(String, Seq[Long])] = fullTableId.flatMap {
       case (id, (tokens, value)) =>
-        val sorted = sortTokenSet(tokens, broadcastRank)
-        for (x <- sorted)
-        yield (x, id)
+        if (tokens.size < minSize) Seq()
+        else {
+          val sorted = sortTokenSet(tokens, tokenRankMap)
+          for (x <- sorted)
+          yield (x, id)
+        }
     }.groupByKey().map(x => (x._1, x._2.toSeq.distinct))
 
     //Broadcast data to all nodes
@@ -168,28 +183,31 @@ trait PrefixFiltering extends Serializable {
     //Generate the candidates whose prefixes have overlap, and then verify their overlap similarity
     fullTableId.flatMap({
       case (id1, (key1, row1)) =>
-        val broadcastDataValue = broadcastData.value
-        val broadcastIndexValue = broadcastIndex.value
+        if (key1.length >= minSize) {
+          val broadcastDataValue = broadcastData.value
+          val broadcastIndexValue = broadcastIndex.value
 
-        val sorted: Seq[String] = sortTokenSet(key1, broadcastRank)
-        val removedSize = getRemovedSize(sorted.size, threshold)
-        val filtered = sorted.dropRight(removedSize)
+          val sorted: Seq[String] = sortTokenSet(key1, broadcastRank.value)
+          val removedSize = getRemovedSize(key1.length, threshold)
+          val filtered = sorted.dropRight(removedSize)
 
-        filtered.foldLeft(List[Long]()) {
-          case (a, b) =>
-            a ++ broadcastIndexValue.getOrElse(b, List())
-        }.distinct.map {
-          case id2 =>
-            // Avoid double checking
-            if (id2 >= id1) (null, null, false)
-            else {
-              val (key2, row2) = broadcastDataValue(id2)
-              val similar: Boolean = isSimilar(key1, key2, threshold)
-              (key2, row2, similar)
-            }
-        }.withFilter(_._3).map {
-          case (key2, row2, similar) => (row1, row2)
+          filtered.foldLeft(List[Long]()) {
+            case (a, b) =>
+              a ++ broadcastIndexValue.getOrElse(b, List())
+          }.distinct.map {
+            case id2 =>
+              // Avoid double checking
+              if (id2 >= id1) (null, null, false)
+              else {
+                val (key2, row2) = broadcastDataValue(id2)
+                val similar: Boolean = isSimilar(key1, key2, threshold)
+                (key2, row2, similar)
+              }
+          }.withFilter(_._3).map {
+            case (key2, row2, similar) => (row1, row2)
+          }
         }
+        else List()
     })
   }
 }
