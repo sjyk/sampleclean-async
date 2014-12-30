@@ -31,9 +31,9 @@ then
 fi
 
 # Make sure there is only 1 .csv and 1 .pem file in the directory
-if [ `ls $credentials_dir | grep ".csv" | wc -l` -ne "1" ]
+if [ `ls $credentials_dir | grep ".csv" | wc -l` -ne "2" ]
 then
-    echo "ERROR: credentials directory must contain exactly one .csv file"
+    echo "ERROR: credentials directory must contain exactly two .csv files"
     exit
 fi
 if [ `ls $credentials_dir | grep ".pem" | wc -l` -ne "1" ]
@@ -43,9 +43,17 @@ then
 fi
 
 # Look up the secret and access keys in the aws credentials.csv file
-credentials_file=`ls $credentials_dir/*.csv`
+credentials_file=`ls $credentials_dir/*.csv | grep -v amt`
 export AWS_ACCESS_KEY_ID=`cat $credentials_file | grep -v "User Name" | cut -f 2 -d ","`
 export AWS_SECRET_ACCESS_KEY=`cat $credentials_file | grep -v "User Name" | cut -f 3 -d ","`
+
+# File path for AMT credentials file
+export AMT_CRED_FILE="$credentials_dir/amt_credentials.csv"
+if [ ! -f "$AMT_CRED_FILE" ]
+then
+    echo "ERROR: AMT credentials file (amt_credentials.csv) must be in credentials directory"
+    exit
+fi
 
 # get the name of the key file
 key_file=`ls $credentials_dir/*.pem`
