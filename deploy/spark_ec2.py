@@ -621,6 +621,7 @@ def setup_cluster(conn, master_nodes, slave_nodes, opts, deploy_ssh_key):
     print "Deploying files to master..."
     deploy_files(conn, "deploy.generic", opts, master_nodes, slave_nodes, modules)
     deploy_ssl_cert(opts, master_nodes)
+    deploy_amt_creds(opts, master_nodes)
 
     print "Running setup on master..."
     setup_spark_cluster(master, opts)
