@@ -7,13 +7,15 @@ import uk.ac.shef.wit.simmetrics.similaritymetrics._
 @serializable
 abstract class BlockingFeaturizer(cols: List[Int], 
 								  metric:String, 
-								  tokenizer:Tokenizer, 
+								  val tokenizer:Tokenizer, 
 								  threshold:Double) 
 	extends Featurizer(cols){
 
 		val canPrefixFilter: Boolean
 
-		def featurize(rows: Set[Row], params: Map[Any,Any]=null): (Set[String], Array[Double]) = {
+		//val tokenizer = tokenizer
+
+		def featurize[K,V](rows: Set[Row], params: collection.immutable.Map[K,V]=null): (Set[Row], Array[Double]) = {
 
 			val rowA = rows.head
 			val rowB = rows.last
@@ -38,7 +40,7 @@ abstract class BlockingFeaturizer(cols: List[Int],
 			if (simVal)
 				sim = 1.0
 
-			return (Set(rowA(1).asInstanceOf[String], rowB(1).asInstanceOf[String]),
+			return (Set(rowA, rowB),
 					Array(sim))
 		}
 

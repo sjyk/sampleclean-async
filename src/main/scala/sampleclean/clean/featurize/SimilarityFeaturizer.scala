@@ -1,4 +1,5 @@
 package sampleclean.clean.featurize
+
 import org.apache.spark.sql.{SchemaRDD, Row}
 import uk.ac.shef.wit.simmetrics.similaritymetrics._
 
@@ -8,7 +9,7 @@ import uk.ac.shef.wit.simmetrics.similaritymetrics._
 class SimilarityFeaturizer(cols: List[Int], metrics:List[String]) 
 	extends Featurizer(cols){
 
-		def featurize(rows: Set[Row], params: Map[Any,Any]=null): (Set[String], Array[Double]) = {
+		def featurize[K,V](rows: Set[Row], params: collection.immutable.Map[K,V]=null): (Set[Row], Array[Double]) = {
 
 			val rowA = rows.head
 			val rowB = rows.last
@@ -20,8 +21,7 @@ class SimilarityFeaturizer(cols: List[Int], metrics:List[String])
 				stringB = stringB + " " +rowB(col).asInstanceOf[String]
 			}
 
-			return (Set(rowA(1).asInstanceOf[String],
-									rowB(1).asInstanceOf[String]),
+			return (Set(rowA, rowB),
 				    getSimilarities(stringA,stringB,metrics).toArray
 				   )
 		}

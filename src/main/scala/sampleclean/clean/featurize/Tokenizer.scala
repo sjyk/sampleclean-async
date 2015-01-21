@@ -1,11 +1,22 @@
 package sampleclean.clean.featurize
 import java.util.StringTokenizer
 import scala.collection.mutable.ArrayBuffer
+import org.apache.spark.sql.{SchemaRDD, Row}
 
 /**
  * This is a tokenizer super-class.
  */
 abstract class Tokenizer{
+  
+  def tokenize(row: Row, cols:List[Int]): List[String] = {
+
+      var stringA = ""
+      for (col <- cols){
+        stringA = stringA + " " + row(col).asInstanceOf[String]
+      }
+      return tokenSet(stringA)
+    }
+  
   def tokenSet(text: String): List[String]
 }
 

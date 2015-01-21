@@ -8,9 +8,9 @@ abstract class EnsembleFeaturizer(cols: List[Int], featurizers:List[Featurizer])
 
 	/**
 	 */
-	def featurize(rows: Set[Row], params: Map[Any,Any]=null): (Set[String], Array[Double])=
+	def featurize[K,V](rows: Set[Row], params: collection.immutable.Map[K,V]=null): (Set[Row], Array[Double])=
 	{
-		var pkset:Set[String] = Set()
+		var pkset:Set[Row] = Set()
 		var feature:Array[Double] = Array()
 		for (featurizer <- featurizers)
 		{

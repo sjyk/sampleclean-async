@@ -19,6 +19,6 @@ abstract class Featurizer(cols: List[Int]){
 	 * 
 	 * @type {[type]}
 	 */
-	def featurize(rows: Set[Row], params: Map[Any,Any]=null): (Set[String], Array[Double])
+	def featurize[K,V](rows: Set[Row], params: collection.immutable.Map[K,V]=null): (Set[Row], Array[Double])
 
 }
