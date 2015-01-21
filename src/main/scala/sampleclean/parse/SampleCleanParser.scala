@@ -28,6 +28,7 @@ import sampleclean.clean.deduplication.BlockingStrategy
 import sampleclean.clean.deduplication.BlockingKey
 import sampleclean.clean.deduplication.ActiveLearningStrategy
 import sampleclean.clean.deduplication.CrowdsourcingStrategy
+import sampleclean.clean.featurize.SimilarityFeaturizer
 
 /** The SampleCleanParser is the class that handles parsing SampleClean commands
  *  this class triggers execution when a command is parsed successfully. Commands
@@ -433,15 +434,14 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     algoPara.put("blockingStrategy", BlockingStrategy(blockedCols).setThreshold(0.95))
 
     val displayedCols = List("title", "year", "keyword")
-    var featureList = List[Feature]()
-    featureList = Feature(List("title"), List("Levenshtein", "JaroWinkler")) :: featureList
-    featureList = Feature(List("year"), List("Levenshtein")) :: featureList
-    featureList = Feature(List("keyword"), List("Levenshtein")) :: featureList
+    //var featureList = List[Feature]()
+    //featureList = Feature(List("title"), List("Levenshtein", "JaroWinkler")) :: featureList
+    //featureList = Feature(List("year"), List("Levenshtein")) :: featureList
+    //featureList = Feature(List("keyword"), List("Levenshtein")) :: featureList
     //featureList = Feature(List("type"), List("JaccardSimilarity", "JaroWinkler")) :: featureList
 
     algoPara.put("activeLearningStrategy",
-      ActiveLearningStrategy(displayedCols)
-        .setFeatureList(featureList)
+      ActiveLearningStrategy(displayedCols, new SimilarityFeaturizer(List(2,3,4), List("Levenshtein", "JaroWinkler")))
         .setActiveLearningParameters(ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10)))
 
     val d = new RecordDeduplication(algoPara, scc)

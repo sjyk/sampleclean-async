@@ -8,17 +8,17 @@ import org.apache.spark.sql.{SchemaRDD, Row}
  * {a, b} == {b, a}
  */
 @serializable
-abstract class Featurizer(){
+abstract class Featurizer(cols: List[Int]){
 
 	/**
 	 * This function takes a set of rows, takes a set of parameters that 
 	 * are specified in a Map and returns a tuple.
 	 *
 	 * The first element of the tuple is a set of primary keys and the second
-	 * element is a list of doubles which are the features.
+	 * element is an array of doubles which are the features.
 	 * 
 	 * @type {[type]}
 	 */
-	def featurize(rows: Set[Row], params: Map[Any,Any]): (Set[String], List[Double])
+	def featurize(rows: Set[Row], params: Map[Any,Any]=null): (Set[String], Array[Double])
 
 }
