@@ -23,7 +23,7 @@ import sampleclean.clean.algorithm.AlgorithmParameters
 import sampleclean.clean.algorithm.SampleCleanAlgorithm
 import sampleclean.clean.algorithm.SampleCleanPipeline
 
-import sampleclean.clean.deduplication.WordTokenizer
+import sampleclean.clean.featurize.Tokenizer.WordTokenizer
 import sampleclean.clean.deduplication.BlockingStrategy
 import sampleclean.clean.deduplication.BlockingKey
 import sampleclean.clean.deduplication.ActiveLearningStrategy
