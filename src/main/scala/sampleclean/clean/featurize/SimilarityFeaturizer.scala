@@ -16,8 +16,8 @@ class SimilarityFeaturizer(cols: List[Int], metrics:List[String])
 			var stringA = ""
 			var stringB = ""
 			for (col <- cols){
-				stringA = stringA + rowA(col).asInstanceOf[String]
-				stringB = stringB + rowB(col).asInstanceOf[String]
+				stringA = stringA + " " +rowA(col).asInstanceOf[String]
+				stringB = stringB + " " +rowB(col).asInstanceOf[String]
 			}
 
 			return (Set(rowA(1).asInstanceOf[String],
