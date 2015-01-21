@@ -11,6 +11,8 @@ abstract class BlockingFeaturizer(cols: List[Int],
 								  threshold:Double) 
 	extends Featurizer(cols){
 
+		val canPrefixFilter: Boolean
+
 		def featurize(rows: Set[Row], params: Map[Any,Any]=null): (Set[String], Array[Double]) = {
 
 			val rowA = rows.head
@@ -51,6 +53,7 @@ abstract class BlockingFeaturizer(cols: List[Int],
    		  * @param modThreshold modified threshold that depends on selected similarity measure.
    		  */
   		def getRemovedSize (sortedTokens: Seq[String], modThreshold: Double, tokenWeights: collection.Map[String, Double]): Int = {
+    		if (canPrefixFilter) {
     		val removedSize = {
       		sortedTokens.foldRight((0.0, 0)) {
         	case (token, (accum, count)) => {
@@ -63,11 +66,14 @@ abstract class BlockingFeaturizer(cols: List[Int],
     		}
 
     		if (removedSize > sortedTokens.size)
-      			sortedTokens.size
+      			return sortedTokens.size
     		else if (removedSize < 0)
-      			0
+      			return 0
     		else
-      		removedSize
+      			return removedSize
+      		}
+      		else
+      			return 0
   		}
 
   		/**
@@ -92,6 +98,7 @@ class WeightedJaccardBlocking(cols: List[Int],
 							  threshold:Double) 
 	extends BlockingFeaturizer(cols, metric, tokenizer, threshold) {
 
+  val canPrefixFilter = true
   /**
    * Returns true if two token lists are similar; otherwise, returns false
    * @param tokens1 first token list.
@@ -146,6 +153,7 @@ class WeightedOverlapBlocking(cols: List[Int],
 							  threshold:Double) 
 	extends BlockingFeaturizer(cols, metric, tokenizer, threshold) {
 
+  val canPrefixFilter = true
   /**
    * Returns true if two token lists are similar; otherwise, returns false
    * @param tokens1 first token list.
@@ -193,6 +201,8 @@ class WeightedDiceBlocking(cols: List[Int],
 							  tokenizer:Tokenizer, 
 							  threshold:Double)
 	extends BlockingFeaturizer(cols, metric, tokenizer, threshold) {
+
+   val canPrefixFilter = true
 
   /**
    * Returns true if two token lists are similar; otherwise, returns false
@@ -250,6 +260,7 @@ class WeightedCosineBlocking(cols: List[Int],
 							  threshold:Double)
 	extends BlockingFeaturizer(cols, metric, tokenizer, threshold) {
 
+   val canPrefixFilter = true
   /**
    * Returns true if two token lists are similar; otherwise, returns false
    * @param tokens1 first token list.
