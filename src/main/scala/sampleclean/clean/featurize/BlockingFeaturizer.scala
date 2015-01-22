@@ -6,7 +6,6 @@ import uk.ac.shef.wit.simmetrics.similaritymetrics._
  */
 @serializable
 abstract class BlockingFeaturizer(cols: List[Int], 
-								  metric:String, 
 								  val tokenizer:Tokenizer, 
 								  threshold:Double) 
 	extends Featurizer(cols){
@@ -95,10 +94,9 @@ abstract class BlockingFeaturizer(cols: List[Int],
  * Token global weights are taken into account.
  */
 class WeightedJaccardBlocking(cols: List[Int], 
-							  metric:String, 
 							  tokenizer:Tokenizer, 
 							  threshold:Double) 
-	extends BlockingFeaturizer(cols, metric, tokenizer, threshold) {
+	extends BlockingFeaturizer(cols, tokenizer, threshold) {
 
   val canPrefixFilter = true
   /**
@@ -150,10 +148,9 @@ class WeightedJaccardBlocking(cols: List[Int],
  * Token global weights are taken into account.
  */
 class WeightedOverlapBlocking(cols: List[Int], 
-							  metric:String, 
 							  tokenizer:Tokenizer, 
 							  threshold:Double) 
-	extends BlockingFeaturizer(cols, metric, tokenizer, threshold) {
+	extends BlockingFeaturizer(cols, tokenizer, threshold) {
 
   val canPrefixFilter = true
   /**
@@ -199,10 +196,9 @@ class WeightedOverlapBlocking(cols: List[Int],
  * Token global weights are taken into account.
  */
 class WeightedDiceBlocking(cols: List[Int], 
-							  metric:String, 
 							  tokenizer:Tokenizer, 
 							  threshold:Double)
-	extends BlockingFeaturizer(cols, metric, tokenizer, threshold) {
+	extends BlockingFeaturizer(cols, tokenizer, threshold) {
 
    val canPrefixFilter = true
 
@@ -257,10 +253,9 @@ class WeightedDiceBlocking(cols: List[Int],
  * Token global weights are taken into account.
  */
 class WeightedCosineBlocking(cols: List[Int], 
-							  metric:String, 
 							  tokenizer:Tokenizer, 
 							  threshold:Double)
-	extends BlockingFeaturizer(cols, metric, tokenizer, threshold) {
+	extends BlockingFeaturizer(cols, tokenizer, threshold) {
 
    val canPrefixFilter = true
   /**
