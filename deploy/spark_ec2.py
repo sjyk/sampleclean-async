@@ -153,6 +153,9 @@ def parse_args():
     parser.add_option(
         "--ssl-key-file", type="string", default="",
         help="Path to the ssl key file for setting up HTTPS")
+    parser.add_option(
+        "--amt-cred-file", type="string", default="",
+        help="Path to the amazon root credentials file for a mechanical turk account.")
 
     (opts, args) = parser.parse_args()
     if len(args) != 2:
@@ -306,6 +309,21 @@ def assign_elastic_ip(conn, master_nodes):
 
     # TODO: add domain to variable templates so node can figure out domain name
     return (public_ip, domain)
+
+def deploy_amt_creds(opts, master_nodes):
+    if os.path.exists(opts.amt_cred_file):
+        print "AMT credentials found: deploying to master..."
+
+        # rsync the credentials file
+        master_loc = '%s@%s:' % (opts.user, master_nodes[0].public_dns_name)
+        file_dest = master_loc + '/root/spark-ec2/sampleclean/'
+        base_command = [
+            'rsync', '-v', '-e', stringify_command(ssh_command(opts)),
+        ]
+        subprocess.check_call(base_command + [opts.amt_cred_file, file_dest])
+    else:
+        print >> stderr, "No AMT credentials found! Exiting..."
+        raise ValueError()
 
 def deploy_ssl_cert(opts, master_nodes):
     if os.path.exists(opts.ssl_cert_file) and os.path.exists(opts.ssl_key_file):
@@ -603,6 +621,7 @@ def setup_cluster(conn, master_nodes, slave_nodes, opts, deploy_ssh_key):
     print "Deploying files to master..."
     deploy_files(conn, "deploy.generic", opts, master_nodes, slave_nodes, modules)
     deploy_ssl_cert(opts, master_nodes)
+    deploy_amt_creds(opts, master_nodes)
 
     print "Running setup on master..."
     setup_spark_cluster(master, opts)
