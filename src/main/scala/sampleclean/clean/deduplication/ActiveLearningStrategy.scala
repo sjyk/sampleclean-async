@@ -1,23 +1,18 @@
 package sampleclean.clean.deduplication
 
 
+import org.apache.spark.SparkContext._
+import org.apache.spark.mllib.classification.SVMModel
+import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.rdd._
+import org.apache.spark.sql._
+import sampleclean.activeml.{ActiveLearningParameters, SVMParameters, _}
 import sampleclean.crowd._
 import sampleclean.crowd.context.{DeduplicationGroupLabelingContext, DeduplicationPointLabelingContext}
 
-import scala.List
-import sampleclean.activeml._
-import org.apache.spark.SparkContext._
-import org.apache.spark.rdd._
-import org.apache.spark.sql._
-import org.apache.spark.mllib.classification.SVMModel
-import org.apache.spark.mllib.linalg.Vectors
-
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-import sampleclean.activeml.SVMParameters
-import scala.Some
-import sampleclean.activeml.ActiveLearningParameters
-import org.apache.spark.mllib.regression.LabeledPoint
 
 /**
  * This class is used to create an Active Learning strategy that will
@@ -31,7 +26,8 @@ case class ActiveLearningStrategy(displayedColNames: List[String]) {
   var featureList: List[Feature] = displayedColNames.map(col => Feature(List(col), List("JaroWinkler", "JaccardSimilarity")))
   var svmParameters = SVMParameters()
   var frameworkParameters = ActiveLearningParameters()
-  var labelGetterParameters = CrowdLabelGetterParameters() // Use defaults
+  var crowdParameters = CrowdConfiguration() // Use defaults
+  var taskParameters = CrowdTaskConfiguration() // Use defaults
 
   /**
    * Used to set a new Feature list to be used for training.
@@ -39,12 +35,12 @@ case class ActiveLearningStrategy(displayedColNames: List[String]) {
    */
   def setFeatureList(featureList: List[Feature]): ActiveLearningStrategy = {
     this.featureList = featureList
-    return this
+    this
   }
 
   /** get current Feature list.*/
-  def getFeatureList(): List[Feature] = {
-    return this.featureList
+  def getFeatureList: List[Feature] = {
+    this.featureList
   }
 
   /**
@@ -53,12 +49,12 @@ case class ActiveLearningStrategy(displayedColNames: List[String]) {
    */
   def setSVMParameters(svmParameters: SVMParameters): ActiveLearningStrategy = {
     this.svmParameters = svmParameters
-    return this
+    this
   }
 
   /** get current SVM parameters.*/
-  def getSVMParameters(): SVMParameters = {
-    return this.svmParameters
+  def getSVMParameters: SVMParameters = {
+    this.svmParameters
   }
 
   /**
@@ -67,26 +63,40 @@ case class ActiveLearningStrategy(displayedColNames: List[String]) {
    */
   def setActiveLearningParameters(frameworkParameters: ActiveLearningParameters): ActiveLearningStrategy = {
     this.frameworkParameters = frameworkParameters
-    return this
+    this
   }
 
   /** get current framework parameters.*/
-  def getActiveLearningParameters(): ActiveLearningParameters = {
-    return this.frameworkParameters
+  def getActiveLearningParameters: ActiveLearningParameters = {
+    this.frameworkParameters
   }
 
   /**
-   * Used to set new Label-Getter parameters that will be used for training.
-   * @param labelGetterParameters parameters to set.
+   * Used to set new crowd parameters that will be used for training.
+   * @param crowdParams parameters to set.
    */
-  def setCrowdLabelGetterParameters(labelGetterParameters: CrowdLabelGetterParameters): ActiveLearningStrategy = {
-    this.labelGetterParameters = labelGetterParameters
-    return this
+  def setCrowdParameters(crowdParams: CrowdConfiguration): ActiveLearningStrategy = {
+    this.crowdParameters = crowdParams
+    this
   }
 
   /** get current Label-Getter parameters.*/
-  def getCrowdLabelGetterParameters(): CrowdLabelGetterParameters = {
-    return this.labelGetterParameters
+  def getCrowdParameters: CrowdConfiguration = {
+    this.crowdParameters
+  }
+
+  /**
+   * Used to set new crowd task parameters that will be used for training.
+   * @param crowdTaskParams parameters to set.
+   */
+  def setTaskParameters(crowdTaskParams: CrowdTaskConfiguration): ActiveLearningStrategy = {
+    this.taskParameters = crowdTaskParams
+    this
+  }
+
+  /** get current Label-Getter parameters.*/
+  def getTaskParameters: CrowdTaskConfiguration = {
+    this.taskParameters
   }
 
   /**
@@ -121,10 +131,10 @@ case class ActiveLearningStrategy(displayedColNames: List[String]) {
      * @param row1 row for first record
      * @param row2 row for second record
      */
-    def toPointLabelingContext(row1: Row, row2: Row): PointLabelingContext = {
+    def toPointLabelingContext(row1: Row, row2: Row): DeduplicationPointLabelingContext = {
 
-      val displayedRow1 = displayedColIndices1.map(row1(_).toString()).toList
-      val displayedRow2 = displayedColIndices2.map(row2(_).toString()).toList
+      val displayedRow1 = displayedColIndices1.map(row1(_).toString).toList
+      val displayedRow2 = displayedColIndices2.map(row2(_).toString).toList
 
       DeduplicationPointLabelingContext(List(displayedRow1, displayedRow2))
     }
@@ -134,17 +144,22 @@ case class ActiveLearningStrategy(displayedColNames: List[String]) {
 
     // Render Context for a deduplication task
     val groupLabelingContext = DeduplicationGroupLabelingContext(
-      "er", Map("fields" -> displayedColNames.toList)).asInstanceOf[GroupLabelingContext]
+      "er", Map("fields" -> displayedColNames.toList))
 
 
-    val trainingFuture = ActiveSVMWithSGD.train(
+    // Start training models
+    val crowdTask = new DeduplicationTask()
+    crowdTask.configureCrowd(getCrowdParameters)
+    val activeLearningAlgorithm = new ActiveSVMWithSGD[DeduplicationPointLabelingContext, DeduplicationGroupLabelingContext]()
+    val trainingFuture = activeLearningAlgorithm.train(
       labeledInput,
       unlabeledInput,
       groupLabelingContext,
-      svmParameters,
-      frameworkParameters,
-      new CrowdLabelGetter(labelGetterParameters),
-      SVMMarginDistanceFilter)
+      getSVMParameters,
+      getActiveLearningParameters,
+      crowdTask,
+      getTaskParameters,
+      new SVMMarginDistanceFilter[DeduplicationPointLabelingContext]())
 
     /**
      * Process new Active Learning model and update tables in the

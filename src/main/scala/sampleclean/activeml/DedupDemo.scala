@@ -22,14 +22,24 @@ object DedupDemo {
     .set("spark.executor.memory", "4g")
   val sc = new SparkContext(conf)
 
-  // set up our parameters
+  // set up the crowd
+  val crowdParameters = CrowdConfiguration(crowdName="internal") // everything on localhost
+  val taskParameters = CrowdTaskConfiguration(
+      maxPointsPerTask = 5, // get 5 labels from each crowd task.
+      votesPerPoint = 1, // get only a single vote per label
+      Map()) // No special options for the internal crowd
+  val crowdTask = new DeduplicationTask()
+  crowdTask.configureCrowd(crowdParameters)
+
+  // set up active learning
   val svmParameters = SVMParameters() // Use defaults
   val frameworkParameters = ActiveLearningParameters(budget=60, batchSize=10, bootstrapSize=10)
-  val labelGetterParameters = CrowdLabelGetterParameters() // Use defaults
+  val activeLearningAlgorithm = new ActiveSVMWithSGD[DeduplicationPointLabelingContext, DeduplicationGroupLabelingContext]()
+  val pointSelector = new SVMMarginDistanceFilter[DeduplicationPointLabelingContext]()
 
   // Render Context for a deduplication task!
-  val dedupGroupContext : GroupLabelingContext = DeduplicationGroupLabelingContext(
-    taskType="er", data=Map("fields" -> List("id", "entity_id", "name", "address", "city", "type"))).asInstanceOf[GroupLabelingContext]
+  val dedupGroupContext = DeduplicationGroupLabelingContext(
+    taskType="er", data=Map("fields" -> List("id", "entity_id", "name", "address", "city", "type")))
 
   // Render Context for a sentiment analysis task!
 //  val throwawayContext : PointLabelingContext = new SentimentPointLabelingContext("This is a simple tweet")
@@ -37,7 +47,7 @@ object DedupDemo {
 
   // global state for our program
   val emptyLabeledRDD = sc.parallelize(new Array[(String, LabeledPoint)](0))
-  var trainingData: RDD[(String, LabeledPoint, PointLabelingContext)] = null
+  var trainingData: RDD[(String, LabeledPoint, DeduplicationPointLabelingContext)] = null
   var testData: RDD[(String, LabeledPoint)]= null
   var trainN: Long = 0
   var testN: Long = 0
@@ -55,7 +65,7 @@ object DedupDemo {
       val entity1Data = parts.slice(1, 7).toList
       val entity2Data = parts.slice(7, 13).toList
       val fv = parts(13)
-      val context = DeduplicationPointLabelingContext(content=List(entity1Data, entity2Data)).asInstanceOf[PointLabelingContext]
+      val context = DeduplicationPointLabelingContext(content=List(entity1Data, entity2Data))
       (random_id, LabeledPoint(label, Vectors.dense(fv.split(' ').map(_.toDouble))), context)
     }
     //val parsedData = LogisticRegressionDataGenerator.generateLogisticRDD(sc, 1000, 10, 0.1, 4)
@@ -75,14 +85,15 @@ object DedupDemo {
     // Train the active learning model.
     // This happens asynchronously, but a future-like object is returned immediately.
     // Use default parameters for the SVM.
-    val trainingFuture = ActiveSVMWithSGD.train(
+    val trainingFuture = activeLearningAlgorithm.train(
       emptyLabeledRDD, // empty RDD since we have no already-existing labeled data
       unlabeledTrainingData, // unlabeled data for training (has enough context to get labels)
       dedupGroupContext, // group context for getting labels, contains the schema
       svmParameters,
       frameworkParameters,
-      new CrowdLabelGetter(labelGetterParameters), // label getter to get labels from the crowd.
-      SVMMarginDistanceFilter)
+      crowdTask,
+      taskParameters,
+      pointSelector)
 
     // add callbacks for new models and new data.
     trainingFuture.onNewModel(processNewModel)
