@@ -7,7 +7,8 @@ import uk.ac.shef.wit.simmetrics.similaritymetrics._
 @serializable
 abstract class BlockingFeaturizer(cols: List[Int], 
 								  val tokenizer:Tokenizer, 
-								  threshold:Double) 
+								  val threshold:Double,
+                  val minSize: Int = 0)
 	extends Featurizer(cols){
 
 		val canPrefixFilter: Boolean
@@ -55,23 +56,23 @@ abstract class BlockingFeaturizer(cols: List[Int],
    		  */
   		def getRemovedSize (sortedTokens: Seq[String], modThreshold: Double, tokenWeights: collection.Map[String, Double]): Int = {
     		if (canPrefixFilter) {
-    		val removedSize = {
-      		sortedTokens.foldRight((0.0, 0)) {
-        	case (token, (accum, count)) => {
-          		// weight is 0 if token does not have an assigned weight
-          		val current = accum + tokenWeights.getOrElse(token, 0.0)
+            val removedSize = {
+              sortedTokens.foldRight((0.0, 0)) {
+              case (token, (accum, count)) => {
+                  // weight is 0 if token does not have an assigned weight
+                  val current = accum + tokenWeights.getOrElse(token, 0.0)
 
-          		if (current < modThreshold) (current, count + 1) else (current, count)
-        		}
-      			}._2
-    		}
+                  if (current < modThreshold) (current, count + 1) else (current, count)
+                }
+                }._2
+            }
 
-    		if (removedSize > sortedTokens.size)
-      			return sortedTokens.size
-    		else if (removedSize < 0)
-      			return 0
-    		else
-      			return removedSize
+            if (removedSize > sortedTokens.size)
+                return sortedTokens.size
+            else if (removedSize < 0)
+                return 0
+            else
+                return removedSize
       		}
       		else
       			return 0
