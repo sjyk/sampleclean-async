@@ -56,11 +56,12 @@ abstract class BlockingFeaturizer(cols: List[Int],
    		  */
   		def getRemovedSize (sortedTokens: Seq[String], modThreshold: Double, tokenWeights: collection.Map[String, Double]): Int = {
     		if (canPrefixFilter) {
+            val weighted = tokenWeights.size != 0
             val removedSize = {
               sortedTokens.foldRight((0.0, 0)) {
               case (token, (accum, count)) => {
                   // weight is 0 if token does not have an assigned weight
-                  val current = accum + tokenWeights.getOrElse(token, 0.0)
+                  val current = accum + (if (weighted) tokenWeights.getOrElse(token, 0.0) else 1.0)
 
                   if (current < modThreshold) (current, count + 1) else (current, count)
                 }
@@ -77,6 +78,8 @@ abstract class BlockingFeaturizer(cols: List[Int],
       		else
       			return 0
   		}
+
+
 
   		/**
    		* Computes the sum of individual token weights over a token list.
@@ -138,7 +141,10 @@ class WeightedJaccardBlocking(cols: List[Int],
    */
   @Override
   override def getRemovedSize(tokens: Seq[String], threshold: Double, tokenWeights: collection.Map[String, Double]): Int ={
-    val weight = sumWeight(tokens, tokenWeights)
+    val weight = {
+      if (tokenWeights.size == 0) tokens.length
+      else sumWeight(tokens, tokenWeights)
+    }
     super.getRemovedSize(tokens, threshold * weight, tokenWeights)
   }
 
@@ -242,7 +248,10 @@ class WeightedDiceBlocking(cols: List[Int],
    */
   @Override
   override def getRemovedSize(tokens: Seq[String], threshold: Double, tokenWeights: collection.Map[String, Double]): Int ={
-    val weight = sumWeight(tokens, tokenWeights)
+   val weight = {
+     if (tokenWeights.size == 0) tokens.length
+     else sumWeight(tokens, tokenWeights)
+   }
     super.getRemovedSize(tokens, threshold * weight / (2 - threshold), tokenWeights)
   }
 
@@ -298,7 +307,10 @@ class WeightedCosineBlocking(cols: List[Int],
    */
   @Override
   override def getRemovedSize(tokens: Seq[String], threshold: Double, tokenWeights: collection.Map[String, Double]): Int ={
-    val weight = sumWeight(tokens, tokenWeights)
+    val weight = {
+      if (tokenWeights.size == 0) tokens.length
+      else sumWeight(tokens, tokenWeights)
+    }
     super.getRemovedSize(tokens, weight * math.pow(threshold, 2), tokenWeights)
   }
 

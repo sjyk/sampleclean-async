@@ -9,7 +9,7 @@ import org.apache.spark.sql._
 
 class SimilarityJoin(blocker: BlockingFeaturizer, 
 					 projection:List[Int], 
-					 weighted:Boolean = false){
+					 weighted:Boolean = false) extends Serializable{
 
 
 	/* The default implementation is naive but subclasses should override 

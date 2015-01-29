@@ -6,6 +6,7 @@ package dedupTesting
 
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.catalyst.expressions.Row
+
 import org.scalatest.FunSuite
 import org.apache.spark._
 
@@ -13,13 +14,15 @@ import org.apache.spark.SparkContext._
 import org.apache.spark.util.Utils
 
 import sampleclean.clean.deduplication._
-
+import sampleclean.clean.featurize.Tokenizer.WordTokenizer
+import sampleclean.clean.featurize.WeightedJaccardBlocking
+import sampleclean.simjoin.BroadcastJoin
 
 
 class dedupTest extends FunSuite with Serializable {
 
   val conf = new SparkConf()
-    //.setMaster("local[2]")
+    .setMaster("local[2]")
     .setAppName("SCUnitTest")
   val sc = new SparkContext(conf)
 
@@ -50,6 +53,39 @@ class dedupTest extends FunSuite with Serializable {
     assert(rowRDDsampleJoin.count() === 5)
     val answer2 = Array(("",""), ("a B c c", "a b c d"), ("a a C f","a b c d"), ("", " y"), ("a b c c","a b c d")).map(x => (Row(x._1), Row(x._2)))
     assert(pairs2 === answer2)
+
+  }
+
+  test("broadcast join") {
+
+    var jaccBlock = new WeightedJaccardBlocking(List(0),WordTokenizer(),0.5)
+
+    val RDDLarge = sc.parallelize(Seq("a b c c", "a b c c", "a a C f")).map(x => Row(x))
+    val RDDSmall = sc.parallelize(Seq("a b c c","a a C f")).map(x => Row(x))
+
+
+    val bJoin = new BroadcastJoin(sc,jaccBlock,List(0))
+
+    val sampleJ = bJoin.join(RDDSmall,RDDLarge).collect().toSeq
+    assert(sampleJ == Seq((Row("a b c c"),Row("a b c c")), (Row("a b c c"),Row("a b c c")), (Row("a a C f"),Row("a a C f"))))
+
+    val selfJ = bJoin.join(RDDLarge,RDDLarge).collect().toSeq
+    assert(selfJ == Seq((Row("a b c c"),Row("a b c c"))))
+
+    val unionJ = bJoin.join(RDDSmall,RDDLarge,containment = false).collect().toSeq
+    assert(unionJ == Seq((Row("a b c c"),Row("a b c c")), (Row("a b c c"),Row("a b c c")), (Row("a a C f"),Row("a a C f"))))
+
+    // Weighted joins
+    val wJoin = new BroadcastJoin(sc,jaccBlock,List(0),true)
+
+    val sampleJW = wJoin.join(RDDSmall,RDDLarge).collect().toSeq
+    assert(sampleJW == Seq((Row("a b c c"),Row("a b c c")), (Row("a b c c"),Row("a b c c")), (Row("a a C f"),Row("a a C f"))))
+
+    val selfJW = wJoin.join(RDDLarge,RDDLarge).collect().toSeq
+    assert(selfJW == Seq((Row("a b c c"),Row("a b c c"))))
+
+    val unionJW = wJoin.join(RDDSmall,RDDLarge,containment = false).collect().toSeq
+    assert(unionJW == Seq((Row("a b c c"),Row("a b c c")), (Row("a b c c"),Row("a b c c")), (Row("a a C f"),Row("a a C f"))))
 
   }
 
