@@ -9,6 +9,8 @@ import org.apache.spark.rdd.RDD
 abstract class SampleCleanDeduplicationAlgorithm(params:AlgorithmParameters,scc: SampleCleanContext) 
          extends   SampleCleanAlgorithm(params, scc){
 
+    
+
     /**Defer allows the write step of the algorithm to be defered
     */
 	def defer(sampleName: String):RDD[(String,Int)]

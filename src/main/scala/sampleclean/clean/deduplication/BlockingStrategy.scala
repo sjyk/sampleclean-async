@@ -6,61 +6,10 @@ import org.apache.spark.sql.SchemaRDD
 import org.apache.spark.rdd._
 import org.apache.spark.sql.Row
 import scala.collection.Seq
-import java.util.StringTokenizer
-import scala.collection.mutable.ArrayBuffer
+
+import sampleclean.clean.featurize.Tokenizer
+import sampleclean.clean.featurize.Tokenizer._
 //import org.amplab.sampleclean.cleaning.{WeightedCosineJoin, WeightedDiceJoin, WeightedOverlapJoin, WeightedJaccardJoin}
-
-/**
- * This is a tokenizer super-class.
- */
-trait Tokenizer extends Serializable {
-  def tokenSet(text: String): List[String]
-}
-
-/**
- * This class tokenizes a string based on user-specified delimiters.
- * @param delimiters string of delimiters to be used for splitting. Accepts regex expressions.
- */
-case class DelimiterTokenizer(delimiters: String = ".,?!\t ") extends Tokenizer {
-
-  def tokenSet(str: String) = {
-    val st = new StringTokenizer(str, delimiters)
-    val tokens = new ArrayBuffer[String]
-    while (st.hasMoreTokens()) {
-      tokens += st.nextToken()
-    }
-    tokens.toList
-  }
-}
-
-/**
- * This class tokenizes a string based on words.
- */
-case class WordTokenizer() extends Tokenizer {
-  def tokenSet(str: String) = str.split("\\W+").toList.filter(_!="")
-}
-
-/**
- * This class tokenizes a string based on white spaces.
- */
-case class WhiteSpaceTokenizer() extends Tokenizer {
-  def tokenSet(str: String) = str.split("\\s+").toList.filter(_!="")
-}
-
-/**
- * This class tokenizes a string based on grams.
- * @param gramSize size of gram.
- */
-case class GramTokenizer(gramSize: Int) extends Tokenizer {
-  def tokenSet(str: String) =  str.sliding(gramSize).toList
-}
-
-/**
- * This class tokenizes a string based on white space punctuation.
- */
-case class WhiteSpacePunctuationTokenizer() extends Tokenizer {
-  def tokenSet(str: String) =  str.trim.split("([.,!?:;'\"-]|\\s)+").toList
-}
 
 /**
  * This class builds a method to tokenize rows of data.

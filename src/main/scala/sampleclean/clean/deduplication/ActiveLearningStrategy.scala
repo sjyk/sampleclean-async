@@ -13,6 +13,11 @@ import sampleclean.crowd.context.{DeduplicationGroupLabelingContext, Deduplicati
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import sampleclean.activeml.SVMParameters
+import scala.Some
+import sampleclean.activeml.ActiveLearningParameters
+import org.apache.spark.mllib.regression.LabeledPoint
+import sampleclean.clean.featurize.Featurizer
 
 /**
  * This class is used to create an Active Learning strategy that will
@@ -21,15 +26,17 @@ import scala.concurrent.duration.Duration
  * labels and Amazon Mechanical Turk for training new models.
  * @param displayedColNames column names of the main data set (i.e. that are visible to the user).
  */
-case class ActiveLearningStrategy(displayedColNames: List[String]) {
+case class ActiveLearningStrategy(displayedColNames: List[String], featurizer:Featurizer) {
 
-  var featureList: List[Feature] = displayedColNames.map(col => Feature(List(col), List("JaroWinkler", "JaccardSimilarity")))
+  //var featureList: List[Feature] = displayedColNames.map(col => Feature(List(col), List("JaroWinkler", "JaccardSimilarity")))
   var svmParameters = SVMParameters()
   var frameworkParameters = ActiveLearningParameters()
   var crowdParameters = CrowdConfiguration() // Use defaults
   var taskParameters = CrowdTaskConfiguration() // Use defaults
 
   /**
+<<<<<<< HEAD
+=======
    * Used to set a new Feature list to be used for training.
    * @param featureList list of Features (not Feature Vector)
    */
@@ -44,6 +51,7 @@ case class ActiveLearningStrategy(displayedColNames: List[String]) {
   }
 
   /**
+>>>>>>> master
    * Used to set new SVM parameters that will be used for training.
    * @param svmParameters parameters to set.
    */
@@ -122,7 +130,7 @@ case class ActiveLearningStrategy(displayedColNames: List[String]) {
     val candidatePairsWithId = candidatePairs.map((utils.randomUUID(), _)).cache()
 
     // Construct unlabeled input
-    val featureVector = FeatureVector(featureList, colMapper1, colMapper2)
+    //val featureVector = FeatureVector(featureList, colMapper1, colMapper2)
     val displayedColIndices1 = colMapper1(displayedColNames)
     val displayedColIndices2 = colMapper2(displayedColNames)
 
@@ -140,7 +148,7 @@ case class ActiveLearningStrategy(displayedColNames: List[String]) {
     }
 
     val unlabeledInput = candidatePairsWithId.map(p =>
-      (p._1, Vectors.dense(featureVector.toFeatureVector(p._2._1, p._2._2)), toPointLabelingContext(p._2._1, p._2._2)))
+      (p._1, Vectors.dense(featurizer.featurize(Set(p._2._1, p._2._2))._2), toPointLabelingContext(p._2._1, p._2._2)))
 
     // Render Context for a deduplication task
     val groupLabelingContext = DeduplicationGroupLabelingContext(
