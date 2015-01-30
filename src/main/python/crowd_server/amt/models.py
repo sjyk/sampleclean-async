@@ -3,6 +3,7 @@ from basecrowd.models import AbstractCrowdTaskGroup
 from basecrowd.models import AbstractCrowdTask
 from basecrowd.models import AbstractCrowdWorker
 from basecrowd.models import AbstractCrowdWorkerResponse
+from basecrowd.models import AbstractCrowdMetric
 
 # Inherited crowd models for the interface.
 # No need for special subclasses, we use the base implementations.
@@ -10,6 +11,7 @@ class CrowdTaskGroup(AbstractCrowdTaskGroup): pass
 class CrowdTask(AbstractCrowdTask): pass
 class CrowdWorker(AbstractCrowdWorker): pass
 class CrowdWorkerResponse(AbstractCrowdWorkerResponse): pass
+class CrowdMetric(AbstractCrowdMetric): pass
 
 # Model for storing requests
 class Request(models.Model):

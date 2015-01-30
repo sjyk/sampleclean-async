@@ -8,4 +8,5 @@ CrowdRegistry.register_crowd(
     task_model=CrowdTask,
     group_model=CrowdTaskGroup,
     worker_model=CrowdWorker,
-    response_model=CrowdWorkerResponse)
+    response_model=CrowdWorkerResponse,
+    metric_model=CrowdMetric)

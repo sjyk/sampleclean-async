@@ -111,18 +111,52 @@ class AbstractCrowdWorkerResponse(models.Model):
     class Meta:
         abstract = True
 
+        
+# Model for metrics 
+class AbstractCrowdMetric(models.Model):
+
+    # The task that was responded to, a many-to-one relationship.
+    # The relationship will be auto-generated to the task class of the
+    # registered crowd, and can be accessed via the 'task' attribute.
+    # The related_name will be 'metrics' to enable reverse lookups, e.g.
+    # task = models.ForeignKey(CrowdTask, related_name='metrics')
+
+    # The worker that gave the responded, a many-to-one relationship.
+    # The relationship will be auto-generated to the worker class of the
+    # registered crowd, and can be accessed via the 'worker' attribute.
+    # The related_name will be 'metrics' to enable reverse lookups, e.g.
+    # worker = models.ForeignKey(CrowdWorker, related_name='metrics')
+
+    # The name of this metric (e.g. 'time_on_point_9')
+    name = models.CharField(max_length=200)
+    
+    # The value of this metric (e.g. '8')
+    value = models.CharField(max_length=200)
+    
+    # The unit of this metric (e.g. 'millisecond')
+    unit = models.CharField(max_length=200)
+    
+    def __unicode__(self):
+        return self.name
+    
+    class Meta:
+        abstract = True
+
+
 # Register a set of models as a new crowd.
 class CrowdModelSpecification(object):
     def __init__(self, crowd_name,
                  task_model,
                  group_model,
                  worker_model,
-                 response_model):
+                 response_model,
+                 metric_model):
         self.name = crowd_name
         self.task_model = task_model
         self.group_model = group_model
         self.worker_model = worker_model
         self.response_model = response_model
+        self.metric_model = metric_model
 
     @staticmethod
     def add_rel(from_cls, to_cls, relation_cls, relation_name, related_name=None):
@@ -145,3 +179,12 @@ class CrowdModelSpecification(object):
         # reponses pertain to a task
         self.add_rel(self.response_model, self.task_model, models.ForeignKey,
                      'task', 'responses')
+
+        # metrics come from a worker
+        sefl.add_rel(self.metric_model, self.worker_model, models.ForeignKey,
+                     'worker', 'metrics')
+        
+        # metrics pertain to a task
+        self.add_rel(self.metric_model, self.task_model, models.ForeignKey,
+                     'task', 'metrics')
+                     

@@ -147,6 +147,21 @@ class CrowdInterface(object):
         # Dummy implementation, do nothing
         pass
 
+    @staticmethod
+    def metric_pre_save(metric_object):
+        """ Process new metric objects before they are saved to the DB.
+
+        `metric_object` will be an UNSAVED object of the `metric_model`
+        class according to this crowd's model specification. Its worker,
+        task, name, value and unit fields will be set according to the
+        context provided by `get_response_context`. This method can modify the
+        unsaved object (e.g., set custom fields) before it is saved to the
+        database. This method SHOULD NOT save the object--it will be saved
+        later.
+        """
+        # Dummy implementation, do nothing
+        pass
+        
     def get_frontend_submit_url(self, crowd_config):
         """ Returns a url path to redirect to after a worker submits a task."""
         # Dummy implementation, just refresh the page on submit.
