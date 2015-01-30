@@ -11,13 +11,15 @@ class BroadcastJoin( @transient sc: SparkContext,
 					 blocker: BlockingFeaturizer, 
 					 projection:List[Int], 
 					 weighted:Boolean = false) extends
-					 SimilarityJoin(blocker,projection,weighted) {
+					 SimilarityJoin(sc,blocker,projection,weighted) {
 
   @Override
 	override def join(rddA: RDD[Row],
 			 rddB:RDD[Row], 
 			 smallerA:Boolean = true, 
 			 containment:Boolean = true): RDD[(Row,Row)] = {
+
+    println("Starting Broadcast Join")
 
     if (!blocker.canPrefixFilter) {
       super.join(rddA, rddB, smallerA, containment)
@@ -53,7 +55,7 @@ class BroadcastJoin( @transient sc: SparkContext,
         tokenWeights = tokenCounts.map(x => (x._1, math.log10(largeTableSize.toDouble / x._2)))
       }
 
-
+      println("Calculated Token Weights: " + tokenWeights)
       //Add a record ID into sampleTable. Id is a unique id assigned to each row.
       val smallTableWithId: RDD[(Long, (List[String], Row))] = smallTable.zipWithUniqueId
         .map(x => (x._2, (blocker.tokenizer.tokenize(x._1, projection), x._1))).cache()

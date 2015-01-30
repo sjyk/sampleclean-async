@@ -7,7 +7,8 @@ import org.apache.spark.SparkContext._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql._
 
-class SimilarityJoin(blocker: BlockingFeaturizer, 
+class SimilarityJoin(@transient sc: SparkContext,
+					 blocker: BlockingFeaturizer, 
 					 projection:List[Int], 
 					 weighted:Boolean = false) extends Serializable{
 
