@@ -6,7 +6,7 @@ import org.apache.spark.mllib.classification.{SVMModel, SVMWithSGD}
 import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
-import sampleclean.crowd.{CrowdLabelGetterParameters, GroupLabelingContext, PointLabelingContext}
+import sampleclean.crowd.context.{GroupLabelingContext, PointLabelingContext}
 
 /**
  * Parameters to train the SVMWithSGD model
@@ -23,8 +23,7 @@ case class SVMParameters(numIterations: Int=100,
 
 
 /** Active learning to train an SVM with SGD. */
-object ActiveSVMWithSGD extends ActiveLearningAlgorithm[SVMModel, SVMParameters, PointLabelingContext,
-  GroupLabelingContext, CrowdLabelGetterParameters] {
+class ActiveSVMWithSGD[C <: PointLabelingContext, G <: GroupLabelingContext] extends ActiveLearningAlgorithm[SVMModel, SVMParameters, C, G] {
 
   /**
     * Trains a new model instance on the available data.
@@ -47,7 +46,7 @@ object ActiveSVMWithSGD extends ActiveLearningAlgorithm[SVMModel, SVMParameters,
 }
 
 /** Uses uncertainty sampling to select points closest to the SVM Margin. */
-object SVMMarginDistanceFilter extends ActivePointSelector[SVMModel, PointLabelingContext] {
+class SVMMarginDistanceFilter[C <: PointLabelingContext] extends ActivePointSelector[SVMModel, C] {
 
   /**
     * Splits points into two sets: the n closest to the SVM's margin, and all others.
@@ -57,11 +56,11 @@ object SVMMarginDistanceFilter extends ActivePointSelector[SVMModel, PointLabeli
     * @return Two RDDs in the same format as input, one consisting of points close to the margin, the other consisting
     *         of the remaining points.
     */
-  def selectPoints(input: RDD[(String, Vector, PointLabelingContext)],
+  def selectPoints(input: RDD[(String, Vector, C)],
                     nPoints: Int,
-                    model: SVMModel): (RDD[(String, Vector, PointLabelingContext)], RDD[(String, Vector, PointLabelingContext)]) = {
+                    model: SVMModel): (RDD[(String, Vector, C)], RDD[(String, Vector, C)]) = {
     val breezeWeights = new BDV[Double](model.weights.toArray)
-    val withMargins : RDD[(Double, (String, Vector, PointLabelingContext))] = input.map(point => {
+    val withMargins : RDD[(Double, (String, Vector, C))] = input.map(point => {
       val margin : Double = breezeWeights.dot(new BDV[Double](point._2.toArray))
       (math.abs(margin), point)
     })

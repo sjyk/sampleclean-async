@@ -167,43 +167,44 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
 
     /* Use crowd to refine candidate pairs*/
     if (params.exist("crowdsourcingStrategy") && candidatePairs.count() != 0){
-      
-      var candidatePairsArray = candidatePairs.collect().sortBy(pair => -math.min(pair._1.getLong(1), pair._2.getLong(1)))
 
-      println("[SampleClean] Publish %d pairs to AMT".format(candidatePairsArray.size))
+      val candidatesWithSortKeys = candidatePairs map { pair => -math.min(pair._1.getLong(1), pair._2.getLong(1)) -> pair }
+      val sortedCandidates = candidatesWithSortKeys.sortByKey() map {kv => kv._2}
+      //var candidatePairsArray = candidatePairs.collect().sortBy(pair => -math.min(pair._1.getLong(1), pair._2.getLong(1)))
+
+      println("[SampleClean] Publish %d pairs to AMT".format(sortedCandidates.count()))
       val crowdsourcingStrategy = params.get("crowdsourcingStrategy").asInstanceOf[CrowdsourcingStrategy]
 
-      val groupContext : GroupLabelingContext = DeduplicationGroupLabelingContext(
-        taskType="er", data=Map("fields" ->List(attr, "count"))).asInstanceOf[GroupLabelingContext]
+      val groupContext = DeduplicationGroupLabelingContext(
+        taskType="er", data=Map("fields" ->List(attr, "count")))
 
       // Assign a unique id for each candidate pair
-      val candidatePairsWithId = candidatePairsArray.map{ pair =>
+      val candidatePairsWithId = sortedCandidates.map{ pair =>
         val random_id = utils.randomUUID()
         (random_id, pair)
-      }
-      val contextMap = candidatePairsWithId.toMap
+      }.cache()
+      val contextMap = candidatePairsWithId.collect().toMap
 
       // Construct the point labeling context with a unique id for each point
-      val crowdData: Seq[(String, PointLabelingContext)] = candidatePairsWithId.map { case (id, (row1, row2)) =>
+      val crowdData = candidatePairsWithId.map { case (id, (row1, row2)) =>
         val entity1Data = List(row1.getString(0), row1.getLong(1))
         val entity2Data = List(row2.getString(0), row2.getLong(1))
-        val context = DeduplicationPointLabelingContext(content=List(entity1Data, entity2Data)).asInstanceOf[PointLabelingContext]
+        val context = DeduplicationPointLabelingContext(content=List(entity1Data, entity2Data))
         (id, context)
       }
 
       if (params.exist("sync")) {
         val crowdResult = crowdsourcingStrategy.run(crowdData, groupContext)
-        onNewCrowdResult(crowdResult)
+        onNewCrowdResult(crowdResult.collect())
       }
       else {
         //it is async by default
         crowdsourcingStrategy.asyncRun(crowdData, groupContext, onNewCrowdResult)
       }
-      def onNewCrowdResult(crowdResult: CrowdResult) {
-        val answers = crowdResult.answers
-        candidatePairsArray = answers.withFilter(_.value > 0.5).map{ answer =>
-          assert(contextMap.contains(answer.identifier))
-          contextMap.apply(answer.identifier)
+      def onNewCrowdResult(results: Seq[(String, Double)]) {
+        val candidatePairsArray = results.withFilter(_._2 > 0.5).map{ answer =>
+          assert(contextMap.contains(answer._1))
+          contextMap.apply(answer._1)
         }.toArray
 
         onReceiveCandidatePairs(candidatePairsArray,
