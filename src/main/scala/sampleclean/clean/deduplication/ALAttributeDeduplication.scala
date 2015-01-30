@@ -42,14 +42,16 @@ class ALAttributeDeduplication(params:AlgorithmParameters,
                                (x._1, x._2.toSet)))
       val edgeRDD: RDD[(Long, Long, Double)] = scc.getSparkContext().parallelize(List())
       graphXGraph = GraphXInterface.buildGraph(vertexRDD, edgeRDD)
+      val schema = List("attr", "count")
+      val colMapper = (colNames: List[String]) => colNames.map(schema.indexOf(_))
 
-    	val candidatePairs = blockingJoin(attrCountRdd,attrCountRdd, blockingFeaturizer, List(attrCol),true,true,true, "BroadcastJoin")
+    	val candidatePairs = blockingJoin(attrCountRdd,attrCountRdd, blockingFeaturizer, List(0,1),true,true,true, "BroadcastJoin")
     	val emptyLabeledRDD = scc.getSparkContext().parallelize(new Array[(String, LabeledPoint)](0))
       val activeLearningStrategy = params.get("activeLearningStrategy").asInstanceOf[ActiveLearningStrategy]
       activeLearningStrategy.asyncRun(emptyLabeledRDD, 
                                       	candidatePairs, 
-                                      	scc.getSampleTableColMapper(sampleTableName), 
-                                      	scc.getSampleTableColMapper(sampleTableName), 
+                                      	colMapper, 
+                                      	colMapper, 
                                       	onReceiveCandidatePairs(_, sampleTableName))
 	}
 

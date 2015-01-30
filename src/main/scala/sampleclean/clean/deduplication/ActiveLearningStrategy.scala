@@ -130,6 +130,8 @@ case class ActiveLearningStrategy(displayedColNames: List[String], featurizer:Fe
       DeduplicationPointLabelingContext(List(displayedRow1, displayedRow2))
     }
 
+    println(displayedColNames.toList)
+
     val unlabeledInput = candidatePairsWithId.map(p =>
       (p._1, Vectors.dense(featurizer.featurize(Set(p._2._1, p._2._2))._2), toPointLabelingContext(p._2._1, p._2._2)))
 

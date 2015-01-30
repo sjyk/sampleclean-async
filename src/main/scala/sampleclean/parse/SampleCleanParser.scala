@@ -257,13 +257,18 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     algoPara.put("attr", "affiliation")
     algoPara.put("mergeStrategy", strategy)
 
-    val blockingFeaturizer = new WeightedJaccardBlocking(List(scc.getColAsIndex(samplename,attr)), 
+    val blockingFeaturizer = new WeightedJaccardBlocking(List(0), 
                                                      WordTokenizer(), 
                                                      primaryArg.toDouble)
 
     algoPara.put("blockingFeaturizer", blockingFeaturizer)
 
-    val d = new MachineAttributeDeduplication(algoPara, scc)
+    val displayedCols = List("attr","count")
+    algoPara.put("activeLearningStrategy",
+      ActiveLearningStrategy(displayedCols, new SimilarityFeaturizer(List(0), List("Levenshtein", "JaroWinkler")))
+        .setActiveLearningParameters(ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10)))
+
+    val d = new ALAttributeDeduplication(algoPara, scc)
     d.blocking = true
     d.name = algorithm + " Attribute Deduplication"
     val pp = new SampleCleanPipeline(saqp, List(d), watchedQueries)
