@@ -114,7 +114,8 @@ class CrowdInterface(object):
         return {'task_id': request.POST.get('task_id', None),
                 'worker_id': request.POST.get('worker_id', None),
                 'assignment_id': request.POST.get('assignment_id', None),
-                'answers': request.POST.get('answers', None)
+                'answers': request.POST.get('answers', None),
+                'metrics': request.POST.get('metrics', None)
         }
 
 
