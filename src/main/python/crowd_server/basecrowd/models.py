@@ -181,7 +181,7 @@ class CrowdModelSpecification(object):
                      'task', 'responses')
 
         # metrics come from a worker
-        sefl.add_rel(self.metric_model, self.worker_model, models.ForeignKey,
+        self.add_rel(self.metric_model, self.worker_model, models.ForeignKey,
                      'worker', 'metrics')
         
         # metrics pertain to a task
