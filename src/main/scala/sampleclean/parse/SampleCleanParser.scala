@@ -5,6 +5,7 @@ import sampleclean.api.{SampleCleanAQP, SampleCleanContext, SampleCleanQuery}
 import sampleclean.clean.algorithm.{AlgorithmParameters, SampleCleanAlgorithm, SampleCleanPipeline}
 import sampleclean.clean.deduplication.{ActiveLearningStrategy, BlockingStrategy, CrowdsourcingStrategy, _}
 import sampleclean.crowd.{CrowdConfiguration, CrowdTaskConfiguration}
+import sampleclean.clean.featurize.SimilarityFeaturizer
 
 /** The SampleCleanParser is the class that handles parsing SampleClean commands
  *  this class triggers execution when a command is parsed successfully. Commands

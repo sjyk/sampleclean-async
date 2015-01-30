@@ -33,25 +33,8 @@ case class ActiveLearningStrategy(displayedColNames: List[String], featurizer:Fe
   var frameworkParameters = ActiveLearningParameters()
   var crowdParameters = CrowdConfiguration() // Use defaults
   var taskParameters = CrowdTaskConfiguration() // Use defaults
-
-  /**
-<<<<<<< HEAD
-=======
-   * Used to set a new Feature list to be used for training.
-   * @param featureList list of Features (not Feature Vector)
-   */
-  def setFeatureList(featureList: List[Feature]): ActiveLearningStrategy = {
-    this.featureList = featureList
-    this
-  }
-
-  /** get current Feature list.*/
-  def getFeatureList: List[Feature] = {
-    this.featureList
-  }
-
-  /**
->>>>>>> master
+  
+  /*
    * Used to set new SVM parameters that will be used for training.
    * @param svmParameters parameters to set.
    */
