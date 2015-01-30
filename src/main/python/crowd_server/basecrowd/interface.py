@@ -153,11 +153,11 @@ class CrowdInterface(object):
 
         `metric_object` will be an UNSAVED object of the `metric_model`
         class according to this crowd's model specification. Its worker,
-        task, name, value and unit fields will be set according to the
-        context provided by `get_response_context`. This method can modify the
-        unsaved object (e.g., set custom fields) before it is saved to the
-        database. This method SHOULD NOT save the object--it will be saved
-        later.
+        task, response, name, value and unit fields will be set according 
+        to the context provided by `get_response_context`. This method can 
+        modify the unsaved object (e.g., set custom fields) before it is 
+        saved to the database. This method SHOULD NOT save the object--it 
+        will be saved later.
         """
         # Dummy implementation, do nothing
         pass

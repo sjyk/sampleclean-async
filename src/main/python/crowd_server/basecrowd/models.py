@@ -127,6 +127,12 @@ class AbstractCrowdMetric(models.Model):
     # The related_name will be 'metrics' to enable reverse lookups, e.g.
     # worker = models.ForeignKey(CrowdWorker, related_name='metrics')
 
+    # The response that passed back this metric, a many-to-one relationship.
+    # The relationship will be auto-generated to the worker class of the
+    # registered crowd, and can be accessed via the 'response' attribute.
+    # The related_name will be 'metrics' to enable reverse lookups, e.g.
+    # response = models.ForeignKey(CrowdWorkerResponse, related_name='metrics')
+    
     # The name of this metric (e.g. 'time_on_point_9')
     name = models.CharField(max_length=200)
     
@@ -187,4 +193,8 @@ class CrowdModelSpecification(object):
         # metrics pertain to a task
         self.add_rel(self.metric_model, self.task_model, models.ForeignKey,
                      'task', 'metrics')
+                     
+        # metrics pertain to a response
+        self.add_rel(self.metric_model, self.response_model, models.ForeignKey,
+                     'response', 'metrics')
                      
