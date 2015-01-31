@@ -91,13 +91,12 @@ abstract class BlockingFeaturizer(cols: List[Int],
       		tokens.foldLeft(0.0) ((accum, token) => accum + tokenWeights.getOrElse(token, 1.0))
   		}
 }
-
-
+object BlockingFeaturizer{
 /**
  * This class represents a similarity join based on the Jaccard similarity measure.
  * Token global weights are taken into account.
  */
-class WeightedJaccardBlocking(cols: List[Int], 
+ class WeightedJaccardBlocking(cols: List[Int], 
 							  tokenizer:Tokenizer, 
 							  threshold:Double) 
 	extends BlockingFeaturizer(cols, tokenizer, threshold) {
@@ -314,4 +313,5 @@ class WeightedCosineBlocking(cols: List[Int],
     super.getRemovedSize(tokens, weight * math.pow(threshold, 2), tokenWeights)
   }
 
+}
 }

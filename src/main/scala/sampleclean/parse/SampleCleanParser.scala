@@ -6,6 +6,9 @@ import sampleclean.clean.algorithm.{AlgorithmParameters, SampleCleanAlgorithm, S
 import sampleclean.clean.deduplication.{ActiveLearningStrategy, BlockingStrategy, CrowdsourcingStrategy, _}
 import sampleclean.crowd.{CrowdConfiguration, CrowdTaskConfiguration}
 import sampleclean.clean.featurize.SimilarityFeaturizer
+import sampleclean.clean.featurize.BlockingFeaturizer._
+import sampleclean.clean.featurize.Tokenizer._
+
 
 /** The SampleCleanParser is the class that handles parsing SampleClean commands
  *  this class triggers execution when a command is parsed successfully. Commands
@@ -252,20 +255,20 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
     val algoPara = new AlgorithmParameters()
     algoPara.put("attr", "affiliation")
-
-    if(algorithm.toLowerCase.equals("minhash") || 
-      algorithm.toLowerCase.equals("sortmerge")){
-
-      algoPara.put("iterations", primaryArg.toInt)
-      algoPara.put("similarityParameters", SimilarityParameters(simFunc=algorithm))
-    }
-    else{
-        algoPara.put("similarityParameters", SimilarityParameters(simFunc=algorithm, threshold=primaryArg.toDouble))
-    } 
-
     algoPara.put("mergeStrategy", strategy)
 
-    val d = new AttributeDeduplication(algoPara, scc)
+    val blockingFeaturizer = new WeightedJaccardBlocking(List(0), 
+                                                     WordTokenizer(), 
+                                                     primaryArg.toDouble)
+
+    algoPara.put("blockingFeaturizer", blockingFeaturizer)
+
+    val displayedCols = List("attr","count")
+    algoPara.put("activeLearningStrategy",
+      ActiveLearningStrategy(displayedCols, new SimilarityFeaturizer(List(0), List("Levenshtein", "JaroWinkler")))
+        .setActiveLearningParameters(ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10)))
+
+    val d = new ALAttributeDeduplication(algoPara, scc)
     d.blocking = true
     d.name = algorithm + " Attribute Deduplication"
     val pp = new SampleCleanPipeline(saqp, List(d), watchedQueries)
