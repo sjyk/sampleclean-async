@@ -34,7 +34,7 @@ abstract class BlockingFeaturizer(cols: List[Int],
 			if(params != null)
 				tokenWeights = params.asInstanceOf[Map[String,Double]]
 
-			val simVal = similarity(tokens1, tokens2, threshold, tokenWeights)
+			val simVal = similar(tokens1, tokens2, threshold, tokenWeights)
 
 			var sim = 0.0
 			if (simVal)
@@ -44,7 +44,7 @@ abstract class BlockingFeaturizer(cols: List[Int],
 					Array(sim))
 		}
 
-		def similarity(tokens1:Seq[String], 
+		def similar(tokens1:Seq[String],
 					  tokens2: Seq[String], 
 					  thresh:Double,
 					  tokenWeights: collection.Map[String, Double]): Boolean
@@ -103,6 +103,7 @@ class WeightedJaccardBlocking(cols: List[Int],
 	extends BlockingFeaturizer(cols, tokenizer, threshold) {
 
   val canPrefixFilter = true
+
   /**
    * Returns true if two token lists are similar; otherwise, returns false
    * @param tokens1 first token list.
@@ -110,7 +111,7 @@ class WeightedJaccardBlocking(cols: List[Int],
    * @param threshold specified threshold.
    * @param tokenWeights token-to-weight map
    */
-  def similarity (tokens1: Seq[String],
+  def similar (tokens1: Seq[String],
                  tokens2: Seq[String],
                  threshold: Double,
                  tokenWeights: collection.Map[String, Double]): Boolean = {
@@ -128,10 +129,27 @@ class WeightedJaccardBlocking(cols: List[Int],
     val unionWeight = weight1 + weight2 - intersectionWeight
 
     if (unionWeight == 0)
-      return false
+      false
     else
       intersectionWeight.toDouble / unionWeight + 1e-6 >= threshold
   }
+
+  def getSimilarity(tokens1: Seq[String], tokens2: Seq[String],
+                    tokenWeights: collection.Map[String, Double]): Double = {
+
+    val weight1 = sumWeight(tokens1, tokenWeights)
+    val weight2 = sumWeight(tokens2, tokenWeights)
+
+    val intersectionWeight = sumWeight(tokens1.intersect(tokens2), tokenWeights)
+    val unionWeight = weight1 + weight2 - intersectionWeight
+
+    if (unionWeight == 0)
+      0
+    else
+      intersectionWeight.toDouble / unionWeight + 1e-6
+
+  }
+
 
   /**
    * Calls getRemovedSize method with Jaccard-based parameters
@@ -168,7 +186,7 @@ class WeightedOverlapBlocking(cols: List[Int],
    * @param tokenWeights token-to-weight map         
    * @return
    */
-  def similarity(tokens1: Seq[String],
+  def similar(tokens1: Seq[String],
                 tokens2: Seq[String],
                 threshold: Double,
                 tokenWeights: collection.Map[String, Double]): Boolean = {
@@ -182,8 +200,16 @@ class WeightedOverlapBlocking(cols: List[Int],
     else
       if (weight2 < threshold) false
 
-      sumWeight(tokens1.intersect(tokens2), tokenWeights) >= threshold
+    sumWeight(tokens1.intersect(tokens2), tokenWeights) >= threshold
   }
+
+  def getSimilarity(tokens1: Seq[String], tokens2: Seq[String],
+                    tokenWeights: collection.Map[String, Double]): Double = {
+
+    sumWeight(tokens1.intersect(tokens2), tokenWeights)
+
+  }
+
 
   /**
    * Calls getRemovedSize method with overlap-based parameters
@@ -216,7 +242,7 @@ class WeightedDiceBlocking(cols: List[Int],
    * @param threshold specified threshold.
    * @param tokenWeights token-to-weight map         
    */
-  def similarity(tokens1: Seq[String],
+  def similar(tokens1: Seq[String],
                 tokens2: Seq[String],
                 threshold: Double,
                 tokenWeights: collection.Map[String, Double]): Boolean = {
@@ -228,7 +254,7 @@ class WeightedDiceBlocking(cols: List[Int],
     val weightSum = weight1 + weight2
     if (weight1 < weight2)
       if (2*weight1 < weightSum*threshold) false
-    else
+    else  
       if (2*weight2 < weightSum*threshold) false
 
     val intersectionWeight = sumWeight(tokens1.intersect(tokens2), tokenWeights)
@@ -237,6 +263,22 @@ class WeightedDiceBlocking(cols: List[Int],
       false
     else
       2 * intersectionWeight.toDouble / weightSum >= threshold
+
+  }
+
+  def getSimilarity(tokens1: Seq[String], tokens2: Seq[String],
+                    tokenWeights: collection.Map[String, Double]): Double = {
+
+    val weight1 = sumWeight(tokens1, tokenWeights)
+    val weight2 = sumWeight(tokens2, tokenWeights)
+
+    val weightSum = weight1 + weight2
+    val intersectionWeight = sumWeight(tokens1.intersect(tokens2), tokenWeights)
+
+    if (weightSum == 0)
+      0
+    else
+      2 * intersectionWeight.toDouble / weightSum
 
   }
 
@@ -275,7 +317,7 @@ class WeightedCosineBlocking(cols: List[Int],
    * @param threshold specified threshold.
    * @param tokenWeights token-to-weight map         
    */
-  def similarity(tokens1: Seq[String],
+  def similar(tokens1: Seq[String],
                 tokens2: Seq[String],
                 threshold: Double,
                 tokenWeights: collection.Map[String, Double]): Boolean = {
@@ -296,6 +338,22 @@ class WeightedCosineBlocking(cols: List[Int],
       false
     else
       intersectionWeight / weightSqrt >= threshold
+
+  }
+
+  def getSimilarity(tokens1: Seq[String], tokens2: Seq[String],
+                    tokenWeights: collection.Map[String, Double]): Double = {
+
+    val weight1 = sumWeight(tokens1, tokenWeights)
+    val weight2 = sumWeight(tokens2, tokenWeights)
+
+    val weightSqrt = math.sqrt(weight1 * weight2)
+    val intersectionWeight = sumWeight(tokens1.intersect(tokens2), tokenWeights)
+
+    if (weightSqrt == 0)
+      0
+    else
+      intersectionWeight / weightSqrt
 
   }
 

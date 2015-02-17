@@ -170,7 +170,7 @@ class CosineJoin extends PrefixFiltering{
     if (sqrtLen == 0)
       false
     else
-      intersectionSize.toDouble / sqrtLen >= threshold
+        intersectionSize.toDouble / sqrtLen >= threshold
   }
 
   /**

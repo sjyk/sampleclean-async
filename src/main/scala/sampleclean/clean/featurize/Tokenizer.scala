@@ -12,9 +12,9 @@ abstract class Tokenizer{
 
       var stringA = ""
       for (col <- cols){
-        stringA = stringA + " " + row(col).asInstanceOf[String]
+        stringA = stringA + " " + row(col)
       }
-      return tokenSet(stringA)
+      return tokenSet(stringA.trim)
     }
   
   def tokenSet(text: String): List[String]

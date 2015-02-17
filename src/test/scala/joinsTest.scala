@@ -19,7 +19,7 @@ import sampleclean.clean.featurize.{Tokenizer, SimilarityFeaturizer, WeightedJac
 import sampleclean.simjoin.BroadcastJoin
 
 
-class joinsTest extends FunSuite with Serializable {
+class JoinsTest extends FunSuite with Serializable {
 
   val conf = new SparkConf()
     .setMaster("local[2]")
@@ -58,7 +58,7 @@ class joinsTest extends FunSuite with Serializable {
 
   test("broadcast join") {
 
-    var jaccBlock = new WeightedJaccardBlocking(List(0),WordTokenizer(),0.5)
+    val jaccBlock = new WeightedJaccardBlocking(List(0),WordTokenizer(),0.5)
 
     val RDDLarge = sc.parallelize(Seq("a b c c", "a b c c", "a a C f")).map(x => Row(x))
     val RDDSmall = sc.parallelize(Seq("a b c c","a a C f")).map(x => Row(x))

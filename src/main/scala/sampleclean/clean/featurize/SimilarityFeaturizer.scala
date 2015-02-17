@@ -1,7 +1,9 @@
 package sampleclean.clean.featurize
 
 import org.apache.spark.sql.{SchemaRDD, Row}
+import sampleclean.clean.featurize.{WeightedDiceBlocking, WeightedJaccardBlocking}
 import uk.ac.shef.wit.simmetrics.similaritymetrics._
+import uk.ac.shef.wit.simmetrics.tokenisers.TokeniserWhitespace
 
 /* This class implements the similarity based featurizer used in Deduplication
  */
@@ -17,15 +19,15 @@ class SimilarityFeaturizer(cols: List[Int], metrics:List[String])
 			var stringA = ""
 			var stringB = ""
 			for (col <- cols){
-				stringA = stringA + " " +rowA(col).asInstanceOf[String]
-				stringB = stringB + " " +rowB(col).asInstanceOf[String]
+				stringA = stringA + " " +rowA(col)
+				stringB = stringB + " " +rowB(col)
 			}
 
 			return (Set(rowA, rowB),
 				    getSimilarities(stringA,stringB,metrics).toArray
 				   )
 		}
-
+    
 		def getSimilarities(s1: String, s2: String, simMeasures: List[String]): List[Double] = {
     		val measures: List[Object] = simMeasures.map(measure =>
       		measure match {
@@ -34,10 +36,7 @@ class SimilarityFeaturizer(cols: List[Int], metrics:List[String])
         		case "ChapmanMatchingSoundex" => new ChapmanMatchingSoundex
         		case "ChapmanMeanLength" => new ChapmanMeanLength
         		case "ChapmanOrderedNameCompoundSimilarity" => new ChapmanOrderedNameCompoundSimilarity
-        		case "CosineSimilarity" => new CosineSimilarity
-        		case "DiceSimilarity" => new DiceSimilarity
-        		case "EuclideanDistance" => new EuclideanDistance
-        		case "JaccardSimilarity" => new JaccardSimilarity
+            case "EuclideanDistance" => new EuclideanDistance
         		case "Jaro" => new Jaro
         		case "JaroWinkler" => new JaroWinkler
         		case "Levenshtein" => new Levenshtein
@@ -51,22 +50,51 @@ class SimilarityFeaturizer(cols: List[Int], metrics:List[String])
         		case "SmithWatermanGotohWindowedAffine" => new SmithWatermanGotohWindowedAffine
         		case "Soundex" => new Soundex
         		case "TagLinkToken" => new TagLinkToken
+
+            // SampleClean implementations
+            case "JaccardSimilarity" => new WeightedJaccardBlocking(List(0),null,0)
+            case "DiceSimilarity" => new WeightedDiceBlocking(List(0),null,0)
+            case "CosineSimilarity" => new WeightedCosineBlocking(List(0),null,0)
+            case "OverlapSimilarity" => new WeightedOverlapBlocking(List(0),null,0)
+
         		case _ => throw new NoSuchElementException(measure + " measure not found")
       		}
     		)
 
-    		// Fix for similarity measures that have issues with special characters
-    		measures.map(measure => {
-      		if (measure.isInstanceOf[Soundex] || measure.isInstanceOf[ChapmanMatchingSoundex] || measure.isInstanceOf[ChapmanOrderedNameCompoundSimilarity]){
-        		// functions implemented only support US_EN alphabet; non-valid characters are omitted
-        		val US_EN_MAP: Array[Char] = "01230120022455012623010202".toCharArray
-        		val trimmed1 = s1.filter(x => (x.toUpper - 'A') < US_EN_MAP.length)
-        		val trimmed2 = s2.filter(x => (x.toUpper - 'A') < US_EN_MAP.length)
-        		measure.asInstanceOf[AbstractStringMetric].getSimilarity(trimmed1, trimmed2).toDouble
-      		}
-      		else
-        	measure.asInstanceOf[AbstractStringMetric].getSimilarity(s1, s2).toDouble
-    		})
+
+    		measures.map(measure =>
+          measure match {
+            // Fix for similarity measures that have issues with special characters
+            case m @ (Soundex | ChapmanMatchingSoundex | ChapmanOrderedNameCompoundSimilarity) => {
+              // functions implemented only support US_EN alphabet; non-valid characters are omitted
+              val US_EN_MAP: Array[Char] = "01230120022455012623010202".toCharArray
+              val trimmed1 = s1.filter(x => (x.toUpper - 'A') < US_EN_MAP.length)
+              val trimmed2 = s2.filter(x => (x.toUpper - 'A') < US_EN_MAP.length)
+              m.asInstanceOf[AbstractStringMetric].getSimilarity(trimmed1, trimmed2).toDouble
+            }
+              // SampleClean implementations
+            case m @ (WeightedJaccardBlocking | WeightedDiceBlocking | DiceSimilarity) => {
+              val tokenizer = new TokeniserWhitespace()
+              val tokens1 = tokenizer.tokenizeToArrayList(s1).toArray.toSeq.asInstanceOf[Seq[String]]
+              val tokens2 = tokenizer.tokenizeToArrayList(s2).toArray.toSeq.asInstanceOf[Seq[String]]
+
+              case m: JaccardSimilarity => {
+                val wJacc = new WeightedJaccardBlocking(List(0),null,0)
+                wJacc.getSimilarity(tokens1,tokens2,Map[String,Double]())
+              }
+              case m: CosineSimilarity => {
+                val wCos = new WeightedCosineBlocking(List(0),null,0)
+                wCos.getSimilarity(tokens1,tokens2,Map[String,Double]())
+              }
+              case m: DiceSimilarity => {
+                val wDic = new WeightedDiceBlocking(List(0),null,0)
+                wDic.getSimilarity(tokens1,tokens2,Map[String,Double]())
+              }
+            }
+            case _ => measure.asInstanceOf[AbstractStringMetric].getSimilarity(s1, s2).toDouble
+          }
+
+    		)
   		}
 
 }
