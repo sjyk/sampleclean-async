@@ -15,11 +15,11 @@ import org.apache.spark.util.Utils
 
 import sampleclean.clean.deduplication._
 import sampleclean.clean.featurize.Tokenizer.WordTokenizer
-import sampleclean.clean.featurize.WeightedJaccardBlocking
+import sampleclean.clean.featurize.{Tokenizer, SimilarityFeaturizer, WeightedJaccardBlocking}
 import sampleclean.simjoin.BroadcastJoin
 
 
-class dedupTest extends FunSuite with Serializable {
+class joinsTest extends FunSuite with Serializable {
 
   val conf = new SparkConf()
     .setMaster("local[2]")
@@ -63,11 +63,15 @@ class dedupTest extends FunSuite with Serializable {
     val RDDLarge = sc.parallelize(Seq("a b c c", "a b c c", "a a C f")).map(x => Row(x))
     val RDDSmall = sc.parallelize(Seq("a b c c","a a C f")).map(x => Row(x))
 
+    val simpleLarge = sc.parallelize(Seq("a","b","c","a")).map(x => Row(x))
+    val simpleSmall = sc.parallelize(Seq("a","b","a")).map(x => Row(x))
 
     val bJoin = new BroadcastJoin(sc,jaccBlock,List(0))
 
-    val sampleJ = bJoin.join(RDDSmall,RDDLarge).collect().toSeq
-    assert(sampleJ == Seq((Row("a b c c"),Row("a b c c")), (Row("a b c c"),Row("a b c c")), (Row("a a C f"),Row("a a C f"))))
+    val sampleJ = bJoin.join(simpleSmall,simpleLarge).collect().toSeq
+    val selfJJ = bJoin.join(simpleLarge,simpleLarge).collect().toSeq
+
+    //assert(sampleJ == Seq((Row("a b c c"),Row("a b c c")), (Row("a b c c"),Row("a b c c")), (Row("a a C f"),Row("a a C f"))))
 
     val selfJ = bJoin.join(RDDLarge,RDDLarge).collect().toSeq
     assert(selfJ == Seq((Row("a b c c"),Row("a b c c"))))
@@ -88,5 +92,9 @@ class dedupTest extends FunSuite with Serializable {
     assert(unionJW == Seq((Row("a b c c"),Row("a b c c")), (Row("a b c c"),Row("a b c c")), (Row("a a C f"),Row("a a C f"))))
 
   }
+
+
+
+
 
 }
