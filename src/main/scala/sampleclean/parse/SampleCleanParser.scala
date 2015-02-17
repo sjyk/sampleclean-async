@@ -1,34 +1,14 @@
 package sampleclean.parse
 
-import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext._
-import org.apache.spark.SparkConf
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SchemaRDD, Row}
-
-import sampleclean.api.SampleCleanContext;
-import sampleclean.api.SampleCleanAQP;
-import sampleclean.api.SampleCleanQuery
-import sampleclean.crowd.CrowdLabelGetterParameters
-;
-
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{Failure, Success}
-
-import sampleclean.clean.outlier.ParametricOutlier;
-import sampleclean.clean.deduplication._
 import sampleclean.activeml._
-import sampleclean.clean.algorithm.AlgorithmParameters
-import sampleclean.clean.algorithm.SampleCleanAlgorithm
-import sampleclean.clean.algorithm.SampleCleanPipeline
-
-import sampleclean.clean.featurize.Tokenizer.WordTokenizer
-import sampleclean.clean.deduplication.BlockingStrategy
-import sampleclean.clean.deduplication.BlockingKey
-import sampleclean.clean.deduplication.ActiveLearningStrategy
-import sampleclean.clean.deduplication.CrowdsourcingStrategy
+import sampleclean.api.{SampleCleanAQP, SampleCleanContext, SampleCleanQuery}
+import sampleclean.clean.algorithm.{AlgorithmParameters, SampleCleanAlgorithm, SampleCleanPipeline}
+import sampleclean.clean.deduplication.{ActiveLearningStrategy, BlockingStrategy, CrowdsourcingStrategy, _}
+import sampleclean.crowd.{CrowdConfiguration, CrowdTaskConfiguration}
 import sampleclean.clean.featurize.SimilarityFeaturizer
+import sampleclean.clean.featurize.BlockingFeaturizer._
+import sampleclean.clean.featurize.Tokenizer._
+
 
 /** The SampleCleanParser is the class that handles parsing SampleClean commands
  *  this class triggers execution when a command is parsed successfully. Commands
@@ -275,20 +255,20 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
     val algoPara = new AlgorithmParameters()
     algoPara.put("attr", "affiliation")
-
-    if(algorithm.toLowerCase.equals("minhash") || 
-      algorithm.toLowerCase.equals("sortmerge")){
-
-      algoPara.put("iterations", primaryArg.toInt)
-      algoPara.put("similarityParameters", SimilarityParameters(simFunc=algorithm))
-    }
-    else{
-        algoPara.put("similarityParameters", SimilarityParameters(simFunc=algorithm, threshold=primaryArg.toDouble))
-    } 
-
     algoPara.put("mergeStrategy", strategy)
 
-    val d = new AttributeDeduplication(algoPara, scc)
+    val blockingFeaturizer = new WeightedJaccardBlocking(List(0), 
+                                                     WordTokenizer(), 
+                                                     primaryArg.toDouble)
+
+    algoPara.put("blockingFeaturizer", blockingFeaturizer)
+
+    val displayedCols = List("attr","count")
+    algoPara.put("activeLearningStrategy",
+      ActiveLearningStrategy(displayedCols, new SimilarityFeaturizer(List(0), List("Levenshtein", "JaroWinkler")))
+        .setActiveLearningParameters(ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10)))
+
+    val d = new ALAttributeDeduplication(algoPara, scc)
     d.blocking = true
     d.name = algorithm + " Attribute Deduplication"
     val pp = new SampleCleanPipeline(saqp, List(d), watchedQueries)
@@ -465,9 +445,9 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     //  ActiveLearningStrategy(displayedCols)
     //    .setFeatureList(featureList)
     //    .setActiveLearningParameters(ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10)))
-
-    val crowdParameters = CrowdLabelGetterParameters(maxPointsPerHIT = 5, maxVotesPerPoint = 3)
-    algoPara3.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdLabelGetterParameters(crowdParameters))
+    val crowdParameters = CrowdConfiguration(crowdName="internal")
+    val taskParameters = CrowdTaskConfiguration(maxPointsPerTask = 5, votesPerPoint = 1)
+    algoPara3.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdParameters(crowdParameters).setTaskParameters(taskParameters))
     val d3 = new AttributeDeduplication(algoPara3, scc)
     d3.blocking = false
     d3.name = "Crowd Attribute Deduplication"

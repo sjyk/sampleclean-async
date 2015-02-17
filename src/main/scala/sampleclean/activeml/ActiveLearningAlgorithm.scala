@@ -3,13 +3,15 @@ package sampleclean.activeml
 import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
+import sampleclean.crowd.context.{GroupLabelingContext, PointLabelingContext}
+import sampleclean.crowd.{CrowdTaskConfiguration, CrowdTask}
 
 /**
   * Class for using active selection criteria to pick points for labeling during active learning.
   * @tparam M the type of model used by the selector
   * @tparam C the point labeling context used by unlabeled points.
   */
-abstract class ActivePointSelector[M, C] extends Serializable {
+abstract class ActivePointSelector[M, C <: PointLabelingContext] extends Serializable {
 
   /**
    * Splits points into two sets: the n points to label next, and all others.
@@ -40,9 +42,8 @@ case class ActiveLearningParameters(budget: Int=10,
   * @tparam A parameters for the model
   * @tparam C point context for labeling new data
   * @tparam G group context for labeling new data
-  * @tparam P parameters for the label getter
   */
-abstract class ActiveLearningAlgorithm[M, A, C, G, P] extends Serializable {
+abstract class ActiveLearningAlgorithm[M, A, C <: PointLabelingContext, G <: GroupLabelingContext] extends Serializable {
 
   // TODO(dhaas): these methods would go away if we had a generic Model interface a la MLI.
 
@@ -78,7 +79,8 @@ abstract class ActiveLearningAlgorithm[M, A, C, G, P] extends Serializable {
    * @param groupContext context needed for labeling shared among all points.
    * @param algParams parameters for training individual models.
    * @param frameworkParams parameters for the active learning framework.
-   * @param labelGetter label getter for adding labels to unlabeled data (e.g. using the crowd).
+   * @param crowdTask crowd task for getting labels for unlabeled data.
+   * @param crowdTaskConfig configuration settings for running the crowd task.
    * @param pointSelector point selector for picking the next points to label at each iteration.
    * @return an [[ActiveLearningTrainingFuture]], a future-like object with callbacks whenever new models are trained
    *         or new data is labeled.
@@ -89,7 +91,8 @@ abstract class ActiveLearningAlgorithm[M, A, C, G, P] extends Serializable {
     groupContext: G,
     algParams: A,
     frameworkParams: ActiveLearningParameters,
-    labelGetter: LabelGetter[C, G, P],
+    crowdTask: CrowdTask[C, G, Double],
+    crowdTaskConfig: CrowdTaskConfiguration,
     pointSelector: ActivePointSelector[M, C]): ActiveLearningTrainingFuture[M] = {
 
     // helper function that does the actual work of training.
@@ -114,7 +117,7 @@ abstract class ActiveLearningAlgorithm[M, A, C, G, P] extends Serializable {
         //println("split unlabeled points: " + pointsToLabel.count() + " to label, " + unlabeledInputLocal.count() + " still unlabeled")
 
         // get the labels
-        val newLabeledPoints = labelGetter.addLabels(pointsToLabel, groupContext)
+        val newLabeledPoints = getLabelsBlocking(pointsToLabel, crowdTask, groupContext, crowdTaskConfig)
         labeledInputLocal = labeledInputLocal.union(newLabeledPoints).cache()
         numLabeled = labeledInputLocal.count()
         numUnlabeled = unlabeledInputLocal.count()
@@ -142,7 +145,7 @@ abstract class ActiveLearningAlgorithm[M, A, C, G, P] extends Serializable {
         val nextPoints = pointSelector.selectPoints(unlabeledInputLocal, batchSize, model)
 
         // get the labels
-        val newLabeledPoints = labelGetter.addLabels(nextPoints._1, groupContext)
+        val newLabeledPoints = getLabelsBlocking(nextPoints._1, crowdTask, groupContext, crowdTaskConfig)
         labeledInputLocal = labeledInputLocal.union(newLabeledPoints).cache()
         unlabeledInputLocal = nextPoints._2
         numLabeled = labeledInputLocal.count()
@@ -162,10 +165,6 @@ abstract class ActiveLearningAlgorithm[M, A, C, G, P] extends Serializable {
         // update the training state with the new model
         trainingState.addModel(model, numLabeled)
       }
-
-      // clean up
-      labelGetter.cleanUp()
-
     }
 
     // return the asynchronous model training context
@@ -190,7 +189,8 @@ abstract class ActiveLearningAlgorithm[M, A, C, G, P] extends Serializable {
    * @param unlabeledInput points without labels. Each point is an (id, feature vector, labeling context) tuple.
    * @param groupContext context needed for labeling shared among all points.
    * @param algParams parameters for training individual models.
-   * @param labelGetter label getter for adding labels to unlabeled data (e.g. using the crowd).
+   * @param crowdTask crowd task for getting labels for unlabeled data.
+   * @param crowdTaskConfig configuration settings for running the crowd task.
    * @param pointSelector point selector for picking the next points to label at each iteration.
    * @return an [[ActiveLearningTrainingFuture]], a future-like object with callbacks whenever new models are trained
    *         or new data is labeled.
@@ -199,10 +199,34 @@ abstract class ActiveLearningAlgorithm[M, A, C, G, P] extends Serializable {
             unlabeledInput: RDD[(String, Vector, C)],
             groupContext: G,
             algParams: A,
-            labelGetter: LabelGetter[C, G, P],
+            crowdTask: CrowdTask[C, G, Double],
+            crowdTaskConfig: CrowdTaskConfiguration,
             pointSelector: ActivePointSelector[M, C]): ActiveLearningTrainingFuture[M] = {
     train(labeledInput, unlabeledInput, groupContext, algParams, new ActiveLearningParameters(),
-      labelGetter, pointSelector)
+      crowdTask, crowdTaskConfig, pointSelector)
+  }
+
+  /**
+   * Runs the crowd task to add labels to an RDD of unlabeled points.
+   * Blocks until all points are labeled.
+   * @param pointsToLabel an RDD of unlabeled points.
+   * @param crowdTask the crowd task that will provide labels for the points (as Doubles).
+   * @param groupContext the group context for all of the points to show the crowd.
+   * @param crowdTaskConfig configuration for the crowd task.
+   * @return the original points with crowd labels added instead of context.
+   */
+  def getLabelsBlocking(pointsToLabel: RDD[(String, Vector, C)],
+                crowdTask:CrowdTask[C, G, Double],
+                groupContext: G,
+                crowdTaskConfig: CrowdTaskConfiguration): RDD[(String, LabeledPoint)] = {
+    val labels = crowdTask.processBlocking(pointsToLabel map { p => p._1 -> p._3}, groupContext, crowdTaskConfig)
+    val newLabeledPoints = crowdTask.joinResults(pointsToLabel map { p => p._1 -> p._2}, labels) map { point =>
+      point._2._2 match {
+        case Some(d) => point._1 -> LabeledPoint(d, point._2._1)
+        case _ => throw new RuntimeException("Crowd claimed to label all points, but a label was missing!")
+      }
+    }
+    newLabeledPoints
   }
 
   /**

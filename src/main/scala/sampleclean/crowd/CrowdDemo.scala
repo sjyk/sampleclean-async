@@ -4,7 +4,7 @@ package sampleclean.crowd
 
 import org.apache.spark.{SparkConf, SparkContext}
 import sampleclean.activeml._
-import sampleclean.crowd.context.{DeduplicationPointLabelingContext, DeduplicationGroupLabelingContext}
+import sampleclean.crowd.context.{GroupLabelingContext, PointLabelingContext, DeduplicationPointLabelingContext, DeduplicationGroupLabelingContext}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -29,43 +29,49 @@ object CrowdDemo {
       val parts = line.split(',')
       val entity1Data = parts.slice(1, 7).toList
       val entity2Data = parts.slice(7, 13).toList
-      val context = DeduplicationPointLabelingContext(content=List(entity1Data, entity2Data)).asInstanceOf[PointLabelingContext]
+      val context = DeduplicationPointLabelingContext(content=List(entity1Data, entity2Data))
       (random_id, context)
     }
 
-    // take just the first few points for labeling, and store the context so we can print it out later.
-    val crowdData = parsedData.take(20)
-    val contextMap = crowdData toMap
-
-    // set up the crowd parameters
-    val labelGetterParameters = CrowdLabelGetterParameters(crowdName = "amt", 
-							   maxPointsPerHIT = 20, 
-							   crowdConfig = Map("sandbox" -> true,
-								 	     "title" -> "SampleClean",
-									     "reward" -> 0.08,
-									     "description" -> "This is an entity resolution task."))
+    // sample a few points for labeling, and store the context so we can print it out later
+    val crowdData = parsedData.sample(false, 0.01).cache()
+    println(crowdData.count + " points in data set.")
+    val contextMap = crowdData.collect() toMap
 
     // Group Context for a deduplication task with the restaurant schema.
-    val groupContext : GroupLabelingContext = DeduplicationGroupLabelingContext(
-      taskType="er", 
-      data=Map("fields" -> List("id", "entity_id", "name", "address", "city", "type"),
-               "instruction" -> "Decide whether two records in each group refer to the <b>same entity</b>.")).asInstanceOf[GroupLabelingContext]
+    val groupContext = DeduplicationGroupLabelingContext(
+      data=Map(
+        "fields" -> List("id", "entity_id", "name", "address", "city", "type"),
+        "instruction" -> "Decide whether two records in each group refer to the <b>same entity</b>.")
+    )
 
-    // Make the request, which returns a future
-    val groupId = utils.randomUUID() // random group id for the request.
-    val resultFuture = CrowdHTTPServer.makeRequest(groupId, crowdData, groupContext, labelGetterParameters)
+    // set up the crowd parameters, using the default ports/hosts
+    val crowdConfig = CrowdConfiguration(
+      crowdName="internal"
+    )
+    val taskConfig = CrowdTaskConfiguration(
+      maxPointsPerTask = 5,
+      votesPerPoint = 1,
+      crowdTaskOptions = Map(
+        "sandbox" -> true,
+        "title" -> "SampleClean Demo Crowd Task",
+        "reward" -> 0.08,
+        "description" -> "Decide whether or not two restaurants are the same.")
+    )
 
-    // wait for the crowd to finish (in real usage, better to use future callbacks than Await)
-    val result = Await.result(resultFuture, Duration.Inf)
 
-    // print out our results
-    result.answers foreach { answer =>
-      val context = contextMap.getOrElse(answer.identifier, null).asInstanceOf[DeduplicationPointLabelingContext]
-      val label = if (answer.value == 1.0) "DUPLICATE" else "NOT DUPLICATE"
-      println("Entity1: " + context.content(0) + ", Entity2: " + context.content(1) + ", Result: " + label)
+    // Make the request, which returns asynchronously, and set up callbacks as the data processes
+    val task = new DeduplicationTask()
+    task.configureCrowd(crowdConfig)
+    val resultObject = task.processStreaming(crowdData, groupContext, taskConfig)
+    resultObject onTupleProcessed { tuple =>
+      val label = if (tuple._2 == 1.0) "DUPLICATE" else "NOT DUPLICATE"
+      contextMap.get(tuple._1) match {
+        case Some(c) => println("Entity1: " + c.content(0) + ", Entity2: " + c.content(1) + ", Result: " + label)
+        case _ => throw new RuntimeException("Unexpected tuple id: " + tuple._1)
+      }
     }
-
-    // quit.
-    //System.exit(0)
+    resultObject onBatchProcessed({tupleBatch => println("New batch processed!")}, 10)
+    resultObject onComplete { () => println("All done!") }
   }
 }

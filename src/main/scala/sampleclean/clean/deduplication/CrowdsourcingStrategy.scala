@@ -1,57 +1,55 @@
 package sampleclean.clean.deduplication
 
-import sampleclean.activeml._
+import org.apache.spark.rdd.RDD
 import sampleclean.crowd._
-import scala.util.{Failure, Success}
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
+import sampleclean.crowd.context.{DeduplicationGroupLabelingContext, DeduplicationPointLabelingContext}
+
+import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 /**
  * This class is used to request crowd participation
  */
 case class CrowdsourcingStrategy() {
-  var labelGetterParameters = CrowdLabelGetterParameters() // Use defaults
+  var crowdParameters = CrowdConfiguration() // Use defaults
+  var taskParameters = CrowdTaskConfiguration() // Use defaults
+  private val crowdTask = new DeduplicationTask()
 
-  def setCrowdLabelGetterParameters(labelGetterParameters: CrowdLabelGetterParameters): CrowdsourcingStrategy = {
-    this.labelGetterParameters = labelGetterParameters
-    return this
+  def setCrowdParameters(crowdParams: CrowdConfiguration): CrowdsourcingStrategy = {
+    this.crowdParameters = crowdParams
+    this.crowdTask.configureCrowd(crowdParams)
+    this
   }
-  def getCrowdLabelGetterParameters(): CrowdLabelGetterParameters = {
-    return this.labelGetterParameters
-  }
-
-  def run(points:Seq[(String, PointLabelingContext)],
-          groupContext: GroupLabelingContext): CrowdResult = {
-
-    val groupId = utils.randomUUID() // random group id for the request.
-    val resultFuture = CrowdHTTPServer.makeRequest(groupId, points, groupContext, labelGetterParameters)
-
-    // wait for the crowd to finish
-    return Await.result(resultFuture, Duration.Inf)
+  
+  def getCrowdParameters: CrowdConfiguration = {
+    this.crowdParameters
   }
 
-  def asyncRun(points:Seq[(String, PointLabelingContext)],
-               groupContext: GroupLabelingContext,
-               onNewCrowdResult: CrowdResult => Unit) = {
+  def setTaskParameters(taskParams: CrowdTaskConfiguration): CrowdsourcingStrategy = {
+    this.taskParameters = taskParams
+    this
+  }
 
-    println(points.size)
+  def getTaskParameters: CrowdTaskConfiguration = {
+    this.taskParameters
+  }
 
-    // Split points into small groups of points; Collect crowd results asynchronously
-    val resultFutures = points.grouped(labelGetterParameters.maxPointsPerHIT).toSeq.map{ smallPoints =>
-      println(smallPoints.size)
-      val groupId = utils.randomUUID() // random group id for the request.
-      val resultFuture = CrowdHTTPServer.makeRequest(groupId, smallPoints, groupContext, labelGetterParameters)
-      resultFuture.onComplete {
-        case Success(result) => onNewCrowdResult(result)
-        case Failure(e) => e.printStackTrace
-      }
-      resultFuture
-    }
-    val futureResults = Future.sequence(resultFutures)
+  def run(points:RDD[(String, DeduplicationPointLabelingContext)],
+          groupContext: DeduplicationGroupLabelingContext): RDD[(String, Double)] = {
+
+    crowdTask.processBlocking(points, groupContext, getTaskParameters)
+  }
+
+  def asyncRun(points:RDD[(String, DeduplicationPointLabelingContext)],
+               groupContext: DeduplicationGroupLabelingContext,
+               onNewCrowdResult: Seq[(String, Double)] => Unit) = {
+
+    println(points.count())
+    val resultFuture = crowdTask.processStreaming(points, groupContext, getTaskParameters)
+    resultFuture.onBatchProcessed(onNewCrowdResult, getTaskParameters.maxPointsPerTask)
 
     // wait until all future results are completed
-    Await.ready(futureResults, Duration.Inf)
+    Await.ready(resultFuture, Duration.Inf)
   }
 }
 
