@@ -73,11 +73,16 @@ class SampleCleanContext(@transient sc: SparkContext) {
 			qb.buildSelectQuery(selectionList,baseTable) +
 			qb.tableSample(samplingRatio)
 
+			var baseQuery = qb.createTableAs(qb.getBaseName(baseTable)) +
+			qb.buildSelectQuery(selectionList,baseTable)
+
+			hiveContext.hql(baseQuery)
+
 			hiveContext.hql(query)
 
 			hiveContext.hql("cache table "+ qb.getCleanSampleName(tableName))
 
-			hiveContext.hql(qb.setTableParent(qb.getCleanSampleName(tableName),baseTable + " " + samplingRatio))
+			hiveContext.hql(qb.setTableParent(qb.getCleanSampleName(tableName),qb.getBaseName(baseTable) + " " + samplingRatio))
 
 			query = qb.createTableAs(qb.getDirtySampleName(tableName)) +
 					qb.buildSelectQuery(List("*"),qb.getCleanSampleName(tableName))
@@ -114,9 +119,14 @@ class SampleCleanContext(@transient sc: SparkContext) {
 			qb.buildSelectQuery(selectionList,baseTable) +
 			qb.tableConsistentHash(samplingFrac,onKey)
 
+			var baseQuery = qb.createTableAs(qb.getBaseName(baseTable)) +
+			qb.buildSelectQuery(selectionList,baseTable)
+
+			hiveContext.hql(baseQuery)
+
 			hiveContext.hql(query)
 
-			hiveContext.hql(qb.setTableParent(qb.getCleanSampleName(tableName),baseTable + " " + 1.0/samplingFrac))
+			hiveContext.hql(qb.setTableParent(qb.getCleanSampleName(tableName),qb.getBaseName(baseTable) + " " + 1.0/samplingFrac))
 
 			query = qb.createTableAs(qb.getDirtySampleName(tableName)) +
 					qb.buildSelectQuery(List("*"),qb.getCleanSampleName(tableName))
@@ -434,12 +444,6 @@ class SampleCleanContext(@transient sc: SparkContext) {
     getColIndicesByNames(fullTableName, _: List[String])
   }
 
-
-
-
-
-
-
   /** This function returns all the tables we have created in this session
 	as temporary tables.
 	*/
@@ -457,6 +461,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
    				for(t <- msc.getAllTables(d))
    				{
    					if ((t contains "tmp") || 
+   						(t contains "_base") ||
    						(t contains "_clean") || 
    						(t contains "_dirty") )
    					{

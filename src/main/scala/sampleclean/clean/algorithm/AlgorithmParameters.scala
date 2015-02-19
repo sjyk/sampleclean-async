@@ -19,4 +19,8 @@ class AlgorithmParameters() {
     return names.exists(_ == name)
   }
 
+  def exists(name:String): Boolean = {
+    return names.exists(_ == name)
+  }
+
 }

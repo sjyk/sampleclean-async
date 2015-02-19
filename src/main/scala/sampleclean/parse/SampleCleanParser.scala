@@ -268,7 +268,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
       ActiveLearningStrategy(displayedCols, new SimilarityFeaturizer(List(0), List("Levenshtein", "JaroWinkler")))
         .setActiveLearningParameters(ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10)))
 
-    val d = new ALAttributeDeduplication(algoPara, scc)
+    val d = new MachineAttributeDeduplication(algoPara, scc)
     d.blocking = true
     d.name = algorithm + " Attribute Deduplication"
     val pp = new SampleCleanPipeline(saqp, List(d), watchedQueries)
@@ -447,7 +447,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     //    .setActiveLearningParameters(ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10)))
     val crowdParameters = CrowdConfiguration(crowdName="internal")
     val taskParameters = CrowdTaskConfiguration(maxPointsPerTask = 5, votesPerPoint = 1)
-    algoPara3.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdParameters(crowdParameters).setTaskParameters(taskParameters))
+    algoPara3.put("crowdsourcingStrategy", CrowdsourcingStrategy(displayedCols, new SimilarityFeaturizer(List(2,3,4), List("Levenshtein", "JaroWinkler"))).setCrowdParameters(crowdParameters).setTaskParameters(taskParameters))
     val d3 = new AttributeDeduplication(algoPara3, scc)
     d3.blocking = false
     d3.name = "Crowd Attribute Deduplication"

@@ -19,29 +19,48 @@ import sampleclean.crowd.context.{DeduplicationPointLabelingContext, Deduplicati
 import sampleclean.simjoin._
 import sampleclean.clean.featurize.BlockingFeaturizer
 
+
+/**
+ * The Abstract Deduplication class builds the structure for
+ * subclasses that implement deduplication. It has two basic
+ * primitives a blocking function and then an apply function (implemented)
+ * in subclasses.
+ */
 abstract class AbstractDeduplication(params:AlgorithmParameters, 
-							scc: SampleCleanContext) extends
-							SampleCleanAlgorithm(params, scc) {
+							scc: SampleCleanContext, sampleTableName: String) extends
+							SampleCleanAlgorithm(params, scc, sampleTableName) {
 
+	if(! params.exists("blockingFeaturizer"))
+      	throw new RuntimeException("BlockingFeaturizer not specified. Every deduplication operation must have a specified similarity operation. ")
+
+	//All deduplication operations must have blocking featurizer
+	val blocker = params.get("blockingFeaturizer").asInstanceOf[BlockingFeaturizer]
+
+	/*
+		Selects a similarity join implementation, this
+		will error if the join strategy is not implemented
+	 */
 	def blockingJoin(r1: RDD[Row],
-				 r2: RDD[Row],
-				 blocker: BlockingFeaturizer, 
-				 projection:List[Int], 
-				 weighted:Boolean = false,
-				 smaller:Boolean = true, 
-			 	 containment:Boolean = true,
-				 joinImpl:String = "SimilarityJoin"):RDD[(Row,Row)] = {
+				     r2: RDD[Row],
+				     projection:List[Int], 
+				     weighted:Boolean = false,
+				     smaller:Boolean = true, 
+			 	     containment:Boolean = true,
+				     joinImpl:String = "SimilarityJoin"):RDD[(Row,Row)] = {
 
-		val joinImplementation:SimilarityJoin = new BroadcastJoin(scc.getSparkContext(), blocker, projection, true) //Class.forName("sampleclean.simjoin." + joinImpl).getConstructors()(0).newInstance(scc, blocker, projection,).asInstanceOf[SimilarityJoin]
+		val joinImplementation:SimilarityJoin = joinImpl match {
+        			case "SimilarityJoin" => new SimilarityJoin(scc.getSparkContext(), blocker, projection, true) 
+        			case "BroadcastJoin" => new BroadcastJoin(scc.getSparkContext(), blocker, projection, true) 
+        			case _ => throw new RuntimeException("Invalid Join Implementation. Acceptable Values are {SimilarityJoin, BroadcastJoin}: " + joinImpl)
+      	}
+
 		return joinImplementation.join(r1,r2,smaller,containment)
 	}
 
-	def onReceiveCandidatePairs(candidatePairs: RDD[(Row, Row)], 
-                                sampleTableName:String):Unit
-
 	
-	def defer(sampleTableName:String):RDD[(String,Int)] = {
-      return null
-  	}
+	/*
+	 *  Apply the candidate pairs back to a base table
+	 */
+	def apply(candidatePairs: RDD[(Row, Row)]):Unit
 
 }

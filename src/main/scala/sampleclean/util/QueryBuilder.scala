@@ -187,6 +187,33 @@ class QueryBuilder(scc: SampleCleanContext) {
 		return resultString
 	}
 
+	/** Returns the "clean" sample name
+	*/
+	def getBaseName(sampleName:String):String = {
+		val sampleExprSplit = sampleName.replaceAll("=", " = ")
+		val splitComponents = sampleExprSplit.split("\\s+")
+		val reservedWords = List("on", "join", "left", "right", "outer", "semi", "=")
+		var resultString = ""
+		for(comp <- splitComponents){
+			if(reservedWords contains comp){
+				resultString = resultString + " "+ comp
+			}
+			else{
+				
+				if(comp.indexOf(".") >= 0){
+					resultString = resultString + " "+ 
+					                            comp.substring(0, comp.indexOf("."))+
+												"_base" +
+												comp.substring(comp.indexOf("."))
+				}
+				else{
+					resultString = resultString + " "+ comp+"_base"
+				}
+			}
+		}
+		return resultString
+	}
+
 	def getCleanFactSampleName(sampleName:String,dirty:Boolean = false):String = {
 		var suffix = "_clean"
 

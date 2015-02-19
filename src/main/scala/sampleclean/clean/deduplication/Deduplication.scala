@@ -194,8 +194,8 @@ class AttributeDeduplication(params:AlgorithmParameters, scc: SampleCleanContext
       }
 
       if (params.exist("sync")) {
-        val crowdResult = crowdsourcingStrategy.run(crowdData, groupContext)
-        onNewCrowdResult(crowdResult.collect())
+        //val crowdResult = crowdsourcingStrategy.run(crowdData, groupContext)
+        //onNewCrowdResult(crowdResult.collect())
       }
       else {
         //it is async by default
