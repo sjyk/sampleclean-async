@@ -484,7 +484,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 	{
 		try{
 			val msc:HiveMetaStoreClient = new HiveMetaStoreClient(new HiveConf());
-			return msc.getTable(tableName).getParameters().get("comment").split(" ")(0)
+			return msc.getTable(tableName).getParameters().get("comment").trim.split(" ")(0)
 		}
 		catch {
      		case e: Exception => 0
@@ -498,7 +498,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 	{
 		try{
 			val msc:HiveMetaStoreClient = new HiveMetaStoreClient(new HiveConf());
-			return msc.getTable(tableName).getParameters().get("comment").split(" ")(1).toDouble
+			return msc.getTable(tableName).getParameters().get("comment").trim.split(" ")(1).toDouble
 		}
 		catch {
      		case e: Exception => println(e)

@@ -34,12 +34,13 @@ class BroadcastJoin( @transient sc: SparkContext,
       var smallTable = rddA
       var largeTable = rddB
 
+      println(projection)
 
       if (smallerA && containment) {
-        tokenCounts = computeTokenCount(rddA.map(blocker.tokenizer.tokenize(_, projection)))
+        tokenCounts = computeTokenCount(rddA.map(blocker.tokenizer.tokenize(_, blocker.cols)))
       }
       else if (containment) {
-        tokenCounts = computeTokenCount(rddB.map(blocker.tokenizer.tokenize(_, projection)))
+        tokenCounts = computeTokenCount(rddB.map(blocker.tokenizer.tokenize(_, blocker.cols)))
         val n = smallTableSize
         smallTableSize = largeTableSize
         largeTableSize = n
@@ -47,7 +48,7 @@ class BroadcastJoin( @transient sc: SparkContext,
         largeTable = rddA
       }
       else {
-        tokenCounts = computeTokenCount(rddA.union(rddB).map(blocker.tokenizer.tokenize(_, projection)))
+        tokenCounts = computeTokenCount(rddA.union(rddB).map(blocker.tokenizer.tokenize(_, blocker.cols)))
         largeTableSize = largeTableSize + smallTableSize
       }
 
@@ -58,7 +59,7 @@ class BroadcastJoin( @transient sc: SparkContext,
       println("[SampleClean] Calculated Token Weights: " + tokenWeights)
       //Add a record ID into sampleTable. Id is a unique id assigned to each row.
       val smallTableWithId: RDD[(Long, (List[String], Row))] = smallTable.zipWithUniqueId
-        .map(x => (x._2, (blocker.tokenizer.tokenize(x._1, projection), x._1))).cache()
+        .map(x => (x._2, (blocker.tokenizer.tokenize(x._1, blocker.cols), x._1))).cache()
 
 
       // Set a global order to all tokens based on their frequencies
@@ -91,7 +92,7 @@ class BroadcastJoin( @transient sc: SparkContext,
       val scanTable = {
         if (selfJoin) smallTableWithId
         else {
-          largeTable.map(row => (0L, (blocker.tokenizer.tokenize(row,projection), row)))
+          largeTable.map(row => (0L, (blocker.tokenizer.tokenize(row,blocker.cols), row)))
         }
       }
 
@@ -142,7 +143,6 @@ class BroadcastJoin( @transient sc: SparkContext,
         for (x <- tokens.distinct)
         yield (x, 1)
     }.reduceByKeyLocally(_ + _)
-
     collection.immutable.Map(m.toList: _*)
   }
 

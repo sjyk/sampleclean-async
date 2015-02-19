@@ -5,7 +5,7 @@ import uk.ac.shef.wit.simmetrics.similaritymetrics._
 /* This class implements the similarity based featurizer used in Deduplication
  */
 @serializable
-abstract class BlockingFeaturizer(cols: List[Int], 
+abstract class BlockingFeaturizer(val cols: List[Int], 
 								  val tokenizer:Tokenizer, 
 								  val threshold:Double,
                   val minSize: Int = 0)

@@ -45,7 +45,7 @@ class SampleCleanPipeline(saqp: SampleCleanAQP,
 
 	/**Executes the algorithms in the pipeline
 	*/
-	def exec(sampleName: String)={
+	def exec()={
 		for(l <- execList)
 		{
 			val before = System.nanoTime
@@ -55,13 +55,13 @@ class SampleCleanPipeline(saqp: SampleCleanAQP,
 
 			if(l.blocking){
 					println("[SampleClean] Added " + stageName + " to the Pipeline")
-					l.exec(sampleName)
+					l.exec()
 					println("Completed " + stageName)
 				}
 			else{
 					val f = Future{
 						println("[SampleClean] Added " + stageName + " to the Pipeline")
-						l.exec(sampleName)
+						l.exec()
 					}
 
 					f.onComplete {

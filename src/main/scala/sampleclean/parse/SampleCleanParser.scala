@@ -3,7 +3,7 @@ package sampleclean.parse
 import sampleclean.activeml._
 import sampleclean.api.{SampleCleanAQP, SampleCleanContext, SampleCleanQuery}
 import sampleclean.clean.algorithm.{AlgorithmParameters, SampleCleanAlgorithm, SampleCleanPipeline}
-import sampleclean.clean.deduplication.{ActiveLearningStrategy, BlockingStrategy, CrowdsourcingStrategy, _}
+import sampleclean.clean.deduplication.{ActiveLearningStrategy, CrowdsourcingStrategy, _}
 import sampleclean.crowd.{CrowdConfiguration, CrowdTaskConfiguration}
 import sampleclean.clean.featurize.SimilarityFeaturizer
 import sampleclean.clean.featurize.BlockingFeaturizer._
@@ -27,16 +27,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   val RESERVED_STRING_CHAR = "\""
 
   //function registry--use the function registry if the system accepts string parameters
-  val functionRegistry = Map("merge" -> ("sampleclean.clean.misc.MergeKey",
-                                         List("attr","src","target")),
-                             "lowercase" -> ("sampleclean.clean.misc.LowerCaseTrimKey",
-                                         List("attr")),
-                             "democustom" -> ("sampleclean.clean.misc.CustomTransform",
-                                         List("attr")),
-                             "cut" -> ("sampleclean.clean.misc.CutTransform",
-                                         List("attr","delimiter","position")),
-                             "filter" -> ("sampleclean.clean.misc.RuleFilter",
-                                         List("attr", "rule")))
+  val functionRegistry:Map[String,(String, List[String])] = Map()
 
   var watchedQueries = Set[SampleCleanQuery]()
   var activePipelines = Set[SampleCleanPipeline]()
@@ -235,7 +226,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
       d.name = classData._1
       val pp = new SampleCleanPipeline(saqp,List(d), watchedQueries)
       activePipelines += pp
-      pp.exec(name)
+      pp.exec()
    }
 
    /* Handles attribute deduplication
@@ -257,7 +248,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     algoPara.put("attr", "affiliation")
     algoPara.put("mergeStrategy", strategy)
 
-    val blockingFeaturizer = new WeightedJaccardBlocking(List(0), 
+    val blockingFeaturizer = new WeightedJaccardBlocking(List(3), 
                                                      WordTokenizer(), 
                                                      primaryArg.toDouble)
 
@@ -268,12 +259,12 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
       ActiveLearningStrategy(displayedCols, new SimilarityFeaturizer(List(0), List("Levenshtein", "JaroWinkler")))
         .setActiveLearningParameters(ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10)))
 
-    val d = new MachineAttributeDeduplication(algoPara, scc)
+    val d = new MachineRecordDeduplication(algoPara, scc, samplename)
     d.blocking = true
-    d.name = algorithm + " Attribute Deduplication"
+    d.name = algorithm + " Record Deduplication"
     val pp = new SampleCleanPipeline(saqp, List(d), watchedQueries)
     activePipelines += pp
-    pp.exec(samplename)
+    pp.exec()
 
     }
 
@@ -393,7 +384,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     scc.initializeConsistent("paper_affiliation", "paper_aff_sample", "paperid", 10)
     scc.initializeConsistent("paper_author", "paper_auth_sample", "paperid", 10)
 
-    parseAndExecute("democustom paper_aff_sample affiliation")
+    //parseAndExecute("democustom paper_aff_sample affiliation")
 
   }
 
@@ -406,7 +397,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
   def demoDedupRec() = {
 
-    val algoPara = new AlgorithmParameters()
+   /* val algoPara = new AlgorithmParameters()
 
     algoPara.put("id","id")
 
@@ -430,11 +421,11 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
     val pp = new SampleCleanPipeline(saqp, List(d))
     activePipelines += pp
-    pp.exec("paper_sample")
+    pp.exec("paper_sample")*/
   }
 
   def demoDedupAttr() = {
-    val algoPara3 = new AlgorithmParameters()
+    /*val algoPara3 = new AlgorithmParameters()
     algoPara3.put("attr", "affiliation")
     algoPara3.put("similarityParameters", SimilarityParameters(simFunc="WJaccard", threshold=0.30))
     algoPara3.put("mergeStrategy", "MostFrequent")
@@ -453,7 +444,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     d3.name = "Crowd Attribute Deduplication"
     val pp = new SampleCleanPipeline(saqp, List(d3), watchedQueries)
     activePipelines += pp
-    pp.exec("paper_aff_sample")
+    pp.exec("paper_aff_sample")*/
   }
 
 }
