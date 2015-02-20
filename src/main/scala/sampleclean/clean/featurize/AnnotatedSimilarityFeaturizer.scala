@@ -5,7 +5,7 @@ import uk.ac.shef.wit.simmetrics.similaritymetrics._
 /* This class implements the similarity based featurizer used in Deduplication
  */
 @serializable
-abstract class BlockingFeaturizer(val cols: List[Int], 
+abstract class AnnotatedSimilarityFeaturizer(val cols: List[Int], 
 								  val tokenizer:Tokenizer, 
 								  val threshold:Double,
                   val minSize: Int = 0,
@@ -119,15 +119,15 @@ abstract class BlockingFeaturizer(val cols: List[Int],
       		tokens.foldLeft(0.0) ((accum, token) => accum + tokenWeights.getOrElse(token, 1.0))
   		}
 }
-object BlockingFeaturizer{
+object AnnotatedSimilarityFeaturizer{
 /**
  * This class represents a similarity join based on the Jaccard similarity measure.
  * Token global weights are taken into account.
  */
- class WeightedJaccardBlocking(cols: List[Int], 
+ class WeightedJaccardSimilarity(cols: List[Int], 
 							  tokenizer:Tokenizer, 
 							  threshold:Double) 
-	extends BlockingFeaturizer(cols, tokenizer, threshold) {
+	extends AnnotatedSimilarityFeaturizer(cols, tokenizer, threshold) {
 
   val canPrefixFilter = true
   /**
@@ -181,10 +181,10 @@ object BlockingFeaturizer{
  * This class represents a similarity join based on the overlap between two lists.
  * Token global weights are taken into account.
  */
-class WeightedOverlapBlocking(cols: List[Int], 
+class WeightedOverlapSimilarity(cols: List[Int], 
 							  tokenizer:Tokenizer, 
 							  threshold:Double) 
-	extends BlockingFeaturizer(cols, tokenizer, threshold) {
+	extends AnnotatedSimilarityFeaturizer(cols, tokenizer, threshold) {
 
   val canPrefixFilter = true
   /**
@@ -229,10 +229,10 @@ class WeightedOverlapBlocking(cols: List[Int],
  * This class represents a similarity join based on the Dice similarity measure.
  * Token global weights are taken into account.
  */
-class WeightedDiceBlocking(cols: List[Int], 
+class WeightedDiceSimilarity(cols: List[Int], 
 							  tokenizer:Tokenizer, 
 							  threshold:Double)
-	extends BlockingFeaturizer(cols, tokenizer, threshold) {
+	extends AnnotatedSimilarityFeaturizer(cols, tokenizer, threshold) {
 
    val canPrefixFilter = true
 
@@ -289,10 +289,10 @@ class WeightedDiceBlocking(cols: List[Int],
  * This class represents a similarity join based on the Cosine similarity measure.
  * Token global weights are taken into account.
  */
-class WeightedCosineBlocking(cols: List[Int], 
+class WeightedCosineSimilarity(cols: List[Int], 
 							  tokenizer:Tokenizer, 
 							  threshold:Double)
-	extends BlockingFeaturizer(cols, tokenizer, threshold) {
+	extends AnnotatedSimilarityFeaturizer(cols, tokenizer, threshold) {
 
    val canPrefixFilter = true
   /**

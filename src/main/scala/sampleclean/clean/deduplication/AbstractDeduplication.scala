@@ -17,7 +17,7 @@ import sampleclean.crowd._
 import sampleclean.crowd.context.{DeduplicationPointLabelingContext, DeduplicationGroupLabelingContext}
 
 import sampleclean.simjoin._
-import sampleclean.clean.featurize.BlockingFeaturizer
+import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer
 
 
 /**
@@ -34,7 +34,7 @@ abstract class AbstractDeduplication(params:AlgorithmParameters,
       	throw new RuntimeException("BlockingFeaturizer not specified. Every deduplication operation must have a specified similarity operation. ")
 
 	//All deduplication operations must have blocking featurizer
-	val blocker = params.get("blockingFeaturizer").asInstanceOf[BlockingFeaturizer]
+	val blocker = params.get("blockingFeaturizer").asInstanceOf[AnnotatedSimilarityFeaturizer]
 
 	/*
 		Selects a similarity join implementation, this
