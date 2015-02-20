@@ -8,7 +8,8 @@ import uk.ac.shef.wit.simmetrics.similaritymetrics._
 abstract class BlockingFeaturizer(val cols: List[Int], 
 								  val tokenizer:Tokenizer, 
 								  val threshold:Double,
-                  val minSize: Int = 0)
+                  val minSize: Int = 0,
+                  val schemaMap: Map[Int,Int]= null)
 	extends Featurizer(cols){
 
 		val canPrefixFilter: Boolean
@@ -24,7 +25,13 @@ abstract class BlockingFeaturizer(val cols: List[Int],
 			var stringB = ""
 			for (col <- cols){
 				stringA = stringA + " " + rowA(col).asInstanceOf[String]
-				stringB = stringB + " " + rowB(col).asInstanceOf[String]
+
+        if(schemaMap == null)
+				  stringB = stringB + " " + rowB(col).asInstanceOf[String]
+        else if(schemaMap.contains(col))
+          stringB = stringB + " " + rowB(schemaMap(col)).asInstanceOf[String]
+        else
+          throw new RuntimeException("The schemas do not align up between your tables")
 			}
 
 			val tokens1 = tokenizer.tokenSet(stringA)
@@ -43,6 +50,27 @@ abstract class BlockingFeaturizer(val cols: List[Int],
 			return (Set(rowA, rowB),
 					Array(sim))
 		}
+
+    //TODO Fix A,B
+    def getCols(a:Boolean = true):List[Int] ={
+        if(a || schemaMap == null)
+        {
+          return cols
+        }
+        else
+        {
+          var result:List[Int] = List()
+          for (col <- cols){
+        
+          if(!schemaMap.contains(col))
+            throw new RuntimeException("The schemas do not align up between your tables")
+
+          result = schemaMap(col) :: result
+
+          }
+          return result.reverse
+        }
+    }
 
 		def similarity(tokens1:Seq[String], 
 					  tokens2: Seq[String], 

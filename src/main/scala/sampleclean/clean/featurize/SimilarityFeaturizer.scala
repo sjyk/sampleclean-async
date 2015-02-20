@@ -26,7 +26,7 @@ class SimilarityFeaturizer(cols: List[Int], metrics:List[String])
 				   )
 		}
 
-		def getSimilarities(s1: String, s2: String, simMeasures: List[String]): List[Double] = {
+		def getSimilarities(s1: String, s2: String, simMeasures: List[String] = metrics): List[Double] = {
     		val measures: List[Object] = simMeasures.map(measure =>
       		measure match {
         		case "BlockDistance" => new BlockDistance

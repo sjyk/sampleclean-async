@@ -33,6 +33,7 @@ case class ActiveLearningStrategy(displayedColNames: List[String], featurizer:Fe
   var frameworkParameters = ActiveLearningParameters()
   var crowdParameters = CrowdConfiguration() // Use defaults
   var taskParameters = CrowdTaskConfiguration() // Use defaults
+  var currentModel:SVMModel = null
   
   /*
    * Used to set new SVM parameters that will be used for training.
@@ -163,6 +164,8 @@ case class ActiveLearningStrategy(displayedColNames: List[String], featurizer:Fe
     def processNewModel(model:SVMModel, modelN: Long) {
       val modelLabeledData: RDD[(String, Double)] = unlabeledInput.map(p => (p._1, model.predict(p._2)))
       var mergedLabeledData: RDD[(String, Double)] = modelLabeledData
+      
+      currentModel = model
 
       val crowdLabeledData = trainingFuture.getLabeledData
       crowdLabeledData match {

@@ -5,6 +5,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.sql._
 
+//fix smallerA bug
 
 
 class BroadcastJoin( @transient sc: SparkContext,
@@ -37,10 +38,10 @@ class BroadcastJoin( @transient sc: SparkContext,
       println(projection)
 
       if (smallerA && containment) {
-        tokenCounts = computeTokenCount(rddA.map(blocker.tokenizer.tokenize(_, blocker.cols)))
+        tokenCounts = computeTokenCount(rddA.map(blocker.tokenizer.tokenize(_, blocker.getCols())))
       }
       else if (containment) {
-        tokenCounts = computeTokenCount(rddB.map(blocker.tokenizer.tokenize(_, blocker.cols)))
+        tokenCounts = computeTokenCount(rddB.map(blocker.tokenizer.tokenize(_, blocker.getCols(false))))
         val n = smallTableSize
         smallTableSize = largeTableSize
         largeTableSize = n
@@ -48,7 +49,9 @@ class BroadcastJoin( @transient sc: SparkContext,
         largeTable = rddA
       }
       else {
-        tokenCounts = computeTokenCount(rddA.union(rddB).map(blocker.tokenizer.tokenize(_, blocker.cols)))
+        tokenCounts = computeTokenCount(rddA.map(blocker.tokenizer.tokenize(_, blocker.getCols())).
+                                        union(rddB.map(blocker.tokenizer.tokenize(_, blocker.getCols(false)))))
+
         largeTableSize = largeTableSize + smallTableSize
       }
 
@@ -58,8 +61,8 @@ class BroadcastJoin( @transient sc: SparkContext,
 
       println("[SampleClean] Calculated Token Weights: " + tokenWeights)
       //Add a record ID into sampleTable. Id is a unique id assigned to each row.
-      val smallTableWithId: RDD[(Long, (List[String], Row))] = smallTable.zipWithUniqueId
-        .map(x => (x._2, (blocker.tokenizer.tokenize(x._1, blocker.cols), x._1))).cache()
+      val smallTableWithId: RDD[(Long, (Seq[String], Row))] = smallTable.zipWithUniqueId
+        .map(x => (x._2, (blocker.tokenizer.tokenize(x._1, blocker.getCols(false)), x._1))).cache()
 
 
       // Set a global order to all tokens based on their frequencies
@@ -92,7 +95,7 @@ class BroadcastJoin( @transient sc: SparkContext,
       val scanTable = {
         if (selfJoin) smallTableWithId
         else {
-          largeTable.map(row => (0L, (blocker.tokenizer.tokenize(row,blocker.cols), row)))
+          largeTable.map(row => (0L, (blocker.tokenizer.tokenize(row,blocker.getCols(false)), row)))
         }
       }
 

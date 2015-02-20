@@ -160,6 +160,18 @@ class QueryBuilder(scc: SampleCleanContext) {
 		return attr+"*"+predicateToCase(pred)
 	}
 
+	def addColsToTable(cols:List[String], tableName:String):String ={
+		var alterTables = "ALTER TABLE "+ tableName +  " ADD COLUMNS ("
+		for(col <- cols)
+			alterTables += col + " string, "
+
+		alterTables = alterTables.substring(0,alterTables.length - 2)
+			
+		alterTables += ")"
+
+		return alterTables
+	}
+
 	/** Returns the "clean" sample name
 	*/
 	def getCleanSampleName(sampleName:String):String = {
