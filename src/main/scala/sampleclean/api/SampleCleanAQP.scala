@@ -68,6 +68,8 @@ class SampleCleanAQP() {
 	  	  	 	                 gattr + " as group"),
 	  	  	 	              hiveTableName)
 
+	  	  	 println(buildQuery)
+
 	  	  	 hc.registerRDDAsTable(hc.hql(buildQuery),tmpTableName)
 
 	  	  	 val aggQuery = scc.qb.buildSelectQuery(List( "group",
@@ -90,7 +92,6 @@ class SampleCleanAQP() {
 	  	  	 	                 gattr + " as group"),
 	  	  	 	              hiveTableName)
 
-	  	  	 println(buildQuery)
 	  	  	 hc.registerRDDAsTable(hc.hql(buildQuery),tmpTableName)
 
 	  	  	 val aggQuery = scc.qb.buildSelectQuery(List( "group",

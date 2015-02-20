@@ -8,7 +8,7 @@ import org.apache.spark.sql.{SchemaRDD, Row}
  */
 abstract class Tokenizer{
   
-  def tokenize(row: Row, cols:List[Int]): List[String] = {
+  def tokenize(row: Row, cols:List[Int]): Seq[String] = {
 
       var stringA = ""
       for (col <- cols){
@@ -17,7 +17,7 @@ abstract class Tokenizer{
       return tokenSet(stringA)
     }
   
-  def tokenSet(text: String): List[String]
+  def tokenSet(text: String): Seq[String]
 }
 
 object Tokenizer {
@@ -45,10 +45,17 @@ case class WordTokenizer() extends Tokenizer {
 }
 
 /**
+ * 
+ */
+case class NullTokenizer() extends Tokenizer {
+  def tokenSet(str: String) = List(str).toSeq
+}
+
+/**
  * This class tokenizes a string based on white spaces.
  */
 case class WhiteSpaceTokenizer() extends Tokenizer {
-  def tokenSet(str: String) = str.split("\\s+").toList.filter(_!="")
+  def tokenSet(str: String) = str.split("\\s+").toSeq.filter(_!="")
 }
 
 /**
@@ -56,13 +63,13 @@ case class WhiteSpaceTokenizer() extends Tokenizer {
  * @param gramSize size of gram.
  */
 case class GramTokenizer(gramSize: Int) extends Tokenizer {
-  def tokenSet(str: String) =  str.sliding(gramSize).toList
+  def tokenSet(str: String) =  str.sliding(gramSize).toSeq
 }
 
 /**
  * This class tokenizes a string based on white space punctuation.
  */
 case class WhiteSpacePunctuationTokenizer() extends Tokenizer {
-  def tokenSet(str: String) =  str.trim.split("([.,!?:;'\"-]|\\s)+").toList
+  def tokenSet(str: String) =  str.trim.split("([.,!?:;'\"-]|\\s)+").toSeq
 }
 }

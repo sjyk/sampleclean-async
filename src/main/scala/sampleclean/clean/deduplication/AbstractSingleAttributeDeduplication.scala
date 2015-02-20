@@ -4,7 +4,6 @@ import sampleclean.api.SampleCleanContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.sql.SQLContext
 
-import sampleclean.clean.algorithm.SampleCleanDeduplicationAlgorithm
 import sampleclean.clean.algorithm.AlgorithmParameters
 
 import org.apache.spark.rdd.RDD
@@ -17,39 +16,91 @@ import sampleclean.crowd._
 import sampleclean.crowd.context.{DeduplicationPointLabelingContext, DeduplicationGroupLabelingContext}
 
 import sampleclean.simjoin.SimilarityJoin
+import sampleclean.clean.featurize.BlockingFeaturizer
 
+/* This is the abstract class for attribute deduplication
+ * it implements many basic structure and the error handling 
+ * for the class.
+ */
 abstract class AbstractSingleAttributeDeduplication(params:AlgorithmParameters, 
-							scc: SampleCleanContext) extends
-							AbstractDeduplication(params, scc) {
+							scc: SampleCleanContext,
+              sampleTableName:String) extends
+							AbstractDeduplication(params, scc, sampleTableName) {
 
-	var graphXGraph:Graph[(String, Set[String]), Double] = null
+    //validate params before starting
+    validateParameters()
 
+    //there are the read-only class variables that subclasses can use (validated at execution time)
+    val attr = params.get("attr").asInstanceOf[String]
+    val mergeStrategy = params.get("mergeStrategy").asInstanceOf[String]
+    val schema = List("attr", "count")
+    val colMapper = (colNames: List[String]) => colNames.map(schema.indexOf(_))
+    
+    //these are dynamic class variables
+    var attrCol = 1
+    var hashCol = 0
 
-	def onReceiveCandidatePairs(candidatePairs: RDD[(Row, Row)], 
-                                sampleTableName:String):Unit = {
+    var graphXGraph:Graph[(String, Set[String]), Double] = null
 
-		val attr = params.get("attr").asInstanceOf[String]
-    	val attrCol = scc.getColAsIndex(sampleTableName,attr)
-    	val hashCol = scc.getColAsIndex(sampleTableName,"hash")
-    	val sampleTableRDD = scc.getCleanSample(sampleTableName)
-    	val mergeStrategy = params.get("mergeStrategy").asInstanceOf[String]
-    	
-    	doMerge(  candidatePairs.collect(), 
-                sampleTableRDD, 
-                sampleTableName,
-                attr, 
-                mergeStrategy, 
-                hashCol, 
-                attrCol)
-	}
-	
-  	def doMerge(candidatePairs: Array[(Row, Row)], 
-                sampleTableRDD:RDD[Row], 
-                sampleTableName:String,
-                attr:String, 
-                mergeStrategy:String, 
-                hashCol:Int, 
-                attrCol:Int):Unit = {
+    //subclasses implement this
+    def matching(candidatePairs:RDD[(Row,Row)]): RDD[(Row, Row)]
+
+    /*
+      Sets the dynamic variables at exec time
+     */
+    def setTableParameters(sampleTableName: String) = {
+        attrCol = scc.getColAsIndex(sampleTableName,attr)
+        hashCol = scc.getColAsIndex(sampleTableName,"hash")
+        //curSampleTableName = sampleTableName
+    }
+
+    /*
+      This function validates the parameters of the class
+     */
+    def validateParameters() = {
+        if(!params.exists("attr"))
+          throw new RuntimeException("Attribute deduplication is specified on a single attribute, you need to provide this as a parameter: attr")
+
+        if(!params.exists("mergeStrategy"))
+          throw new RuntimeException("You need to specify a strategy to resolve a set of duplicated attributes to a canonical value: mergeStrategy")
+    }
+
+    def exec() = {
+        validateParameters()
+        setTableParameters(sampleTableName)
+
+        val sampleTableRDD = scc.getCleanSample(sampleTableName)
+        val attrCountGroup = sampleTableRDD.map(x => 
+                                          (x(attrCol).asInstanceOf[String],
+                                           x(hashCol).asInstanceOf[String])).
+                                          groupByKey()
+        val attrCountRdd  = attrCountGroup.map(x => Row(x._1, x._2.size.toLong))
+        val vertexRDD = attrCountGroup.map(x => (x._1.hashCode().toLong,
+                               (x._1, x._2.toSet)))
+
+        val edgeRDD: RDD[(Long, Long, Double)] = scc.getSparkContext().parallelize(List())
+        graphXGraph = GraphXInterface.buildGraph(vertexRDD, edgeRDD)
+      
+        val candidatePairs = blockingJoin(attrCountRdd,attrCountRdd, List(0),true,true,true, "BroadcastJoin")
+        println(candidatePairs.count)
+
+        apply(matching(candidatePairs))
+    }
+
+    /*
+      Apply function implementation for the AbstractDedup Class
+     */
+	  def apply(candidatePairs: RDD[(Row, Row)]):Unit = {
+       val sampleTableRDD = scc.getCleanSample(sampleTableName)
+    	 apply(candidatePairs.collect(), 
+                sampleTableRDD)
+	  }
+
+     /* TODO fix!
+      Apply function implementation for the AbstractDedup Class
+     */	
+  	def apply(candidatePairs: Array[(Row, Row)], 
+                sampleTableRDD:RDD[Row]):Unit = {
 
     var resultRDD = sampleTableRDD.map(x =>
       (x(hashCol).asInstanceOf[String], x(attrCol).asInstanceOf[String]))
@@ -57,6 +108,7 @@ abstract class AbstractSingleAttributeDeduplication(params:AlgorithmParameters,
     // Add new edges to the graph
     val edges = candidatePairs.map( x => (x._1(0).asInstanceOf[String].hashCode.toLong,
       x._2(0).asInstanceOf[String].hashCode.toLong, 1.0) )
+
     graphXGraph = GraphXInterface.addEdges(graphXGraph, scc.getSparkContext().parallelize(edges))
 
     // Run the connected components algorithm
@@ -68,7 +120,9 @@ abstract class AbstractSingleAttributeDeduplication(params:AlgorithmParameters,
       }
       (winner, v1._2 ++ v2._2)
     }
+    
     val connectedPairs = GraphXInterface.connectedComponents(graphXGraph, merge_vertices)
+    
     println("[Sampleclean] Merging values from "
       + connectedPairs.map(v => (v._2, 1)).reduceByKey(_ + _).filter(x => x._2 > 1).count
       + " components...")

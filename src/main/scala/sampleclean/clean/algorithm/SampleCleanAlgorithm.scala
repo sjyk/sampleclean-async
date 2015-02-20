@@ -8,7 +8,7 @@ import sampleclean.api.SampleCleanContext
 * definition with just an exec method. By using a more generic definition
 * the pipeline class cannot optimize or merge similar operations.
 */
-abstract class SampleCleanAlgorithm(params:AlgorithmParameters, scc: SampleCleanContext) {
+abstract class SampleCleanAlgorithm(params:AlgorithmParameters, scc: SampleCleanContext, sampleTableName: String) {
 
 	/**Defines the pipeline with which this algorithm is associated
 	 */
@@ -24,7 +24,7 @@ abstract class SampleCleanAlgorithm(params:AlgorithmParameters, scc: SampleClean
 
 	/**The execution function of the this algorithm
 	*/
-	def exec(sampleName: String)
+	def exec()
 
 	/**
 	 * This function is called by the algorithm designer to notify the 

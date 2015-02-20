@@ -27,15 +27,16 @@ class SimilarityJoin(@transient sc: SparkContext,
 
 		if(weighted){
 			if (smallerA && containment){
-				tokenCounts = computeTokenCount(rddB.map(blocker.tokenizer.tokenize(_,projection)))
+				tokenCounts = computeTokenCount(rddB.map(blocker.tokenizer.tokenize(_,blocker.getCols())))
 				tableSize = rddB.count()
 			}
 			else if (containment){
-				tokenCounts = computeTokenCount(rddA.map(blocker.tokenizer.tokenize(_,projection)))
+				tokenCounts = computeTokenCount(rddA.map(blocker.tokenizer.tokenize(_,blocker.getCols(false))))
 				tableSize = rddA.count()
 			}
 			else{
-				tokenCounts = computeTokenCount(rddA.union(rddB).map(blocker.tokenizer.tokenize(_,projection)))
+				tokenCounts = computeTokenCount(rddA.map(blocker.tokenizer.tokenize(_, blocker.getCols())).
+                                        union(rddB.map(blocker.tokenizer.tokenize(_, blocker.getCols(false)))))
 				tableSize = rddA.union(rddB).count()
 			}
 

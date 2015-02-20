@@ -4,7 +4,6 @@ import sampleclean.api.SampleCleanContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.sql.SQLContext
 
-import sampleclean.clean.algorithm.SampleCleanDeduplicationAlgorithm
 import sampleclean.clean.algorithm.AlgorithmParameters
 
 import org.apache.spark.rdd.RDD
@@ -16,34 +15,14 @@ import org.apache.spark.graphx._
 import sampleclean.crowd._
 import sampleclean.crowd.context.{DeduplicationPointLabelingContext, DeduplicationGroupLabelingContext}
 
-import sampleclean.simjoin.SimilarityJoin
-import sampleclean.clean.featurize.BlockingFeaturizer
-
 class MachineAttributeDeduplication(params:AlgorithmParameters, 
-							   scc: SampleCleanContext) extends
-							   AbstractSingleAttributeDeduplication(params, scc) {
+							   scc: SampleCleanContext, sampleTableName: String) extends
+							   AbstractSingleAttributeDeduplication(params, scc, sampleTableName) {
 							   
 
-	def exec(sampleTableName: String) = {
-		val attr = params.get("attr").asInstanceOf[String]
-    	val attrCol = scc.getColAsIndex(sampleTableName,attr)
-    	val hashCol = scc.getColAsIndex(sampleTableName,"hash")
-    	val sampleTableRDD = scc.getCleanSample(sampleTableName)
-    	val mergeStrategy = params.get("mergeStrategy").asInstanceOf[String]
-    	val blockingFeaturizer = params.get("blockingFeaturizer").asInstanceOf[BlockingFeaturizer]
-    	val attrCountGroup = sampleTableRDD.map(x => 
-                                          (x(attrCol).asInstanceOf[String],
-                                           x(hashCol).asInstanceOf[String])).
-                                          groupByKey()
-    	val attrCountRdd  = attrCountGroup.map(x => Row(x._1, x._2.size.toLong))
-    	val vertexRDD = attrCountGroup.map(x => (x._1.hashCode().toLong,
-                               (x._1, x._2.toSet)))
-      	val edgeRDD: RDD[(Long, Long, Double)] = scc.getSparkContext().parallelize(List())
-      	graphXGraph = GraphXInterface.buildGraph(vertexRDD, edgeRDD)
+  def matching(candidatePairs: RDD[(Row,Row)]):RDD[(Row,Row)] = {
+      return candidatePairs
+  }
 
-    	val candidatePairs = blockingJoin(attrCountRdd,attrCountRdd, blockingFeaturizer, List(0),true,true,true, "BroadcastJoin")
-    	val emptyLabeledRDD = scc.getSparkContext().parallelize(new Array[(String, LabeledPoint)](0))
-      	onReceiveCandidatePairs(candidatePairs, sampleTableName)
-	}
 
 }
