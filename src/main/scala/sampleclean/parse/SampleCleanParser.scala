@@ -6,8 +6,8 @@ import sampleclean.clean.algorithm.{AlgorithmParameters, SampleCleanAlgorithm, S
 import sampleclean.clean.deduplication.{ActiveLearningStrategy, CrowdsourcingStrategy, _}
 import sampleclean.crowd.{CrowdConfiguration, CrowdTaskConfiguration}
 import sampleclean.clean.featurize.SimilarityFeaturizer
-import sampleclean.clean.featurize.BlockingFeaturizer._
-import sampleclean.clean.featurize.LearningBlockingFeaturizer
+import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
+import sampleclean.clean.featurize.LearningSimilarityFeaturizer
 import sampleclean.clean.featurize.Tokenizer._
 import sampleclean.clean.extraction.LearningSplitExtraction
 
@@ -250,11 +250,11 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     algoPara.put("attr", "affiliation")
     algoPara.put("mergeStrategy", strategy)
 
-    val blockingFeaturizer = new WeightedJaccardBlocking(List(3), 
+    val AnnotatedSimilarityFeaturizer = new WeightedJaccardSimilarity(List(3), 
                                                      WordTokenizer(), 
                                                      primaryArg.toDouble)
 
-    algoPara.put("blockingFeaturizer", blockingFeaturizer)
+    algoPara.put("AnnotatedSimilarityFeaturizer", AnnotatedSimilarityFeaturizer)
 
     val displayedCols = List("attr","count")
     algoPara.put("activeLearningStrategy",
@@ -458,7 +458,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     val baseFeaturizer = new SimilarityFeaturizer(cols, List("Levenshtein", "JaroWinkler"))
     val alStrategy = new ActiveLearningStrategy(colNames, baseFeaturizer)
 
-    val blocking = new LearningBlockingFeaturizer(cols, 
+    val blocking = new LearningSimilarityFeaturizer(cols, 
                   colNames,
                   baseFeaturizer,
                   scc,

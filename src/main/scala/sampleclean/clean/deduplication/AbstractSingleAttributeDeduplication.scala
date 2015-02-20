@@ -16,7 +16,7 @@ import sampleclean.crowd._
 import sampleclean.crowd.context.{DeduplicationPointLabelingContext, DeduplicationGroupLabelingContext}
 
 import sampleclean.simjoin.SimilarityJoin
-import sampleclean.clean.featurize.BlockingFeaturizer
+import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer
 
 /* This is the abstract class for attribute deduplication
  * it implements many basic structure and the error handling 

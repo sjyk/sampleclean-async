@@ -1,5 +1,5 @@
 package sampleclean.simjoin
-import sampleclean.clean.featurize.BlockingFeaturizer
+import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Row}
 import org.apache.spark.SparkContext
@@ -8,7 +8,7 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql._
 
 class SimilarityJoin(@transient sc: SparkContext,
-					 blocker: BlockingFeaturizer, 
+					 blocker: AnnotatedSimilarityFeaturizer, 
 					 projection:List[Int], 
 					 weighted:Boolean = false) extends Serializable{
 

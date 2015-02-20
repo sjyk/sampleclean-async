@@ -1,5 +1,5 @@
 package sampleclean.simjoin
-import sampleclean.clean.featurize.BlockingFeaturizer
+import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
@@ -9,7 +9,7 @@ import org.apache.spark.sql._
 
 
 class BroadcastJoin( @transient sc: SparkContext,
-					 blocker: BlockingFeaturizer, 
+					 blocker: AnnotatedSimilarityFeaturizer, 
 					 projection:List[Int], 
 					 weighted:Boolean = false) extends
 					 SimilarityJoin(sc,blocker,projection,weighted) {
