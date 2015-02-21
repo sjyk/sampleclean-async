@@ -1,4 +1,4 @@
-package sampleclean.simjoin
+package sampleclean.clean.deduplication.join
 import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext

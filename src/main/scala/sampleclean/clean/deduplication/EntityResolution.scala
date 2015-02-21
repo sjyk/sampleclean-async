@@ -1,31 +1,24 @@
 package sampleclean.clean.deduplication
 
 import sampleclean.api.SampleCleanContext
+import sampleclean.clean.algorithm.SampleCleanAlgorithm
 import org.apache.spark.SparkContext._
 import org.apache.spark.sql.SQLContext
-
 import sampleclean.clean.algorithm.AlgorithmParameters
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SchemaRDD, Row}
-import sampleclean.activeml._
-import org.apache.spark.mllib.regression.LabeledPoint
-
 import org.apache.spark.graphx._
-import sampleclean.crowd._
-import sampleclean.crowd.context.{DeduplicationPointLabelingContext, DeduplicationGroupLabelingContext}
-
-import sampleclean.simjoin.SimilarityJoin
-import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer
+import sampleclean.clean.deduplication.join.BlockerMatcherSelfJoinSequence
 
 /* This is the abstract class for attribute deduplication
  * it implements many basic structure and the error handling 
  * for the class.
  */
-abstract class AbstractSingleAttributeDeduplication(params:AlgorithmParameters, 
+class EntityResolution(params:AlgorithmParameters, 
 							scc: SampleCleanContext,
-              sampleTableName:String) extends
-							AbstractDeduplication(params, scc, sampleTableName) {
+              sampleTableName:String,
+              components: BlockerMatcherSelfJoinSequence
+              ) extends SampleCleanAlgorithm(params, scc, sampleTableName) {
 
     //validate params before starting
     validateParameters()
@@ -41,9 +34,6 @@ abstract class AbstractSingleAttributeDeduplication(params:AlgorithmParameters,
     var hashCol = 0
 
     var graphXGraph:Graph[(String, Set[String]), Double] = null
-
-    //subclasses implement this
-    def matching(candidatePairs:RDD[(Row,Row)]): RDD[(Row, Row)]
 
     /*
       Sets the dynamic variables at exec time
@@ -80,11 +70,8 @@ abstract class AbstractSingleAttributeDeduplication(params:AlgorithmParameters,
 
         val edgeRDD: RDD[(Long, Long, Double)] = scc.getSparkContext().parallelize(List())
         graphXGraph = GraphXInterface.buildGraph(vertexRDD, edgeRDD)
-      
-        val candidatePairs = blockingJoin(attrCountRdd,attrCountRdd, List(0),true,true,true, "BroadcastJoin")
-        println(candidatePairs.count)
 
-        apply(matching(candidatePairs))
+        apply(components.blockAndMatch(attrCountRdd))
     }
 
     /*

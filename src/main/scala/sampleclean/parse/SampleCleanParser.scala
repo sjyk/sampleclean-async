@@ -261,13 +261,13 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
       ActiveLearningStrategy(displayedCols, new SimilarityFeaturizer(List(0), List("Levenshtein", "JaroWinkler")))
         .setActiveLearningParameters(ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10)))
 
-    val d = new MachineRecordDeduplication(algoPara, scc, samplename)
-    d.blocking = true
-    d.name = algorithm + " Record Deduplication"
+    //val d = new MachineRecordDeduplication(algoPara, scc, samplename)
+    //d.blocking = true
+    //d.name = algorithm + " Record Deduplication"
 
-    val pp = new SampleCleanPipeline(saqp, List(d), watchedQueries)
-    activePipelines += pp
-    pp.exec()
+    //val pp = new SampleCleanPipeline(saqp, List(d), watchedQueries)
+    //activePipelines += pp
+    //pp.exec()
 
     }
 

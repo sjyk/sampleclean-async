@@ -1,4 +1,4 @@
-package sampleclean.simjoin
+package sampleclean.clean.deduplication.join
 import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Row}
@@ -8,16 +8,15 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql._
 
 class SimilarityJoin(@transient sc: SparkContext,
-					 blocker: AnnotatedSimilarityFeaturizer, 
+					 simfeature: AnnotatedSimilarityFeaturizer, 
 					 projection:List[Int], 
-					 weighted:Boolean = false) extends Serializable{
-
+					 weighted:Boolean = false){
 
 	/* The default implementation is naive but subclasses should override 
 	 * optimize
 	 */
 	def join(rddA: RDD[Row], 
-			 rddB:RDD[Row], 
+			 rddB: RDD[Row], 
 			 smallerA:Boolean = true, 
 			 containment:Boolean = true): RDD[(Row,Row)] = {
 
@@ -27,23 +26,23 @@ class SimilarityJoin(@transient sc: SparkContext,
 
 		if(weighted){
 			if (smallerA && containment){
-				tokenCounts = computeTokenCount(rddB.map(blocker.tokenizer.tokenize(_,blocker.getCols())))
+				tokenCounts = computeTokenCount(rddB.map(simfeature.tokenizer.tokenize(_,simfeature.getCols())))
 				tableSize = rddB.count()
 			}
 			else if (containment){
-				tokenCounts = computeTokenCount(rddA.map(blocker.tokenizer.tokenize(_,blocker.getCols(false))))
+				tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_,simfeature.getCols(false))))
 				tableSize = rddA.count()
 			}
 			else{
-				tokenCounts = computeTokenCount(rddA.map(blocker.tokenizer.tokenize(_, blocker.getCols())).
-                                        union(rddB.map(blocker.tokenizer.tokenize(_, blocker.getCols(false)))))
+				tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_, simfeature.getCols())).
+                                        union(rddB.map(simfeature.tokenizer.tokenize(_, simfeature.getCols(false)))))
 				tableSize = rddA.union(rddB).count()
 			}
 
 			tokenWeights = tokenCounts.map(x => (x._1, math.log10(tableSize.toDouble / x._2)))
 		}
 
-		val featurized = rddA.cartesian(rddB).map(x => blocker.featurize(Set(x._1,x._2),tokenWeights))
+		val featurized = rddA.cartesian(rddB).map(x => simfeature.featurize(Set(x._1,x._2),tokenWeights))
 		return featurized.filter(x => (x._2(0) == 1.0)).map(x => (x._1.head, x._1.last))
 
 	}
