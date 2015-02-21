@@ -11,13 +11,18 @@ import sampleclean.clean.deduplication.blocker.Blocker
 
 class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
               		   sampleTableName:String,
-              		   blocker: Blocker = null,
-					   matchers: List[Matcher] = List()) {
+              		   blocker: Blocker,
+					   matchers: List[Matcher]) {
+	
+	var join:SimilarityJoin = null
 
-	//def this(scc: SampleCleanContext,
-    //          		   sampleTableName:String,
-    //          		   simjoin: SimilarityJoin = null,
-	//				   matchers: List[Matcher] = List())
+	def this(scc: SampleCleanContext,
+              		   sampleTableName:String,
+              		   simjoin: SimilarityJoin,
+					   matchers: List[Matcher]) = {
+		this(scc,sampleTableName,null:Blocker,matchers)
+		join = simjoin
+	}
 
 	def blockAndMatch(data:RDD[Row]):RDD[(Row,Row)] = {
 
@@ -26,8 +31,8 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 
 		if (blocker != null)
 			blocks = blocker.block(data)
-		//else
-		//	matchedData = simjoin.join(data,data,true,true)
+		else
+			matchedData = join.join(data,data,true,true)
 
 		for (m <- matchers)
 		{
