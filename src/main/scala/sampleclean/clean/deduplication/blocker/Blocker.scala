@@ -8,7 +8,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SchemaRDD, Row}
 
 abstract class Blocker(scc: SampleCleanContext,
-              		   sampleTableName:String) {
+              		   sampleTableName:String) extends Serializable {
 
 	def block(input:RDD[Row]):RDD[Set[Row]]
 

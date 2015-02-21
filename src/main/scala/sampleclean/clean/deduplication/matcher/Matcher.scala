@@ -8,7 +8,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SchemaRDD, Row}
 
 abstract class Matcher(scc: SampleCleanContext,
-              		   sampleTableName:String) {
+              		   sampleTableName:String) extends Serializable {
 
   def matchPairs(input: => RDD[Set[Row]]):RDD[(Row,Row)]
 

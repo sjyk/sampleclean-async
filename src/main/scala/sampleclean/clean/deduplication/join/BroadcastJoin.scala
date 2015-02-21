@@ -10,9 +10,8 @@ import org.apache.spark.sql._
 
 class BroadcastJoin( @transient sc: SparkContext,
 					 blocker: AnnotatedSimilarityFeaturizer, 
-					 projection:List[Int], 
 					 weighted:Boolean = false) extends
-					 SimilarityJoin(sc,blocker,projection,weighted) {
+					 SimilarityJoin(sc,blocker,weighted) {
 
   @Override
 	override def join(rddA: RDD[Row],
@@ -34,8 +33,6 @@ class BroadcastJoin( @transient sc: SparkContext,
       var smallTableSize = rddA.count()
       var smallTable = rddA
       var largeTable = rddB
-
-      println(projection)
 
       if (smallerA && containment) {
         tokenCounts = computeTokenCount(rddA.map(blocker.tokenizer.tokenize(_, blocker.getCols())))

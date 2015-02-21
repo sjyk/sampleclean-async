@@ -12,7 +12,7 @@ import sampleclean.clean.deduplication.blocker.Blocker
 class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
               		   sampleTableName:String,
               		   blocker: Blocker,
-					   matchers: List[Matcher]) {
+					   matchers: List[Matcher]) extends Serializable {
 	
 	var join:SimilarityJoin = null
 
