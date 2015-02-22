@@ -181,6 +181,7 @@ case class ActiveLearningStrategy(displayedColNames: List[String], featurizer:Fe
       assert(mergedLabeledData.count() == candidatePairsWithId.count())
 
       val duplicatePairs = mergedLabeledData.filter(_._2 > 0.5).join(candidatePairsWithId).map(_._2._2) // 1: duplicate; 0: non-duplicate
+      println("test")
       onUpdateDupCounts(duplicatePairs)
     }
 
@@ -188,6 +189,11 @@ case class ActiveLearningStrategy(displayedColNames: List[String], featurizer:Fe
 
     // wait for training to complete
     Await.ready(trainingFuture, Duration.Inf)
+  }
+
+
+  def updateContext(context: List[String]) ={
+      featurizer.setContext(context)
   }
 
 

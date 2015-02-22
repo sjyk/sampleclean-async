@@ -18,20 +18,25 @@ import sampleclean.crowd.context.{DeduplicationPointLabelingContext, Deduplicati
 
 class ActiveLeaningMatcher( scc: SampleCleanContext, 
                             sampleTableName:String,
-                            alstrategy:ActiveLearningStrategy,
-                            colMapper1 : List[String] => List[Int],
-                            colMapper2 : List[String] => List[Int],
-                            onReceiveNewMatches: RDD[(Row,Row)] => Unit) extends
+                            alstrategy:ActiveLearningStrategy) extends
 							              Matcher(scc, sampleTableName) {
+
+  val asynchronous = true
+
+  val colMapper = (colNames: List[String]) => colNames.map(context.indexOf(_))
 			
   def matchPairs(candidatePairs: RDD[(Row,Row)]): RDD[(Row,Row)] = {
+
+      if(onReceiveNewMatches == null)
+        throw new RuntimeException("For asynchronous matchers you need to specify a onReceiveNewMatches function")
+
       val emptyLabeledRDD = scc.getSparkContext().parallelize(new Array[(String, LabeledPoint)](0))
       //val activeLearningStrategy = params.get("activeLearningStrategy").asInstanceOf[ActiveLearningStrategy]
       alstrategy.asyncRun(emptyLabeledRDD, 
                                         candidatePairs, 
-                                        colMapper1, 
-                                        colMapper2, 
-                                        onReceiveNewMatches)
+                                        colMapper, 
+                                        colMapper, 
+                                        onReceiveNewMatches(_))
 
       return scc.getSparkContext().parallelize(new Array[(Row, Row)](0))
   }
@@ -40,5 +45,9 @@ class ActiveLeaningMatcher( scc: SampleCleanContext,
       return matchPairs(candidatePairs.flatMap(selfCartesianProduct))
   }
 	
+  override def updateContext(newContext:List[String]) ={
+      super.updateContext(newContext)
+      alstrategy.updateContext(newContext)
+  }
 
 }

@@ -60,4 +60,8 @@ class SimilarityJoin(@transient sc: SparkContext,
     	collection.immutable.Map(m.toList: _*)
   	}
 
+  	def updateContext(newContext:List[String]) ={
+  		simfeature.setContext(newContext)
+  	}
+
 }

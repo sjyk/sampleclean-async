@@ -12,6 +12,7 @@ abstract class Blocker(scc: SampleCleanContext,
 
 	def block(input:RDD[Row]):RDD[Set[Row]]
 
+	def updateContext(newContext:List[String])
 }
 
 

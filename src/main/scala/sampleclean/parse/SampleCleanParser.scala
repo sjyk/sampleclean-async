@@ -250,7 +250,8 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     algoPara.put("attr", "affiliation")
     algoPara.put("mergeStrategy", strategy)
 
-    val AnnotatedSimilarityFeaturizer = new WeightedJaccardSimilarity(List(3), 
+    val AnnotatedSimilarityFeaturizer = new WeightedJaccardSimilarity(List("affiliation"), 
+                                                     scc.getTableContext(samplename),
                                                      WordTokenizer(), 
                                                      primaryArg.toDouble)
 
@@ -258,7 +259,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
     val displayedCols = List("attr","count")
     algoPara.put("activeLearningStrategy",
-      ActiveLearningStrategy(displayedCols, new SimilarityFeaturizer(List(0), List("Levenshtein", "JaroWinkler")))
+      ActiveLearningStrategy(displayedCols, new SimilarityFeaturizer(List("affiliation"),scc.getTableContext(samplename), List("Levenshtein", "JaroWinkler")))
         .setActiveLearningParameters(ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10)))
 
     //val d = new MachineRecordDeduplication(algoPara, scc, samplename)
@@ -453,9 +454,9 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
     println("Demo2: Corleone Blocking By Example")
 
-    val cols = List(3)
+    val cols = List("affiliation")
     val colNames = List("Affiliation")
-    val baseFeaturizer = new SimilarityFeaturizer(cols, List("Levenshtein", "JaroWinkler"))
+    val baseFeaturizer = new SimilarityFeaturizer(cols, scc.getTableContext("paper_aff_sample"), List("Levenshtein", "JaroWinkler"))
     val alStrategy = new ActiveLearningStrategy(colNames, baseFeaturizer)
 
     val blocking = new LearningSimilarityFeaturizer(cols, 

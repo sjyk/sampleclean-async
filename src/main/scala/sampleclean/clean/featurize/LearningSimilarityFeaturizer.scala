@@ -12,15 +12,15 @@ import org.apache.spark.mllib.linalg.Vectors
 /* This class implements the similarity based featurizer used in Deduplication
  */
 @serializable
-class LearningSimilarityFeaturizer(cols: List[Int], 
-                  colNames: List[String],
+class LearningSimilarityFeaturizer(colNames: List[String],
+                  context: List[String],
                   val baseFeaturizer: SimilarityFeaturizer,
                   scc: SampleCleanContext,
                   val activeLearningStrategy: ActiveLearningStrategy,
 								  threshold:Double=0,
                   minSize: Int = 0,
                   schemaMap: Map[Int,Int]= null)
-	extends AnnotatedSimilarityFeaturizer(cols, new NullTokenizer(), threshold, minSize,schemaMap){
+	extends AnnotatedSimilarityFeaturizer(colNames, context, new NullTokenizer(), threshold, minSize,schemaMap){
 
     val canPrefixFilter = false
 

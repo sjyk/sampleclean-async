@@ -31,5 +31,15 @@ class BlockerMatcherJoinSequence(scc: SampleCleanContext,
 		return matchedData
 	}
 
+	def updateContext(newContext:List[String]) = {
+
+		if (simjoin != null)
+			simjoin.updateContext(newContext)
+
+		for (m <- matchers)
+			m.updateContext(newContext)
+		
+	}
+
 }
 

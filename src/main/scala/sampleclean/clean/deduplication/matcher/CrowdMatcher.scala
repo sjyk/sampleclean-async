@@ -18,11 +18,15 @@ import sampleclean.crowd.context.{DeduplicationPointLabelingContext, Deduplicati
 
 class CrowdMatcher(scc: SampleCleanContext, 
                             sampleTableName: String,
-                            crowdsourcingStrategy:CrowdsourcingStrategy,
-                            onReceiveNewMatches: RDD[(Row,Row)] => Unit) extends
+                            crowdsourcingStrategy:CrowdsourcingStrategy) extends
 							    Matcher(scc, sampleTableName) {
 
+  val asynchronous = true
+
   def matchPairs(candidatePairs:RDD[(Row,Row)]): RDD[(Row,Row)] = {
+
+      if(onReceiveNewMatches == null)
+        throw new RuntimeException("For asynchronous matchers you need to specify a onReceiveNewMatches function")
 
       val candidatesWithSortKeys = candidatePairs.map { pair => -math.min(pair._1.getLong(1), pair._2.getLong(1)) -> pair }
       val sortedCandidates = candidatesWithSortKeys.sortByKey().map{kv => kv._2}
@@ -33,7 +37,7 @@ class CrowdMatcher(scc: SampleCleanContext,
 
       //todo fix
       val groupContext = DeduplicationGroupLabelingContext(
-        taskType="er", data=Map("fields" ->List("attr", "count")))
+        taskType="er", data=Map("fields" ->context))
 
       // Assign a unique id for each candidate pair
       val candidatePairsWithId = sortedCandidates.map{ pair =>
@@ -56,8 +60,8 @@ class CrowdMatcher(scc: SampleCleanContext,
       val crowdData = candidatePairsWithId.map { case (id, (row1, row2)) =>
         val entity1Data = List(row1.getString(0), row1.getLong(1))
         val entity2Data = List(row2.getString(0), row2.getLong(1))
-        val context = DeduplicationPointLabelingContext(content=List(entity1Data, entity2Data))
-        (id, context)
+        val dcontext = DeduplicationPointLabelingContext(content=List(entity1Data, entity2Data))
+        (id, dcontext)
       }
       
       //it is async by default

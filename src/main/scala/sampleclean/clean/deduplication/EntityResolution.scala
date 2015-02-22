@@ -26,8 +26,6 @@ class EntityResolution(params:AlgorithmParameters,
     //there are the read-only class variables that subclasses can use (validated at execution time)
     val attr = params.get("attr").asInstanceOf[String]
     val mergeStrategy = params.get("mergeStrategy").asInstanceOf[String]
-    val schema = List("attr", "count")
-    val colMapper = (colNames: List[String]) => colNames.map(schema.indexOf(_))
     
     //these are dynamic class variables
     var attrCol = 1
@@ -68,8 +66,12 @@ class EntityResolution(params:AlgorithmParameters,
         val vertexRDD = attrCountGroup.map(x => (x._1.hashCode().toLong,
                                (x._1, x._2.toSet)))
 
+        components.updateContext(List(attr,"count"))
+
         val edgeRDD: RDD[(Long, Long, Double)] = scc.getSparkContext().parallelize(List())
         graphXGraph = GraphXInterface.buildGraph(vertexRDD, edgeRDD)
+
+        components.setOnReceiveNewMatches(apply)
 
         apply(components.blockAndMatch(attrCountRdd))
     }
@@ -88,7 +90,7 @@ class EntityResolution(params:AlgorithmParameters,
      */	
   	def apply(candidatePairs: Array[(Row, Row)], 
                 sampleTableRDD:RDD[Row]):Unit = {
-
+    
     var resultRDD = sampleTableRDD.map(x =>
       (x(hashCol).asInstanceOf[String], x(attrCol).asInstanceOf[String]))
 

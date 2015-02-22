@@ -8,7 +8,11 @@ import org.apache.spark.sql.{SchemaRDD, Row}
  * {a, b} == {b, a}
  */
 @serializable
-abstract class Featurizer(cols: List[Int]){
+abstract class Featurizer(colNames: List[String],contextIn:List[String]){
+
+	var cols:List[Int] = List()
+	var context = contextIn
+	setContext(context)
 
 	/**
 	 * This function takes a set of rows, takes a set of parameters that 
@@ -20,5 +24,19 @@ abstract class Featurizer(cols: List[Int]){
 	 * @type {[type]}
 	 */
 	def featurize[K,V](rows: Set[Row], params: collection.immutable.Map[K,V]=null): (Set[Row], Array[Double])
+
+
+	def setContext(contextUp:List[String]) = {
+
+		context = contextUp
+		var newCols:List[Int] = List()
+		for(col <- colNames)
+			if (context.indexOf(col) >= 0)
+				newCols = context.indexOf(col) :: newCols
+			else
+				println("Dropping col: " + col + " because it does not exist in the current context")
+
+		cols = newCols.reverse
+	}
 
 }

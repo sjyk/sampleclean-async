@@ -45,5 +45,27 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 		return matchedData
 	}
 
+	def updateContext(newContext:List[String]) = {
+
+		if(blocker != null)
+			blocker.updateContext(newContext)
+
+		if (join != null)
+			join.updateContext(newContext)
+
+		for (m <- matchers)
+			m.updateContext(newContext)
+		
+		println("Context Updated to: " + newContext)
+	}
+
+
+	def setOnReceiveNewMatches(func: RDD[(Row,Row)] => Unit) ={
+		if(matchers.last.asynchronous)
+			matchers.last.onReceiveNewMatches = func
+		else
+			println("[SampleClean] Asychrony has no effect in this pipeline")
+	}
+
 }
 
