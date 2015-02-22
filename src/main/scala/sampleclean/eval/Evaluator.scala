@@ -113,6 +113,7 @@ class Evaluator(scc:SampleCleanContext,
 			  				 (binaryResults._2+0.0)/(binaryResults._1),
 			  				 totalTime) :: resultTable 	
 	  	  }
+	  	  scc.resetSample(sampleName)
 	  	  resultTable = resultTable.reverse
 	  	  printResults()
 	  } 
