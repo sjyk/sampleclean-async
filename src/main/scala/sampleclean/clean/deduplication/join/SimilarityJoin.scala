@@ -8,7 +8,7 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql._
 
 class SimilarityJoin(@transient sc: SparkContext,
-					 simfeature: AnnotatedSimilarityFeaturizer,  
+					 val simfeature: AnnotatedSimilarityFeaturizer,  
 					 weighted:Boolean = false) extends Serializable {
 
 	/* The default implementation is naive but subclasses should override 
