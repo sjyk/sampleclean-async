@@ -414,6 +414,30 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		return schemaList.reverse
 	}
 
+  	/**Given a table name, this retrieves the schema as a list
+	* from the Hive Catalog
+	*/
+	def getTableContext(tableName:String):List[String] = {
+		val cleanSampleName = qb.getCleanSampleName(tableName)
+		var schemaList = List[String]()
+		blocking { 
+		
+		try{
+			val msc:HiveMetaStoreClient = new HiveMetaStoreClient(new HiveConf());
+			val sd:StorageDescriptor = msc.getTable(cleanSampleName).getSd();
+			val fieldSchema = sd.getCols();
+			for (field <- fieldSchema)
+				schemaList = field.getName() :: schemaList 
+		}
+		catch {
+     		case e: Exception => 0
+   		}
+
+   		}
+
+		return schemaList.reverse
+	}
+
   /**Given a table name and col names, this retrieves the indices of these cols in the table
     * from the Hive Catalog
     */

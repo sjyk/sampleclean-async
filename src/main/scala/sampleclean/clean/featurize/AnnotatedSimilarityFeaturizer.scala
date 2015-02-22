@@ -5,12 +5,13 @@ import uk.ac.shef.wit.simmetrics.similaritymetrics._
 /* This class implements the similarity based featurizer used in Deduplication
  */
 @serializable
-abstract class AnnotatedSimilarityFeaturizer(val cols: List[Int], 
+abstract class AnnotatedSimilarityFeaturizer(val colNames: List[String], 
+                  context:List[String],
 								  val tokenizer:Tokenizer, 
 								  val threshold:Double,
                   val minSize: Int = 0,
                   val schemaMap: Map[Int,Int]= null)
-	extends Featurizer(cols){
+	extends Featurizer(colNames, context){
 
 		val canPrefixFilter: Boolean
 
@@ -124,10 +125,11 @@ object AnnotatedSimilarityFeaturizer{
  * This class represents a similarity join based on the Jaccard similarity measure.
  * Token global weights are taken into account.
  */
- class WeightedJaccardSimilarity(cols: List[Int], 
+ class WeightedJaccardSimilarity(colNames: List[String], 
+                  context:List[String], 
 							  tokenizer:Tokenizer, 
 							  threshold:Double) 
-	extends AnnotatedSimilarityFeaturizer(cols, tokenizer, threshold) {
+	extends AnnotatedSimilarityFeaturizer(colNames, context, tokenizer, threshold) {
 
   val canPrefixFilter = true
   /**
@@ -181,10 +183,11 @@ object AnnotatedSimilarityFeaturizer{
  * This class represents a similarity join based on the overlap between two lists.
  * Token global weights are taken into account.
  */
-class WeightedOverlapSimilarity(cols: List[Int], 
+class WeightedOverlapSimilarity(colNames: List[String], 
+                  context:List[String], 
 							  tokenizer:Tokenizer, 
 							  threshold:Double) 
-	extends AnnotatedSimilarityFeaturizer(cols, tokenizer, threshold) {
+	extends AnnotatedSimilarityFeaturizer(colNames, context, tokenizer, threshold) {
 
   val canPrefixFilter = true
   /**
@@ -229,10 +232,11 @@ class WeightedOverlapSimilarity(cols: List[Int],
  * This class represents a similarity join based on the Dice similarity measure.
  * Token global weights are taken into account.
  */
-class WeightedDiceSimilarity(cols: List[Int], 
+class WeightedDiceSimilarity(colNames: List[String], 
+                  context:List[String], 
 							  tokenizer:Tokenizer, 
 							  threshold:Double)
-	extends AnnotatedSimilarityFeaturizer(cols, tokenizer, threshold) {
+	extends AnnotatedSimilarityFeaturizer(colNames, context, tokenizer, threshold) {
 
    val canPrefixFilter = true
 
@@ -289,10 +293,11 @@ class WeightedDiceSimilarity(cols: List[Int],
  * This class represents a similarity join based on the Cosine similarity measure.
  * Token global weights are taken into account.
  */
-class WeightedCosineSimilarity(cols: List[Int], 
+class WeightedCosineSimilarity(colNames: List[String], 
+                  context:List[String], 
 							  tokenizer:Tokenizer, 
 							  threshold:Double)
-	extends AnnotatedSimilarityFeaturizer(cols, tokenizer, threshold) {
+	extends AnnotatedSimilarityFeaturizer(colNames, context, tokenizer, threshold) {
 
    val canPrefixFilter = true
   /**

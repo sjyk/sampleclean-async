@@ -6,8 +6,8 @@ import uk.ac.shef.wit.simmetrics.similaritymetrics._
 /* This class implements the similarity based featurizer used in Deduplication
  */
 @serializable
-class SimilarityFeaturizer(cols: List[Int], metrics:List[String]) 
-	extends Featurizer(cols){
+class SimilarityFeaturizer(colNames: List[String], context:List[String], metrics:List[String]) 
+	extends Featurizer(colNames, context){
 
 		def featurize[K,V](rows: Set[Row], params: collection.immutable.Map[K,V]=null): (Set[Row], Array[Double]) = {
 

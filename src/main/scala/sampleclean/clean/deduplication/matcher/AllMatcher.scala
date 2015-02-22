@@ -1,4 +1,4 @@
-package sampleclean.clean.deduplication
+package sampleclean.clean.deduplication.matcher
 
 import sampleclean.api.SampleCleanContext
 import org.apache.spark.SparkContext._
@@ -15,14 +15,19 @@ import org.apache.spark.graphx._
 import sampleclean.crowd._
 import sampleclean.crowd.context.{DeduplicationPointLabelingContext, DeduplicationGroupLabelingContext}
 
-class MachineAttributeDeduplication(params:AlgorithmParameters, 
-							   scc: SampleCleanContext, sampleTableName: String) extends
-							   AbstractSingleAttributeDeduplication(params, scc, sampleTableName) {
-							   
+class AllMatcher(scc: SampleCleanContext, 
+				 sampleTableName: String) extends
+				 Matcher(scc, sampleTableName) {
 
-  def matching(candidatePairs: RDD[(Row,Row)]):RDD[(Row,Row)] = {
+  val asynchronous = false			   
+
+  def matchPairs(candidatePairs:RDD[(Row,Row)]): RDD[(Row,Row)] = {
       return candidatePairs
-  }
+  	}
+
+    def matchPairs(candidatePairs: => RDD[Set[Row]]): RDD[(Row,Row)] = {
+      return matchPairs(candidatePairs.flatMap(selfCartesianProduct))
+  	}
 
 
 }
