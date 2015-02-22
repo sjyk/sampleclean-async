@@ -1,6 +1,12 @@
 package sampleclean.clean.algorithm
 
 import sampleclean.api.SampleCleanContext
+import sampleclean.clean.algorithm.SampleCleanAlgorithm
+import org.apache.spark.SparkContext._
+import org.apache.spark.sql.SQLContext
+import sampleclean.clean.algorithm.AlgorithmParameters
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{SchemaRDD, Row}
 
 @serializable
 /** This defines the super class of all algorithms for data cleaning.
@@ -8,7 +14,7 @@ import sampleclean.api.SampleCleanContext
 * definition with just an exec method. By using a more generic definition
 * the pipeline class cannot optimize or merge similar operations.
 */
-abstract class SampleCleanAlgorithm(params:AlgorithmParameters, scc: SampleCleanContext, sampleTableName: String) {
+abstract class SampleCleanAlgorithm(params:AlgorithmParameters, scc: SampleCleanContext, var sampleTableName: String) {
 
 	/**Defines the pipeline with which this algorithm is associated
 	 */
@@ -35,6 +41,15 @@ abstract class SampleCleanAlgorithm(params:AlgorithmParameters, scc: SampleClean
 		if(pipeline != null)
 			pipeline.notification()
 
+	}
+
+	def setSampleName(newSampleName:String) = {
+		sampleTableName = newSampleName
+	}
+
+	def synchronousExecAndRead():RDD[Row] = {
+		exec()
+		return scc.getCleanSample(sampleTableName)
 	}
 
 }
