@@ -10,6 +10,12 @@ import org.apache.spark.sql.{SchemaRDD, Row}
 import org.apache.spark.graphx._
 import sampleclean.clean.deduplication.join.BlockerMatcherSelfJoinSequence
 
+import sampleclean.clean.deduplication.join._
+import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
+import sampleclean.clean.featurize.Tokenizer._
+import sampleclean.clean.deduplication.matcher._
+import sampleclean.clean.featurize._
+
 /* This is the abstract class for attribute deduplication
  * it implements many basic structure and the error handling 
  * for the class.
@@ -71,6 +77,8 @@ class EntityResolution(params:AlgorithmParameters,
         val edgeRDD: RDD[(Long, Long, Double)] = scc.getSparkContext().parallelize(List())
         graphXGraph = GraphXInterface.buildGraph(vertexRDD, edgeRDD)
 
+        components.printPipeline()
+
         components.setOnReceiveNewMatches(apply)
 
         apply(components.blockAndMatch(attrCountRdd))
@@ -90,7 +98,7 @@ class EntityResolution(params:AlgorithmParameters,
      */	
   	def apply(candidatePairs: Array[(Row, Row)], 
                 sampleTableRDD:RDD[Row]):Unit = {
-    
+
     var resultRDD = sampleTableRDD.map(x =>
       (x(hashCol).asInstanceOf[String], x(attrCol).asInstanceOf[String]))
 
@@ -133,5 +141,57 @@ class EntityResolution(params:AlgorithmParameters,
     this.onUpdateNotify()
 
   	}
+
+}
+
+object EntityResolution {
+
+    def textAttributeAutomatic(scc:SampleCleanContext,
+                               sampleName:String, 
+                               attribute: String, 
+                               threshold:Double=0.9,
+                               weighting:Boolean =true):EntityResolution = {
+
+        val algoPara = new AlgorithmParameters()
+        algoPara.put("attr", attribute)
+        algoPara.put("mergeStrategy", "mostFrequent")
+
+        val similarity = new WeightedJaccardSimilarity(List(attribute), 
+                                                   scc.getTableContext(sampleName),
+                                                   WordTokenizer(), 
+                                                   threshold)
+
+        val join = new BroadcastJoin(scc.getSparkContext(), similarity, weighting)
+        val matcher = new AllMatcher(scc, sampleName)
+        val blockerMatcher = new BlockerMatcherSelfJoinSequence(scc,sampleName, join, List(matcher))
+        return new EntityResolution(algoPara, scc, sampleName, blockerMatcher)
+    }
+
+    def textAttributeActiveLearning(scc:SampleCleanContext,
+                               sampleName:String, 
+                               attribute: String, 
+                               threshold:Double=0.9,
+                               weighting:Boolean =true):EntityResolution = {
+
+        val algoPara = new AlgorithmParameters()
+        algoPara.put("attr", attribute)
+        algoPara.put("mergeStrategy", "mostFrequent")
+
+        val cols = List("affiliation")
+        val baseFeaturizer = new SimilarityFeaturizer(cols, 
+                                                      scc.getTableContext(sampleName), 
+                                                      List("Levenshtein", "JaroWinkler"))
+
+        val alStrategy = new ActiveLearningStrategy(cols, baseFeaturizer)
+        val matcher = new ActiveLeaningMatcher(scc, sampleName, alStrategy)
+        val similarity = new WeightedJaccardSimilarity(List(attribute), 
+                                                   scc.getTableContext(sampleName),
+                                                   WordTokenizer(), 
+                                                   threshold)
+
+        val join = new BroadcastJoin(scc.getSparkContext(), similarity, weighting)
+        val blockerMatcher = new BlockerMatcherSelfJoinSequence(scc,sampleName, join, List(matcher))
+        return new EntityResolution(algoPara, scc, sampleName, blockerMatcher)
+    }
 
 }

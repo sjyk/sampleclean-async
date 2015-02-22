@@ -67,5 +67,18 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 			println("[SampleClean] Asychrony has no effect in this pipeline")
 	}
 
+	def printPipeline()={
+			print("RDD[Row] --> ")
+			if (blocker != null)
+				print(blocker.getClass.getSimpleName + " --> ")
+			else
+				print("join(" + join.simfeature.getClass.getSimpleName + ") --> ")
+
+			for(m <- matchers)
+				print(m.getClass.getSimpleName + " --> ")
+
+			println(" RDD[(Row,Row)]")
+	}
+
 }
 

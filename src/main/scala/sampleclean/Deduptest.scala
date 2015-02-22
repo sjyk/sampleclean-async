@@ -12,6 +12,7 @@ import sampleclean.clean.deduplication.join._
 import sampleclean.clean.deduplication.blocker._
 import sampleclean.clean.deduplication.matcher._
 import sampleclean.clean.deduplication._
+import sampleclean.clean.deduplication.EntityResolution._
 
 import sampleclean.activeml._
 import sampleclean.api.{SampleCleanAQP, SampleCleanContext, SampleCleanQuery}
@@ -23,6 +24,8 @@ import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
 import sampleclean.clean.featurize.LearningSimilarityFeaturizer
 import sampleclean.clean.featurize.Tokenizer._
 import sampleclean.clean.extraction.LearningSplitExtraction
+
+import sampleclean.clean.deduplication.EntityResolution._
 
 /**
 * This object provides the main driver for the SampleClean
@@ -46,26 +49,13 @@ object Deduptest {
     val saqp = new SampleCleanAQP();
 
     println("Test 1. Test Automated Entity Resolution")
-    val algoPara = new AlgorithmParameters()
-    algoPara.put("attr", "affiliation")
-    algoPara.put("mergeStrategy", "mostFrequent")
+    var algorithm = EntityResolution.textAttributeAutomatic(scc, "paper_aff_sample", "affiliation", 0.9, false)
+    algorithm.exec()
 
-    val similarity = new WeightedJaccardSimilarity(List("affiliation"), 
-                                                   scc.getTableContext("paper_aff_sample"),
-                                                   WordTokenizer(), 
-                                                   0.9)
-
-    val join = new BroadcastJoin(sc, similarity, true)
-    val cols = List("affiliation")
-    val colNames = List("affiliation")
-    val baseFeaturizer = new SimilarityFeaturizer(cols, scc.getTableContext("paper_aff_sample"), List("Levenshtein", "JaroWinkler"))
-    val alStrategy = new ActiveLearningStrategy(colNames, baseFeaturizer)
-    val matcher = new ActiveLeaningMatcher(scc, "paper_aff_sample", alStrategy)
-    val blockerMatcher = new BlockerMatcherSelfJoinSequence(scc,"paper_aff_sample", join, List(matcher))
-    val algorithm = new EntityResolution(algoPara, scc, "paper_aff_sample", blockerMatcher)
+    println("Test 2. Test Active Learning Entity Resolution")
+    algorithm = EntityResolution.textAttributeActiveLearning(scc, "paper_aff_sample", "affiliation", 0.9, false)
     algorithm.exec()
     
-
   }
   
 }
