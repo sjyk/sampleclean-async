@@ -191,6 +191,30 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		return hiveContext.hql(qb.buildSelectQuery(List("hash",attr),qb.getCleanSampleName(tableName), pred))
 	}
 
+	/**Saves the clean sample as a dirty sample
+	 */
+	def rebaseSample(tableName: String) = {
+		val hiveContext = new HiveContext(sc)
+		val sqlContext = new SQLContext(sc)
+		val tableNameClean = qb.getCleanSampleName(tableName)
+		val tableNameDirty = qb.getDirtySampleName(tableName)
+		hiveContext.hql(qb.overwriteTable(tableNameDirty) +
+						qb.buildSelectQuery(List("*"),
+   		    					            tableNameClean))
+	}
+
+	/**Resets the clean sample from dirty sample
+	 */
+	def resetSample(tableName: String) = {
+		val hiveContext = new HiveContext(sc)
+		val sqlContext = new SQLContext(sc)
+		val tableNameClean = qb.getCleanSampleName(tableName)
+		val tableNameDirty = qb.getDirtySampleName(tableName)
+		hiveContext.hql(qb.overwriteTable(tableNameClean) +
+						qb.buildSelectQuery(List("*"),
+   		    					            tableNameDirty))
+	}
+
 		/**This function takes a sample and a rdd of (Hash, Val) and updates those records in the RDD.
 	 * it returns a new updated SchemaRDD, and there is a persist flag to write these results to HIVE.
 	 */

@@ -2,7 +2,13 @@ package sampleclean.clean.featurize
 import org.apache.spark.sql.{SchemaRDD, Row}
 import uk.ac.shef.wit.simmetrics.similaritymetrics._
 
-/* This class implements the similarity based featurizer used in Deduplication
+/** 
+ * One use for similarity featurizers is in Similarity joins.
+ * This is when, we calculate all R x S such that sim(r,s) \le threshold.
+ * A special class of similarity features have properties
+ *  that allow for a type of optimization called prefix filtering.
+ *
+ *  We encode this logic into AnnotatedSimilarityFeaturizer. 
  */
 @serializable
 abstract class AnnotatedSimilarityFeaturizer(val colNames: List[String], 

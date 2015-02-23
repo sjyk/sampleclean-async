@@ -26,6 +26,7 @@ import sampleclean.clean.featurize.Tokenizer._
 import sampleclean.clean.extraction.LearningSplitExtraction
 
 import sampleclean.clean.deduplication.EntityResolution._
+import sampleclean.eval.Evaluator
 
 /**
 * This object provides the main driver for the SampleClean
@@ -48,6 +49,14 @@ object Deduptest {
     val scc = new SampleCleanContext(sc);
     val saqp = new SampleCleanAQP();
 
+    //var algorithm1 = EntityResolution.textAttributeAutomatic(scc, "paper_aff_sample", "affiliation", 0.9, false)
+    //var algorithm2 = EntityResolution.textAttributeAutomatic(scc, "paper_aff_sample", "affiliation", 0.9, true)
+    //val e = new Evaluator(scc, List(algorithm1,algorithm2))
+    //e.addUnaryConstraint("81eb205e-6fe2-48ce-962e-394ffaedbe74", "affiliation", "Stanford University")
+    //e.addBinaryConstraint("81eb205e-6fe2-48ce-962e-394ffaedbe74","41fb55cb-dd6a-4c43-bc0d-3e619ca07cc2" ,"affiliation", true)
+    //e.evaluate("paper_aff_sample")
+
+    
     println("Test 1. Test Automated Entity Resolution")
     var algorithm = EntityResolution.textAttributeAutomatic(scc, "paper_aff_sample", "affiliation", 0.9, false)
     algorithm.exec()
@@ -55,6 +64,7 @@ object Deduptest {
     println("Test 2. Test Active Learning Entity Resolution")
     algorithm = EntityResolution.textAttributeActiveLearning(scc, "paper_aff_sample", "affiliation", 0.9, false)
     algorithm.exec()
+    
     
   }
   

@@ -9,6 +9,17 @@ import org.apache.spark.sql.{SchemaRDD, Row}
 import sampleclean.clean.deduplication.matcher.Matcher
 import sampleclean.clean.deduplication.blocker.Blocker
 
+/**
+ * This class acts as a wrapper for blocker+matcher routines.
+ * This class has two constructors, blocker+List[matchers]
+ * or simjoin + List[Matchers]. We treat a similarity join
+ * as a combination blocking and matching sequence.
+ *
+ * We call this the "BlockerMatcherSelfJoinSequence" because
+ * in this class we apply the operation to the same sample.
+ * 
+ * @type {[type]}
+ */
 class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
               		   sampleTableName:String,
               		   blocker: Blocker,
