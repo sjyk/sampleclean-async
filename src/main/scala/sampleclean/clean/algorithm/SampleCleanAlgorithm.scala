@@ -9,12 +9,14 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SchemaRDD, Row}
 
 @serializable
-/** This defines the super class of all algorithms for data cleaning.
-* This is an abstract class which is the most generic data cleaning 
-* definition with just an exec method. By using a more generic definition
-* the pipeline class cannot optimize or merge similar operations.
+/**
+ * The abstract SampleCleanAlgorithm defines the super class of
+ *  all algorithms for data cleaning. Every algorithm is defined
+ *  on a sample of data.
 */
-abstract class SampleCleanAlgorithm(params:AlgorithmParameters, scc: SampleCleanContext, var sampleTableName: String) {
+abstract class SampleCleanAlgorithm(params:AlgorithmParameters, 
+									scc: SampleCleanContext, 
+									var sampleTableName: String) {
 
 	/**Defines the pipeline with which this algorithm is associated
 	 */

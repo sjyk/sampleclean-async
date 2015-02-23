@@ -3,10 +3,24 @@ package sampleclean.clean.featurize
 import org.apache.spark.sql.{SchemaRDD, Row}
 import uk.ac.shef.wit.simmetrics.similaritymetrics._
 
-/* This class implements the similarity based featurizer used in Deduplication
+/**
+ * One common type of featurizers are similarity featurizers which
+ * are widely used in deduplication and entity resolution workflows.
+ * 
+ * This set of featurizers takes in a list of metrics. Acceptable ones
+ * include:
+"BlockDistance", "ChapmanLengthDeviation", "ChapmanMatchingSoundex"
+"ChapmanMeanLength", "ChapmanOrderedNameCompoundSimilarity", "CosineSimilarity"
+"DiceSimilarity", "EuclideanDistance", "JaccardSimilarity", "Jaro"
+"JaroWinkler" ,"Levenshtein", "MatchingCoefficient","MongeElkan"
+"NeedlemanWunch", "OverlapCoefficient", "QGramsDistance", "SmithWaterman"
+"SmithWatermanGotoh", "SmithWatermanGotohWindowedAffine", "Soundex"
+"TagLinkToken"
  */
 @serializable
-class SimilarityFeaturizer(colNames: List[String], context:List[String], metrics:List[String]) 
+class SimilarityFeaturizer(colNames: List[String], 
+                           context:List[String], 
+                           metrics:List[String]) 
 	extends Featurizer(colNames, context){
 
 		def featurize[K,V](rows: Set[Row], params: collection.immutable.Map[K,V]=null): (Set[Row], Array[Double]) = {
