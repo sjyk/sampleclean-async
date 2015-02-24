@@ -2,18 +2,20 @@ package sampleclean.clean.featurize
 import org.apache.spark.sql.{SchemaRDD, Row}
 import uk.ac.shef.wit.simmetrics.similaritymetrics._
 
+
+import scala.collection.Seq
+
 /* This class implements the similarity based featurizer used in Deduplication
  */
 @serializable
 abstract class BlockingFeaturizer(cols: List[Int], 
 								  val tokenizer:Tokenizer, 
 								  val threshold:Double,
-                  val minSize: Int = 0)
+                  val minSize:Int)
 	extends Featurizer(cols){
 
 		val canPrefixFilter: Boolean
-
-		//val tokenizer = tokenizer
+    val canPassJoin: Boolean
 
 		def featurize[K,V](rows: Set[Row], params: collection.immutable.Map[K,V]=null): (Set[Row], Array[Double]) = {
 
@@ -49,12 +51,15 @@ abstract class BlockingFeaturizer(cols: List[Int],
 					  thresh:Double,
 					  tokenWeights: collection.Map[String, Double]): Boolean
 
+    def getSimilarity(tokens1: Seq[String], tokens2: Seq[String],
+                    tokenWeights: collection.Map[String, Double]): Double
+
 		 /**
    		  * Computes the number of tokens that can be removed from the tokenSet as per Prefix Filtering algorithm.
    		  * @param sortedTokens  token list. Must be sorted as per tokens' corresponding weights.
    		  * @param modThreshold modified threshold that depends on selected similarity measure.
    		  */
-  		def getRemovedSize (sortedTokens: Seq[String], modThreshold: Double, tokenWeights: collection.Map[String, Double]): Int = {
+     def getRemovedSize (sortedTokens: Seq[String], modThreshold: Double, tokenWeights: collection.Map[String, Double]): Int = {
     		if (canPrefixFilter) {
             val weighted = tokenWeights.size != 0
             val removedSize = {
@@ -90,6 +95,7 @@ abstract class BlockingFeaturizer(cols: List[Int],
   		def sumWeight (tokens: Seq[String], tokenWeights: collection.Map[String, Double]): Double = {
       		tokens.foldLeft(0.0) ((accum, token) => accum + tokenWeights.getOrElse(token, 1.0))
   		}
+
 }
 object BlockingFeaturizer{
 /**
@@ -98,11 +104,12 @@ object BlockingFeaturizer{
  */
  class WeightedJaccardBlocking(cols: List[Int], 
 							  tokenizer:Tokenizer, 
-							  threshold:Double) 
-	extends BlockingFeaturizer(cols, tokenizer, threshold) {
+							  threshold:Double,
+                minSize: Int = 0)
+	extends BlockingFeaturizer(cols, tokenizer, threshold,minSize) {
 
   val canPrefixFilter = true
-
+  val canPassJoin = false
   /**
    * Returns true if two token lists are similar; otherwise, returns false
    * @param tokens1 first token list.
@@ -173,10 +180,12 @@ object BlockingFeaturizer{
  */
 class WeightedOverlapBlocking(cols: List[Int], 
 							  tokenizer:Tokenizer, 
-							  threshold:Double) 
-	extends BlockingFeaturizer(cols, tokenizer, threshold) {
+							  threshold:Double,
+                minSize: Int = 0)
+	extends BlockingFeaturizer(cols, tokenizer, threshold,minSize) {
 
   val canPrefixFilter = true
+  val canPassJoin = false
   /**
    * Returns true if two token lists are similar; otherwise, returns false
    * @param tokens1 first token list.
@@ -229,10 +238,12 @@ class WeightedOverlapBlocking(cols: List[Int],
  */
 class WeightedDiceBlocking(cols: List[Int], 
 							  tokenizer:Tokenizer, 
-							  threshold:Double)
-	extends BlockingFeaturizer(cols, tokenizer, threshold) {
+							  threshold:Double,
+                minSize: Int = 0)
+	extends BlockingFeaturizer(cols, tokenizer, threshold,minSize) {
 
-   val canPrefixFilter = true
+  val canPrefixFilter = true
+  val canPassJoin = false
 
   /**
    * Returns true if two token lists are similar; otherwise, returns false
@@ -305,10 +316,12 @@ class WeightedDiceBlocking(cols: List[Int],
  */
 class WeightedCosineBlocking(cols: List[Int], 
 							  tokenizer:Tokenizer, 
-							  threshold:Double)
-	extends BlockingFeaturizer(cols, tokenizer, threshold) {
+							  threshold:Double,
+                minSize: Int = 0)
+	extends BlockingFeaturizer(cols, tokenizer, threshold,minSize) {
 
-   val canPrefixFilter = true
+  val canPrefixFilter = true
+  val canPassJoin = false
   /**
    * Returns true if two token lists are similar; otherwise, returns false
    * @param tokens1 first token list.
@@ -372,4 +385,58 @@ class WeightedCosineBlocking(cols: List[Int],
   }
 
 }
+  class EditBlocking(cols: List[Int],
+                               tokenizer:Tokenizer,
+                               threshold:Double,
+                               minSize:Int = 0)
+    extends BlockingFeaturizer(cols, tokenizer, threshold,minSize) {
+
+    val canPrefixFilter = false
+    val canPassJoin = true
+
+    def similar(tokens1: Seq[String],
+                tokens2: Seq[String],
+                threshold: Double,
+                tokenWeights: collection.Map[String, Double]): Boolean = {
+
+      getSimilarity(tokens1, tokens2,tokenWeights) <= threshold.toInt
+
+    }
+
+    def getSimilarity(tokens1: Seq[String], tokens2: Seq[String], tokenWeights: collection.Map[String, Double]): Int = {
+
+      val thresholdInt = threshold.toInt
+      val _s = tokens1.mkString(" ")
+      val _t = tokens2.mkString(" ")
+      val (s, t) = if (_s.length > _t.length) (_s, _t) else (_t, _s)
+      val n = s.length
+      val m = t.length
+
+      if (n - m > thresholdInt) return thresholdInt + 1
+
+      var V = new Array[Array[Int]](thresholdInt * 3 + 2)
+      for (i <- 0 until V.length)
+        V(i) = Array.fill[Int](2)(Int.MinValue)
+
+      V(-1 + thresholdInt + 1)(-1 & 1) = 0
+
+      for (p <- 0 until thresholdInt + 1) {
+        val f = p & 1
+        val g = f ^ 1
+
+        for (k <- thresholdInt + 1 - p until thresholdInt + 1 + p + 1) {
+          V(k)(f) = math.max(math.max(V(k)(g), V(k + 1)(g)) + 1, V(k - 1)(g))
+          val d = k - thresholdInt - 1
+          if (V(k)(f) >= 0 && V(k)(f) + d >= 0)
+            while (V(k)(f) < n && V(k)(f) + d < m && s(V(k)(f)) == t(V(k)(f) + d))
+              V(k)(f) += 1
+        }
+        if (V(m - n + thresholdInt + 1)(f) >= n) return p
+      }
+      thresholdInt + 1
+
+    }
+
+
+  }
 }

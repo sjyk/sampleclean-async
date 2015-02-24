@@ -1,7 +1,8 @@
 package sampleclean.clean.featurize
 
 import org.apache.spark.sql.{SchemaRDD, Row}
-import sampleclean.clean.featurize.{WeightedDiceBlocking, WeightedJaccardBlocking}
+import sampleclean.clean.featurize.BlockingFeaturizer._
+
 import uk.ac.shef.wit.simmetrics.similaritymetrics._
 import uk.ac.shef.wit.simmetrics.tokenisers.TokeniserWhitespace
 
@@ -56,6 +57,7 @@ class SimilarityFeaturizer(cols: List[Int], metrics:List[String])
             case "DiceSimilarity" => new WeightedDiceBlocking(List(0),null,0)
             case "CosineSimilarity" => new WeightedCosineBlocking(List(0),null,0)
             case "OverlapSimilarity" => new WeightedOverlapBlocking(List(0),null,0)
+            case "EditDistance" => new EditBlocking(List(0),null,0)
 
         		case _ => throw new NoSuchElementException(measure + " measure not found")
       		}
@@ -73,23 +75,13 @@ class SimilarityFeaturizer(cols: List[Int], metrics:List[String])
               m.asInstanceOf[AbstractStringMetric].getSimilarity(trimmed1, trimmed2).toDouble
             }
               // SampleClean implementations
-            case m @ (WeightedJaccardBlocking | WeightedDiceBlocking | DiceSimilarity) => {
+            case m: BlockingFeaturizer => {
               val tokenizer = new TokeniserWhitespace()
               val tokens1 = tokenizer.tokenizeToArrayList(s1).toArray.toSeq.asInstanceOf[Seq[String]]
               val tokens2 = tokenizer.tokenizeToArrayList(s2).toArray.toSeq.asInstanceOf[Seq[String]]
 
-              case m: JaccardSimilarity => {
-                val wJacc = new WeightedJaccardBlocking(List(0),null,0)
-                wJacc.getSimilarity(tokens1,tokens2,Map[String,Double]())
-              }
-              case m: CosineSimilarity => {
-                val wCos = new WeightedCosineBlocking(List(0),null,0)
-                wCos.getSimilarity(tokens1,tokens2,Map[String,Double]())
-              }
-              case m: DiceSimilarity => {
-                val wDic = new WeightedDiceBlocking(List(0),null,0)
-                wDic.getSimilarity(tokens1,tokens2,Map[String,Double]())
-              }
+              m.getSimilarity(tokens1,tokens2,Map[String,Double]())
+
             }
             case _ => measure.asInstanceOf[AbstractStringMetric].getSimilarity(s1, s2).toDouble
           }
