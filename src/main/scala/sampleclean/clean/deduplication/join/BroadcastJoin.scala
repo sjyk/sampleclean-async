@@ -1,17 +1,17 @@
-package sampleclean.simjoin
-import sampleclean.clean.featurize.BlockingFeaturizer
+package sampleclean.clean.deduplication.join
+import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.sql._
 
+//fix smallerA bug
 
 
 class BroadcastJoin( @transient sc: SparkContext,
-					 blocker: BlockingFeaturizer, 
-					 projection:List[Int], 
+					 blocker: AnnotatedSimilarityFeaturizer, 
 					 weighted:Boolean = false) extends
-					 SimilarityJoin(sc,blocker,projection,weighted) {
+					 SimilarityJoin(sc,blocker,weighted) {
 
   @Override
 	override def join(rddA: RDD[Row],
@@ -19,7 +19,7 @@ class BroadcastJoin( @transient sc: SparkContext,
 			 smallerA:Boolean = true, 
 			 containment:Boolean = true): RDD[(Row,Row)] = {
 
-    println("Starting Broadcast Join")
+    println("[SampleClean] Executing BroadcastJoin")
 
     if (!blocker.canPrefixFilter) {
       super.join(rddA, rddB, smallerA, containment)
@@ -34,12 +34,11 @@ class BroadcastJoin( @transient sc: SparkContext,
       var smallTable = rddA
       var largeTable = rddB
 
-
       if (smallerA && containment) {
-        tokenCounts = computeTokenCount(rddA.map(blocker.tokenizer.tokenize(_, projection)))
+        tokenCounts = computeTokenCount(rddA.map(blocker.tokenizer.tokenize(_, blocker.getCols())))
       }
       else if (containment) {
-        tokenCounts = computeTokenCount(rddB.map(blocker.tokenizer.tokenize(_, projection)))
+        tokenCounts = computeTokenCount(rddB.map(blocker.tokenizer.tokenize(_, blocker.getCols(false))))
         val n = smallTableSize
         smallTableSize = largeTableSize
         largeTableSize = n
@@ -47,7 +46,9 @@ class BroadcastJoin( @transient sc: SparkContext,
         largeTable = rddA
       }
       else {
-        tokenCounts = computeTokenCount(rddA.union(rddB).map(blocker.tokenizer.tokenize(_, projection)))
+        tokenCounts = computeTokenCount(rddA.map(blocker.tokenizer.tokenize(_, blocker.getCols())).
+                                        union(rddB.map(blocker.tokenizer.tokenize(_, blocker.getCols(false)))))
+
         largeTableSize = largeTableSize + smallTableSize
       }
 
@@ -55,10 +56,10 @@ class BroadcastJoin( @transient sc: SparkContext,
         tokenWeights = tokenCounts.map(x => (x._1, math.log10(largeTableSize.toDouble / x._2)))
       }
 
-      println("Calculated Token Weights: " + tokenWeights)
+      println("[SampleClean] Calculated Token Weights: " + tokenWeights)
       //Add a record ID into sampleTable. Id is a unique id assigned to each row.
-      val smallTableWithId: RDD[(Long, (List[String], Row))] = smallTable.zipWithUniqueId
-        .map(x => (x._2, (blocker.tokenizer.tokenize(x._1, projection), x._1))).cache()
+      val smallTableWithId: RDD[(Long, (Seq[String], Row))] = smallTable.zipWithUniqueId
+        .map(x => (x._2, (blocker.tokenizer.tokenize(x._1, blocker.getCols(false)), x._1))).cache()
 
 
       // Set a global order to all tokens based on their frequencies
@@ -91,7 +92,7 @@ class BroadcastJoin( @transient sc: SparkContext,
       val scanTable = {
         if (selfJoin) smallTableWithId
         else {
-          largeTable.map(row => (0L, (blocker.tokenizer.tokenize(row,projection), row)))
+          largeTable.map(row => (0L, (blocker.tokenizer.tokenize(row,blocker.getCols(false)), row)))
         }
       }
 
@@ -142,7 +143,6 @@ class BroadcastJoin( @transient sc: SparkContext,
         for (x <- tokens.distinct)
         yield (x, 1)
     }.reduceByKeyLocally(_ + _)
-
     collection.immutable.Map(m.toList: _*)
   }
 

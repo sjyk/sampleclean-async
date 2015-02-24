@@ -2,17 +2,25 @@ package sampleclean.clean.featurize
 import org.apache.spark.sql.{SchemaRDD, Row}
 import uk.ac.shef.wit.simmetrics.similaritymetrics._
 
-
 import scala.collection.Seq
 
-/* This class implements the similarity based featurizer used in Deduplication
+
+/** 
+ * One use for similarity featurizers is in Similarity joins.
+ * This is when, we calculate all R x S such that sim(r,s) \le threshold.
+ * A special class of similarity features have properties
+ *  that allow for a type of optimization called prefix filtering.
+ *
+ *  We encode this logic into AnnotatedSimilarityFeaturizer.
  */
 @serializable
-abstract class BlockingFeaturizer(cols: List[Int], 
+abstract class AnnotatedSimilarityFeaturizer(val colNames: List[String], 
+                  context:List[String],
 								  val tokenizer:Tokenizer, 
 								  val threshold:Double,
-                  val minSize:Int)
-	extends Featurizer(cols){
+                  val minSize: Int = 0,
+                  val schemaMap: Map[Int,Int]= null)
+	extends Featurizer(colNames, context){
 
 		val canPrefixFilter: Boolean
     val canPassJoin: Boolean
@@ -26,7 +34,13 @@ abstract class BlockingFeaturizer(cols: List[Int],
 			var stringB = ""
 			for (col <- cols){
 				stringA = stringA + " " + rowA(col).asInstanceOf[String]
-				stringB = stringB + " " + rowB(col).asInstanceOf[String]
+
+        if(schemaMap == null)
+				  stringB = stringB + " " + rowB(col).asInstanceOf[String]
+        else if(schemaMap.contains(col))
+          stringB = stringB + " " + rowB(schemaMap(col)).asInstanceOf[String]
+        else
+          throw new RuntimeException("The schemas do not align up between your tables")
 			}
 
 			val tokens1 = tokenizer.tokenSet(stringA)
@@ -46,7 +60,28 @@ abstract class BlockingFeaturizer(cols: List[Int],
 					Array(sim))
 		}
 
-		def similar(tokens1:Seq[String],
+    //TODO Fix A,B
+    def getCols(a:Boolean = true):List[Int] ={
+        if(a || schemaMap == null)
+        {
+          return cols
+        }
+        else
+        {
+          var result:List[Int] = List()
+          for (col <- cols){
+        
+          if(!schemaMap.contains(col))
+            throw new RuntimeException("The schemas do not align up between your tables")
+
+          result = schemaMap(col) :: result
+
+          }
+          return result.reverse
+        }
+    }
+
+		def similarity(tokens1:Seq[String],
 					  tokens2: Seq[String], 
 					  thresh:Double,
 					  tokenWeights: collection.Map[String, Double]): Boolean
@@ -97,16 +132,16 @@ abstract class BlockingFeaturizer(cols: List[Int],
   		}
 
 }
-object BlockingFeaturizer{
+object AnnotatedSimilarityFeaturizer{
 /**
  * This class represents a similarity join based on the Jaccard similarity measure.
  * Token global weights are taken into account.
  */
- class WeightedJaccardBlocking(cols: List[Int], 
-							  tokenizer:Tokenizer, 
-							  threshold:Double,
-                minSize: Int = 0)
-	extends BlockingFeaturizer(cols, tokenizer, threshold,minSize) {
+ class WeightedJaccardSimilarity(colNames: List[String], 
+                  context:List[String], 
+							  tokenizer:Tokenizer,
+							  threshold:Double) 
+	extends AnnotatedSimilarityFeaturizer(colNames, context, tokenizer, threshold) {
 
   val canPrefixFilter = true
   val canPassJoin = false
@@ -178,11 +213,11 @@ object BlockingFeaturizer{
  * This class represents a similarity join based on the overlap between two lists.
  * Token global weights are taken into account.
  */
-class WeightedOverlapBlocking(cols: List[Int], 
-							  tokenizer:Tokenizer, 
-							  threshold:Double,
-                minSize: Int = 0)
-	extends BlockingFeaturizer(cols, tokenizer, threshold,minSize) {
+class WeightedOverlapSimilarity(colNames: List[String], 
+                  context:List[String], 
+							  tokenizer:Tokenizer,
+							  threshold:Double) 
+	extends AnnotatedSimilarityFeaturizer(colNames, context, tokenizer, threshold) {
 
   val canPrefixFilter = true
   val canPassJoin = false
@@ -236,11 +271,11 @@ class WeightedOverlapBlocking(cols: List[Int],
  * This class represents a similarity join based on the Dice similarity measure.
  * Token global weights are taken into account.
  */
-class WeightedDiceBlocking(cols: List[Int], 
-							  tokenizer:Tokenizer, 
-							  threshold:Double,
-                minSize: Int = 0)
-	extends BlockingFeaturizer(cols, tokenizer, threshold,minSize) {
+class WeightedDiceSimilarity(colNames: List[String], 
+                  context:List[String], 
+							  tokenizer:Tokenizer,
+							  threshold:Double)
+	extends AnnotatedSimilarityFeaturizer(colNames, context, tokenizer, threshold) {
 
   val canPrefixFilter = true
   val canPassJoin = false
@@ -314,11 +349,11 @@ class WeightedDiceBlocking(cols: List[Int],
  * This class represents a similarity join based on the Cosine similarity measure.
  * Token global weights are taken into account.
  */
-class WeightedCosineBlocking(cols: List[Int], 
-							  tokenizer:Tokenizer, 
-							  threshold:Double,
-                minSize: Int = 0)
-	extends BlockingFeaturizer(cols, tokenizer, threshold,minSize) {
+class WeightedCosineSimilarity(colNames: List[String], 
+                  context:List[String], 
+							  tokenizer:Tokenizer,
+							  threshold:Double)
+	extends AnnotatedSimilarityFeaturizer(colNames, context, tokenizer, threshold) {
 
   val canPrefixFilter = true
   val canPassJoin = false
@@ -385,11 +420,11 @@ class WeightedCosineBlocking(cols: List[Int],
   }
 
 }
-  class EditBlocking(cols: List[Int],
+  class EditBlocking(colNames: List[String],
+                            context:List[String],
                                tokenizer:Tokenizer,
-                               threshold:Double,
-                               minSize:Int = 0)
-    extends BlockingFeaturizer(cols, tokenizer, threshold,minSize) {
+                               threshold:Double)
+    extends  AnnotatedSimilarityFeaturizer(colNames, context, tokenizer, threshold) {
 
     val canPrefixFilter = false
     val canPassJoin = true

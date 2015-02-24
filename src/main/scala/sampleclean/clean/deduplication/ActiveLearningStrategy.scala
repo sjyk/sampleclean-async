@@ -33,6 +33,7 @@ case class ActiveLearningStrategy(displayedColNames: List[String], featurizer:Fe
   var frameworkParameters = ActiveLearningParameters()
   var crowdParameters = CrowdConfiguration() // Use defaults
   var taskParameters = CrowdTaskConfiguration() // Use defaults
+  var currentModel:SVMModel = null
   
   /*
    * Used to set new SVM parameters that will be used for training.
@@ -163,6 +164,8 @@ case class ActiveLearningStrategy(displayedColNames: List[String], featurizer:Fe
     def processNewModel(model:SVMModel, modelN: Long) {
       val modelLabeledData: RDD[(String, Double)] = unlabeledInput.map(p => (p._1, model.predict(p._2)))
       var mergedLabeledData: RDD[(String, Double)] = modelLabeledData
+      
+      currentModel = model
 
       val crowdLabeledData = trainingFuture.getLabeledData
       crowdLabeledData match {
@@ -178,6 +181,7 @@ case class ActiveLearningStrategy(displayedColNames: List[String], featurizer:Fe
       assert(mergedLabeledData.count() == candidatePairsWithId.count())
 
       val duplicatePairs = mergedLabeledData.filter(_._2 > 0.5).join(candidatePairsWithId).map(_._2._2) // 1: duplicate; 0: non-duplicate
+      println("test")
       onUpdateDupCounts(duplicatePairs)
     }
 
@@ -185,6 +189,11 @@ case class ActiveLearningStrategy(displayedColNames: List[String], featurizer:Fe
 
     // wait for training to complete
     Await.ready(trainingFuture, Duration.Inf)
+  }
+
+
+  def updateContext(context: List[String]) ={
+      featurizer.setContext(context)
   }
 
 

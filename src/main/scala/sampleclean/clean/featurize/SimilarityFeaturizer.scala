@@ -6,11 +6,25 @@ import sampleclean.clean.featurize.BlockingFeaturizer._
 import uk.ac.shef.wit.simmetrics.similaritymetrics._
 import uk.ac.shef.wit.simmetrics.tokenisers.TokeniserWhitespace
 
-/* This class implements the similarity based featurizer used in Deduplication
+/**
+ * One common type of featurizers are similarity featurizers which
+ * are widely used in deduplication and entity resolution workflows.
+ * 
+ * This set of featurizers takes in a list of metrics. Acceptable ones
+ * include:
+"BlockDistance", "ChapmanLengthDeviation", "ChapmanMatchingSoundex"
+"ChapmanMeanLength", "ChapmanOrderedNameCompoundSimilarity", "CosineSimilarity"
+"DiceSimilarity", "EuclideanDistance", "JaccardSimilarity", "Jaro"
+"JaroWinkler" ,"Levenshtein", "MatchingCoefficient","MongeElkan"
+"NeedlemanWunch", "OverlapCoefficient", "QGramsDistance", "SmithWaterman"
+"SmithWatermanGotoh", "SmithWatermanGotohWindowedAffine", "Soundex"
+"TagLinkToken"
  */
 @serializable
-class SimilarityFeaturizer(cols: List[Int], metrics:List[String]) 
-	extends Featurizer(cols){
+class SimilarityFeaturizer(colNames: List[String], 
+                           context:List[String], 
+                           metrics:List[String]) 
+	extends Featurizer(colNames, context){
 
 		def featurize[K,V](rows: Set[Row], params: collection.immutable.Map[K,V]=null): (Set[Row], Array[Double]) = {
 
@@ -28,8 +42,9 @@ class SimilarityFeaturizer(cols: List[Int], metrics:List[String])
 				    getSimilarities(stringA,stringB,metrics).toArray
 				   )
 		}
-    
-		def getSimilarities(s1: String, s2: String, simMeasures: List[String]): List[Double] = {
+
+		def getSimilarities(s1: String, s2: String, simMeasures: List[String] = metrics): List[Double] = {
+
     		val measures: List[Object] = simMeasures.map(measure =>
       		measure match {
         		case "BlockDistance" => new BlockDistance

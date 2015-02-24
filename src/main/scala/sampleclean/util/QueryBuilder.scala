@@ -160,6 +160,18 @@ class QueryBuilder(scc: SampleCleanContext) {
 		return attr+"*"+predicateToCase(pred)
 	}
 
+	def addColsToTable(cols:List[String], tableName:String):String ={
+		var alterTables = "ALTER TABLE "+ tableName +  " ADD COLUMNS ("
+		for(col <- cols)
+			alterTables += col + " string, "
+
+		alterTables = alterTables.substring(0,alterTables.length - 2)
+			
+		alterTables += ")"
+
+		return alterTables
+	}
+
 	/** Returns the "clean" sample name
 	*/
 	def getCleanSampleName(sampleName:String):String = {
@@ -181,6 +193,33 @@ class QueryBuilder(scc: SampleCleanContext) {
 				}
 				else{
 					resultString = resultString + " "+ comp+"_clean"
+				}
+			}
+		}
+		return resultString
+	}
+
+	/** Returns the "clean" sample name
+	*/
+	def getBaseName(sampleName:String):String = {
+		val sampleExprSplit = sampleName.replaceAll("=", " = ")
+		val splitComponents = sampleExprSplit.split("\\s+")
+		val reservedWords = List("on", "join", "left", "right", "outer", "semi", "=")
+		var resultString = ""
+		for(comp <- splitComponents){
+			if(reservedWords contains comp){
+				resultString = resultString + " "+ comp
+			}
+			else{
+				
+				if(comp.indexOf(".") >= 0){
+					resultString = resultString + " "+ 
+					                            comp.substring(0, comp.indexOf("."))+
+												"_base" +
+												comp.substring(comp.indexOf("."))
+				}
+				else{
+					resultString = resultString + " "+ comp+"_base"
 				}
 			}
 		}

@@ -73,11 +73,16 @@ class SampleCleanContext(@transient sc: SparkContext) {
 			qb.buildSelectQuery(selectionList,baseTable) +
 			qb.tableSample(samplingRatio)
 
+			var baseQuery = qb.createTableAs(qb.getBaseName(baseTable)) +
+			qb.buildSelectQuery(selectionList,baseTable)
+
+			hiveContext.hql(baseQuery)
+
 			hiveContext.hql(query)
 
 			hiveContext.hql("cache table "+ qb.getCleanSampleName(tableName))
 
-			hiveContext.hql(qb.setTableParent(qb.getCleanSampleName(tableName),baseTable + " " + samplingRatio))
+			hiveContext.hql(qb.setTableParent(qb.getCleanSampleName(tableName),qb.getBaseName(baseTable) + " " + samplingRatio))
 
 			query = qb.createTableAs(qb.getDirtySampleName(tableName)) +
 					qb.buildSelectQuery(List("*"),qb.getCleanSampleName(tableName))
@@ -114,9 +119,14 @@ class SampleCleanContext(@transient sc: SparkContext) {
 			qb.buildSelectQuery(selectionList,baseTable) +
 			qb.tableConsistentHash(samplingFrac,onKey)
 
+			var baseQuery = qb.createTableAs(qb.getBaseName(baseTable)) +
+			qb.buildSelectQuery(selectionList,baseTable)
+
+			hiveContext.hql(baseQuery)
+
 			hiveContext.hql(query)
 
-			hiveContext.hql(qb.setTableParent(qb.getCleanSampleName(tableName),baseTable + " " + 1.0/samplingFrac))
+			hiveContext.hql(qb.setTableParent(qb.getCleanSampleName(tableName),qb.getBaseName(baseTable) + " " + 1.0/samplingFrac))
 
 			query = qb.createTableAs(qb.getDirtySampleName(tableName)) +
 					qb.buildSelectQuery(List("*"),qb.getCleanSampleName(tableName))
@@ -179,6 +189,30 @@ class SampleCleanContext(@transient sc: SparkContext) {
 	def getCleanSampleAttr(tableName: String, attr: String, pred:String):SchemaRDD = {
 		val hiveContext = new HiveContext(sc)
 		return hiveContext.hql(qb.buildSelectQuery(List("hash",attr),qb.getCleanSampleName(tableName), pred))
+	}
+
+	/**Saves the clean sample as a dirty sample
+	 */
+	def rebaseSample(tableName: String) = {
+		val hiveContext = new HiveContext(sc)
+		val sqlContext = new SQLContext(sc)
+		val tableNameClean = qb.getCleanSampleName(tableName)
+		val tableNameDirty = qb.getDirtySampleName(tableName)
+		hiveContext.hql(qb.overwriteTable(tableNameDirty) +
+						qb.buildSelectQuery(List("*"),
+   		    					            tableNameClean))
+	}
+
+	/**Resets the clean sample from dirty sample
+	 */
+	def resetSample(tableName: String) = {
+		val hiveContext = new HiveContext(sc)
+		val sqlContext = new SQLContext(sc)
+		val tableNameClean = qb.getCleanSampleName(tableName)
+		val tableNameDirty = qb.getDirtySampleName(tableName)
+		hiveContext.hql(qb.overwriteTable(tableNameClean) +
+						qb.buildSelectQuery(List("*"),
+   		    					            tableNameDirty))
 	}
 
 		/**This function takes a sample and a rdd of (Hash, Val) and updates those records in the RDD.
@@ -404,6 +438,30 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		return schemaList.reverse
 	}
 
+  	/**Given a table name, this retrieves the schema as a list
+	* from the Hive Catalog
+	*/
+	def getTableContext(tableName:String):List[String] = {
+		val cleanSampleName = qb.getCleanSampleName(tableName)
+		var schemaList = List[String]()
+		blocking { 
+		
+		try{
+			val msc:HiveMetaStoreClient = new HiveMetaStoreClient(new HiveConf());
+			val sd:StorageDescriptor = msc.getTable(cleanSampleName).getSd();
+			val fieldSchema = sd.getCols();
+			for (field <- fieldSchema)
+				schemaList = field.getName() :: schemaList 
+		}
+		catch {
+     		case e: Exception => 0
+   		}
+
+   		}
+
+		return schemaList.reverse
+	}
+
   /**Given a table name and col names, this retrieves the indices of these cols in the table
     * from the Hive Catalog
     */
@@ -434,12 +492,6 @@ class SampleCleanContext(@transient sc: SparkContext) {
     getColIndicesByNames(fullTableName, _: List[String])
   }
 
-
-
-
-
-
-
   /** This function returns all the tables we have created in this session
 	as temporary tables.
 	*/
@@ -457,6 +509,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
    				for(t <- msc.getAllTables(d))
    				{
    					if ((t contains "tmp") || 
+   						(t contains "_base") ||
    						(t contains "_clean") || 
    						(t contains "_dirty") )
    					{
@@ -479,7 +532,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 	{
 		try{
 			val msc:HiveMetaStoreClient = new HiveMetaStoreClient(new HiveConf());
-			return msc.getTable(tableName).getParameters().get("comment").split(" ")(0)
+			return msc.getTable(tableName).getParameters().get("comment").trim.split(" ")(0)
 		}
 		catch {
      		case e: Exception => 0
@@ -493,7 +546,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 	{
 		try{
 			val msc:HiveMetaStoreClient = new HiveMetaStoreClient(new HiveConf());
-			return msc.getTable(tableName).getParameters().get("comment").split(" ")(1).toDouble
+			return msc.getTable(tableName).getParameters().get("comment").trim.split(" ")(1).toDouble
 		}
 		catch {
      		case e: Exception => println(e)
