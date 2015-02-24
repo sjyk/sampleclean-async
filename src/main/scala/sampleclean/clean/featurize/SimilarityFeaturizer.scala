@@ -1,7 +1,7 @@
 package sampleclean.clean.featurize
 
 import org.apache.spark.sql.{SchemaRDD, Row}
-import sampleclean.clean.featurize.BlockingFeaturizer._
+import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
 
 import uk.ac.shef.wit.simmetrics.similaritymetrics._
 import uk.ac.shef.wit.simmetrics.tokenisers.TokeniserWhitespace
@@ -68,11 +68,11 @@ class SimilarityFeaturizer(colNames: List[String],
         		case "TagLinkToken" => new TagLinkToken
 
             // SampleClean implementations
-            case "JaccardSimilarity" => new WeightedJaccardBlocking(List(0),null,0)
-            case "DiceSimilarity" => new WeightedDiceBlocking(List(0),null,0)
-            case "CosineSimilarity" => new WeightedCosineBlocking(List(0),null,0)
-            case "OverlapSimilarity" => new WeightedOverlapBlocking(List(0),null,0)
-            case "EditDistance" => new EditBlocking(List(0),null,0)
+            case "JaccardSimilarity" => new WeightedJaccardSimilarity(List(""), List(""), null,0)
+            case "DiceSimilarity" => new WeightedDiceSimilarity(List(""), List(""), null,0)
+            case "CosineSimilarity" => new WeightedCosineSimilarity(List(""), List(""), null,0)
+            case "OverlapSimilarity" => new WeightedOverlapSimilarity(List(""), List(""), null,0)
+            case "EditDistance" => new EditBlocking(List(""), List(""), null,0)
 
         		case _ => throw new NoSuchElementException(measure + " measure not found")
       		}
@@ -90,7 +90,7 @@ class SimilarityFeaturizer(colNames: List[String],
               m.asInstanceOf[AbstractStringMetric].getSimilarity(trimmed1, trimmed2).toDouble
             }
               // SampleClean implementations
-            case m: BlockingFeaturizer => {
+            case m: AnnotatedSimilarityFeaturizer => {
               val tokenizer = new TokeniserWhitespace()
               val tokens1 = tokenizer.tokenizeToArrayList(s1).toArray.toSeq.asInstanceOf[Seq[String]]
               val tokens2 = tokenizer.tokenizeToArrayList(s2).toArray.toSeq.asInstanceOf[Seq[String]]

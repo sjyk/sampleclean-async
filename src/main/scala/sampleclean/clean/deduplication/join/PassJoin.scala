@@ -1,19 +1,19 @@
-package sampleclean.simjoin
+package sampleclean.clean.deduplication.join
 
-
-import sampleclean.clean.featurize.BlockingFeaturizer
-import org.apache.spark.{SparkContext}
-import org.apache.spark.rdd.RDD
-import org.apache.spark.broadcast.Broadcast
-import org.apache.spark.sql._
+import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
+import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql._
+import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer
+
 import scala.collection.Seq
 
 
 class PassJoin( @transient sc: SparkContext,
-               blocker: BlockingFeaturizer,
+               blocker: AnnotatedSimilarityFeaturizer,
                projection:List[Int]) extends
-SimilarityJoin(sc,blocker,projection,false) {
+SimilarityJoin(sc,blocker,false) {
 
   @Override
   override def join(rddA: RDD[Row],
@@ -51,7 +51,7 @@ SimilarityJoin(sc,blocker,projection,false) {
       val isSelfJoin = largeTableSize == smallTableSize && containment
 
       //Add a record ID into smallTable. Id is a unique id assigned to each row.
-      val smallTableWithId: RDD[(Long, (List[String], String, Row))] = smallTable.zipWithUniqueId()
+      val smallTableWithId: RDD[(Long, (Seq[String], String, Row))] = smallTable.zipWithUniqueId()
         .map(x => {
         val block = blocker.tokenizer.tokenize(x._1, projection)
         (x._2, (block, block.mkString(" "), x._1))
@@ -84,10 +84,10 @@ SimilarityJoin(sc,blocker,projection,false) {
 
       //Broadcast sample data to all nodes
       val broadcastIndex: Broadcast[collection.Map[(Int, String, Int), Seq[Long]]] = sc.broadcast(invertedIndex.collectAsMap())
-      val broadcastData: Broadcast[collection.Map[Long, (List[String], String, Row)]] = sc.broadcast(smallTableWithId.collectAsMap())
+      val broadcastData: Broadcast[collection.Map[Long, (Seq[String], String, Row)]] = sc.broadcast(smallTableWithId.collectAsMap())
       val broadcastSubMap = sc.broadcast(subMap)
 
-      val scanTable: RDD[(Long, (List[String], String, Row))] = {
+      val scanTable: RDD[(Long, (Seq[String], String, Row))] = {
         if (isSelfJoin) smallTableWithId
         else {
           largeTable.map(row => {
@@ -122,7 +122,7 @@ SimilarityJoin(sc,blocker,projection,false) {
                 }
                 else {
                   val similar = {
-                    blocker.similar(key1, key2, intThreshold, Map[String, Double]())
+                    blocker.similarity(key1, key2, intThreshold, Map[String, Double]())
                   }
                   (string2, row2, similar)
                 }

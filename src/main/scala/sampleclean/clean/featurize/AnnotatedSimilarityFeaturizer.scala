@@ -50,7 +50,7 @@ abstract class AnnotatedSimilarityFeaturizer(val colNames: List[String],
 			if(params != null)
 				tokenWeights = params.asInstanceOf[Map[String,Double]]
 
-			val simVal = similar(tokens1, tokens2, threshold, tokenWeights)
+			val simVal = similarity(tokens1, tokens2, threshold, tokenWeights)
 
 			var sim = 0.0
 			if (simVal)
@@ -152,7 +152,7 @@ object AnnotatedSimilarityFeaturizer{
    * @param threshold specified threshold.
    * @param tokenWeights token-to-weight map
    */
-  def similar (tokens1: Seq[String],
+  def similarity (tokens1: Seq[String],
                  tokens2: Seq[String],
                  threshold: Double,
                  tokenWeights: collection.Map[String, Double]): Boolean = {
@@ -229,7 +229,7 @@ class WeightedOverlapSimilarity(colNames: List[String],
    * @param tokenWeights token-to-weight map         
    * @return
    */
-  def similar(tokens1: Seq[String],
+  def similarity(tokens1: Seq[String],
                 tokens2: Seq[String],
                 threshold: Double,
                 tokenWeights: collection.Map[String, Double]): Boolean = {
@@ -287,7 +287,7 @@ class WeightedDiceSimilarity(colNames: List[String],
    * @param threshold specified threshold.
    * @param tokenWeights token-to-weight map         
    */
-  def similar(tokens1: Seq[String],
+  def similarity(tokens1: Seq[String],
                 tokens2: Seq[String],
                 threshold: Double,
                 tokenWeights: collection.Map[String, Double]): Boolean = {
@@ -364,7 +364,7 @@ class WeightedCosineSimilarity(colNames: List[String],
    * @param threshold specified threshold.
    * @param tokenWeights token-to-weight map         
    */
-  def similar(tokens1: Seq[String],
+  def similarity(tokens1: Seq[String],
                 tokens2: Seq[String],
                 threshold: Double,
                 tokenWeights: collection.Map[String, Double]): Boolean = {
@@ -429,7 +429,7 @@ class WeightedCosineSimilarity(colNames: List[String],
     val canPrefixFilter = false
     val canPassJoin = true
 
-    def similar(tokens1: Seq[String],
+    def similarity(tokens1: Seq[String],
                 tokens2: Seq[String],
                 threshold: Double,
                 tokenWeights: collection.Map[String, Double]): Boolean = {

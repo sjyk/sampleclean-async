@@ -9,6 +9,9 @@ import org.apache.spark.sql.{SchemaRDD, Row}
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.mllib.linalg.Vectors
 
+import scala.Seq
+import scala.collection.Seq
+
 /* This class implements the similarity based featurizer used in Deduplication
  */
 @serializable
@@ -23,6 +26,7 @@ class LearningSimilarityFeaturizer(colNames: List[String],
 	extends AnnotatedSimilarityFeaturizer(colNames, context, new NullTokenizer(), threshold, minSize,schemaMap){
 
     val canPrefixFilter = false
+    val canPassJoin = false
 
     val colMapper = (colSubSet: List[String]) => colSubSet.map(x => cols(colNames.indexOf(x)))
 
@@ -33,6 +37,12 @@ class LearningSimilarityFeaturizer(colNames: List[String],
     {
         val featureVector = baseFeaturizer.getSimilarities(tokens1(0),tokens2(0))
         return (activeLearningStrategy.currentModel.predict(Vectors.dense(featureVector.toArray)) > 0.5)
+    }
+
+    def getSimilarity(tokens1: Seq[String], tokens2: Seq[String],
+                    tokenWeights: collection.Map[String, Double]): Double = {
+      val featureVector = baseFeaturizer.getSimilarities(tokens1(0),tokens2(0))
+      return activeLearningStrategy.currentModel.predict(Vectors.dense(featureVector.toArray))
     }
 
     def train(trainingPairs:RDD[(Row,Row)]) = {
