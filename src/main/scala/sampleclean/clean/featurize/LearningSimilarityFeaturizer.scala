@@ -9,7 +9,6 @@ import org.apache.spark.sql.{SchemaRDD, Row}
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.mllib.linalg.Vectors
 
-import scala.Seq
 import scala.collection.Seq
 
 /* This class implements the similarity based featurizer used in Deduplication

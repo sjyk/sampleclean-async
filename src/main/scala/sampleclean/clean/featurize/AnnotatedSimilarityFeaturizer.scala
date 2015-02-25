@@ -438,7 +438,7 @@ class WeightedCosineSimilarity(colNames: List[String],
 
     }
 
-    def getSimilarity(tokens1: Seq[String], tokens2: Seq[String], tokenWeights: collection.Map[String, Double]): Int = {
+    def getSimilarity(tokens1: Seq[String], tokens2: Seq[String], tokenWeights: collection.Map[String, Double]): Double = {
 
       val thresholdInt = threshold.toInt
       val _s = tokens1.mkString(" ")
@@ -468,7 +468,7 @@ class WeightedCosineSimilarity(colNames: List[String],
         }
         if (V(m - n + thresholdInt + 1)(f) >= n) return p
       }
-      thresholdInt + 1
+      (thresholdInt + 1).toDouble
 
     }
 

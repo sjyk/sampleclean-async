@@ -1,10 +1,6 @@
 package sampleclean.clean.algorithm
 
 import sampleclean.api.SampleCleanContext
-import sampleclean.clean.algorithm.SampleCleanAlgorithm
-import org.apache.spark.SparkContext._
-import org.apache.spark.sql.SQLContext
-import sampleclean.clean.algorithm.AlgorithmParameters
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SchemaRDD, Row}
 

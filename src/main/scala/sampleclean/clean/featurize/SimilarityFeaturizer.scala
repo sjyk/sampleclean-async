@@ -78,17 +78,20 @@ class SimilarityFeaturizer(colNames: List[String],
       		}
     		)
 
+      def omitSpecialCharacters(m:AbstractStringMetric, s1:String, s2:String):Double = {
+        val US_EN_MAP: Array[Char] = "01230120022455012623010202".toCharArray
+        val trimmed1 = s1.filter(x => (x.toUpper - 'A') < US_EN_MAP.length)
+        val trimmed2 = s2.filter(x => (x.toUpper - 'A') < US_EN_MAP.length)
+        m.asInstanceOf[AbstractStringMetric].getSimilarity(trimmed1, trimmed2).toDouble
+      }
 
     		measures.map(measure =>
           measure match {
             // Fix for similarity measures that have issues with special characters
-            case m @ (Soundex | ChapmanMatchingSoundex | ChapmanOrderedNameCompoundSimilarity) => {
-              // functions implemented only support US_EN alphabet; non-valid characters are omitted
-              val US_EN_MAP: Array[Char] = "01230120022455012623010202".toCharArray
-              val trimmed1 = s1.filter(x => (x.toUpper - 'A') < US_EN_MAP.length)
-              val trimmed2 = s2.filter(x => (x.toUpper - 'A') < US_EN_MAP.length)
-              m.asInstanceOf[AbstractStringMetric].getSimilarity(trimmed1, trimmed2).toDouble
-            }
+            case m: Soundex => omitSpecialCharacters(m,s1,s2)
+            case m: ChapmanMatchingSoundex => omitSpecialCharacters(m,s1,s2)
+            case m: ChapmanOrderedNameCompoundSimilarity => omitSpecialCharacters(m,s1,s2)
+
               // SampleClean implementations
             case m: AnnotatedSimilarityFeaturizer => {
               val tokenizer = new TokeniserWhitespace()
