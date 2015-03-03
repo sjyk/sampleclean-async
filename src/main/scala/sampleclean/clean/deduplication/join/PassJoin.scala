@@ -12,8 +12,7 @@ import scala.collection.Seq
 
 class PassJoin( @transient sc: SparkContext,
                blocker: AnnotatedSimilarityFeaturizer,
-               projection:List[Int]) extends
-SimilarityJoin(sc,blocker,false) {
+               projection:List[Int]) extends SimilarityJoin(sc,blocker,false) {
 
   @Override
   override def join(rddA: RDD[Row],
@@ -122,7 +121,7 @@ SimilarityJoin(sc,blocker,false) {
                 }
                 else {
                   val similar = {
-                    blocker.similarity(key1, key2, intThreshold, Map[String, Double]())
+                    blocker.similar(key1, key2, intThreshold, Map[String, Double]())
                   }
                   (string2, row2, similar)
                 }

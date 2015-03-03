@@ -48,7 +48,7 @@ case class WordTokenizer() extends Tokenizer {
  * 
  */
 case class NullTokenizer() extends Tokenizer {
-  def tokenSet(str: String) = List(str).toSeq
+  def tokenSet(str: String) = List(str).toSeq.filter(_!="")
 }
 
 /**
@@ -70,6 +70,6 @@ case class GramTokenizer(gramSize: Int) extends Tokenizer {
  * This class tokenizes a string based on white space punctuation.
  */
 case class WhiteSpacePunctuationTokenizer() extends Tokenizer {
-  def tokenSet(str: String) =  str.trim.split("([.,!?:;'\"-]|\\s)+").toSeq
+  def tokenSet(str: String) =  str.trim.split("([.,!?:;'\"-]|\\s)+").toSeq.filter(_!="")
 }
 }

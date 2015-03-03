@@ -43,6 +43,7 @@ class SimilarityFeaturizer(colNames: List[String],
 				   )
 		}
 
+    // All use white space tokenizer by default and assume equal token weights
 		def getSimilarities(s1: String, s2: String, simMeasures: List[String] = metrics): List[Double] = {
 
     		val measures: List[Object] = simMeasures.map(measure =>
@@ -68,11 +69,11 @@ class SimilarityFeaturizer(colNames: List[String],
         		case "TagLinkToken" => new TagLinkToken
 
             // SampleClean implementations
-            case "JaccardSimilarity" => new WeightedJaccardSimilarity(List(""), List(""), null,0)
-            case "DiceSimilarity" => new WeightedDiceSimilarity(List(""), List(""), null,0)
-            case "CosineSimilarity" => new WeightedCosineSimilarity(List(""), List(""), null,0)
-            case "OverlapSimilarity" => new WeightedOverlapSimilarity(List(""), List(""), null,0)
-            case "EditDistance" => new EditBlocking(List(""), List(""), null,0)
+            case "JaccardSimilarity" => new WeightedJaccardSimilarity(List(), List(), null,0)
+            case "DiceSimilarity" => new WeightedDiceSimilarity(List(), List(), null,0)
+            case "CosineSimilarity" => new WeightedCosineSimilarity(List(), List(), null,0)
+            case "OverlapSimilarity" => new WeightedOverlapSimilarity(List(), List(), null,0)
+            case "EditDistance" => new EditBlocking(List(), List(), null,0)
 
         		case _ => throw new NoSuchElementException(measure + " measure not found")
       		}
