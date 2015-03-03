@@ -11,10 +11,13 @@ abstract class Tokenizer{
   def tokenize(row: Row, cols:List[Int]): Seq[String] = {
 
       var stringA = ""
+      var tokSeq: Seq[String] = Seq()
       for (col <- cols){
-        stringA = stringA + " " + row(col)
+        tokSeq = tokSeq ++ tokenSet(row.getString(col))
+        //stringA = stringA + " " + row(col)
       }
-      return tokenSet(stringA.trim)
+      //return tokenSet(stringA.trim)
+      tokSeq
     }
   
   def tokenSet(text: String): Seq[String]
