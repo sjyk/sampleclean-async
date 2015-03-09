@@ -4,6 +4,7 @@
 
 package dedupTesting
 
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.catalyst.expressions.Row
 
@@ -14,86 +15,228 @@ import org.apache.spark.SparkContext._
 import org.apache.spark.util.Utils
 
 import sampleclean.clean.deduplication._
-import sampleclean.clean.featurize.Tokenizer.WordTokenizer
-import sampleclean.clean.featurize.{Tokenizer, SimilarityFeaturizer, WeightedJaccardBlocking}
-import sampleclean.simjoin.BroadcastJoin
+import sampleclean.clean.deduplication.join.{SimilarityJoin, PassJoin, BroadcastJoin}
+import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer.{WeightedCosineSimilarity, WeightedDiceSimilarity, WeightedOverlapSimilarity, WeightedJaccardSimilarity}
+import sampleclean.clean.featurize.Tokenizer.{DelimiterTokenizer, WhiteSpaceTokenizer, WordTokenizer}
+import sampleclean.clean.featurize.{AnnotatedSimilarityFeaturizer, Tokenizer, SimilarityFeaturizer}
 
 
 class JoinsTest extends FunSuite with Serializable {
 
   val conf = new SparkConf()
-    .setMaster("local[2]")
+    .setMaster("local[4]")
     .setAppName("SCUnitTest")
   val sc = new SparkContext(conf)
 
-  val rowRDDLarge = sc.parallelize(Seq("a B c c", "a a C f", "ty y", "a b c c", "")).map(x => Row(x))
 
 
-  test("edit distance"){
+  /*test("broadcast self join accuracy") {
 
-    val key = BlockingKey(Seq(0),WordTokenizer(), true)
-    val editJoin = new PassJoin
+    val context = List("record")
+    val colNames = List("record")
+    val tok = new DelimiterTokenizer(" ")
+    val path = "./src/test/resources"
+    var blocker: AnnotatedSimilarityFeaturizer = null
+    var bJoin: SimilarityJoin = null
+    var rowRDDLarge: RDD[Row] = null
+    //rowRDDLarge = sc.textFile(path + "/dirtyJaccard100dups").map(r => Row.fromSeq(r.split(":").toSeq))
 
-    assert(editJoin.isSimilar("abcd","abc",1) === true)
-    assert(editJoin.genEvenSeg(4,2) === Vector((0,0,1,4), (1,1,1,4), (2,2,2,4)))
-    assert(editJoin.genOptimalSubs(4,2,false) === Vector((0,0,0,2), (1,1,1,2), (2,3,1,2), (0,0,1,3), (1,1,1,3), (1,2,1,3), (2,3,1,3), (0,0,1,4), (1,0,1,4), (1,1,1,4), (1,2,1,4), (2,2,2,4), (0,0,1,5), (1,0,2,5), (1,1,2,5), (2,2,2,5), (0,0,2,6), (1,1,2,6), (2,2,2,6)))
-    assert(editJoin.genOptimalSubs(4,2,true) === Vector((0,0,0,2), (1,1,1,2), (2,3,1,2), (0,0,1,3), (1,1,1,3), (1,2,1,3), (2,3,1,3), (0,0,1,4), (1,0,1,4), (1,1,1,4), (1,2,1,4), (2,2,2,4)))
-    assert(editJoin.genSubstrings(4,4,2) === Vector((0,0,1,4), (1,0,1,4), (1,1,1,4), (1,2,1,4), (2,2,2,4)))
+    // 100 duplicates with Jaccard similarity = 0.5
+    rowRDDLarge = sc.textFile(path + "/dirtyJaccard100dups").map(Row(_))
+    blocker = new WeightedJaccardSimilarity(colNames,context,tok,0.51)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(bJoin.join(rowRDDLarge,rowRDDLarge).count() == 0)
+    blocker = new WeightedJaccardSimilarity(colNames,context,tok,0.5)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(bJoin.join(rowRDDLarge,rowRDDLarge).count() == 100)
 
-    val rowRDDselfJoin = editJoin.broadcastJoin(sc,2.0, rowRDDLarge, key)
-    val pairs = rowRDDselfJoin.collect().toSeq
-    assert(rowRDDselfJoin.count() === 3)
-    val answer1 = Array(("a b c c","a a C f"), ("a b c c", "a B c c"), ("a a C f", "a B c c")).map(x => (Row(x._1), Row(x._2)))
-    assert(pairs === answer1)
+    // weighted Jaccard is ~0.465
+    blocker = new WeightedJaccardSimilarity(colNames,context,tok,0.466)
+    bJoin = new BroadcastJoin(sc,blocker,true)
+    assert(bJoin.join(rowRDDLarge,rowRDDLarge).count() == 0)
+    blocker = new WeightedJaccardSimilarity(colNames,context,tok,0.465)
+    bJoin = new BroadcastJoin(sc,blocker,true)
+    assert(bJoin.join(rowRDDLarge,rowRDDLarge).count() == 100)
 
-    val rowRDDsmall = sc.parallelize(Seq("a b c d", " y","")).map(x => Row(x))
-    val rowRDDsampleJoin = editJoin.broadcastJoin(sc,2.0, rowRDDLarge, key, rowRDDsmall, key)
 
-    val pairs2 = rowRDDsampleJoin.collect().toSeq
-    assert(rowRDDsampleJoin.count() === 5)
-    val answer2 = Array(("",""), ("a B c c", "a b c d"), ("a a C f","a b c d"), ("", " y"), ("a b c c","a b c d")).map(x => (Row(x._1), Row(x._2)))
-    assert(pairs2 === answer2)
+    // 100 duplicates with Overlap similarity = 5
+    rowRDDLarge = sc.textFile(path + "/dirtyOverlap100dups").map(Row(_))
+    blocker = new WeightedOverlapSimilarity(colNames,context,tok,6)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(bJoin.join(rowRDDLarge,rowRDDLarge).count() == 0)
+    blocker = new WeightedOverlapSimilarity(colNames,context,tok,5)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(bJoin.join(rowRDDLarge,rowRDDLarge).count() == 100)
+
+    // weighted Overlap is 10
+    blocker = new WeightedOverlapSimilarity(colNames,context,tok,10.1)
+    bJoin = new BroadcastJoin(sc,blocker,true)
+    assert(bJoin.join(rowRDDLarge,rowRDDLarge).count() == 0)
+    blocker = new WeightedOverlapSimilarity(colNames,context,tok,10)
+    bJoin = new BroadcastJoin(sc,blocker,true)
+    assert(bJoin.join(rowRDDLarge,rowRDDLarge).count() == 100)
+
+    // 100 duplicates with Dice similarity = 0.8
+    rowRDDLarge = sc.textFile(path + "/dirtyDice100dups").map(Row(_))
+    blocker = new WeightedDiceSimilarity(colNames,context,tok,0.81)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(bJoin.join(rowRDDLarge,rowRDDLarge).count() == 0)
+    blocker = new WeightedDiceSimilarity(colNames,context,tok,0.8)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(bJoin.join(rowRDDLarge,rowRDDLarge).count() == 100)
+
+    // weighted Dice is ~0.776
+    blocker = new WeightedDiceSimilarity(colNames,context,tok,0.777)
+    bJoin = new BroadcastJoin(sc,blocker,true)
+    assert(bJoin.join(rowRDDLarge,rowRDDLarge).count() == 0)
+    blocker = new WeightedDiceSimilarity(colNames,context,tok,0.776)
+    bJoin = new BroadcastJoin(sc,blocker,true)
+    assert(bJoin.join(rowRDDLarge,rowRDDLarge).count() == 100)
+
+    // 100 duplicates with Cosine similarity = 0.5
+    rowRDDLarge = sc.textFile(path + "/dirtyCosine100dups").map(Row(_))
+    blocker = new WeightedCosineSimilarity(colNames,context,tok,0.51)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(bJoin.join(rowRDDLarge,rowRDDLarge).count() == 0)
+    blocker = new WeightedCosineSimilarity(colNames,context,tok,0.5)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(bJoin.join(rowRDDLarge,rowRDDLarge).count() == 100)
+
+    // weighted Cosine is ~0.473
+    blocker = new WeightedCosineSimilarity(colNames,context,tok,0.474)
+    bJoin = new BroadcastJoin(sc,blocker,true)
+    assert(bJoin.join(rowRDDLarge,rowRDDLarge).count() == 0)
+    blocker = new WeightedCosineSimilarity(colNames,context,tok,0.473)
+    bJoin = new BroadcastJoin(sc,blocker,true)
+    assert(bJoin.join(rowRDDLarge,rowRDDLarge).count() == 100)
+
+
+  }*/
+
+  /*test("broadcast sample join accuracy"){
+    val context = List("record")
+    val colNames = List("record")
+    val tok = new DelimiterTokenizer(" ")
+    val path = "./src/test/resources"
+    var blocker: AnnotatedSimilarityFeaturizer = null
+    var bJoin: SimilarityJoin = null
+    var rowRDDLarge: RDD[Row] = null
+    var rowRDDSmall: RDD[Row] = null
+
+
+    // 100 duplicates with Jaccard similarity = 0.5
+    rowRDDLarge = sc.textFile(path + "/dirtyJaccard100dups").map(Row(_))
+    rowRDDSmall = rowRDDLarge.sample(false,0.5).cache()
+    blocker = new WeightedJaccardSimilarity(colNames,context,tok,0.51)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    // returns 0 dups + original pairs
+    assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() == rowRDDSmall.count())
+    blocker = new WeightedJaccardSimilarity(colNames,context,tok,0.5)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    // returns ~50 dups * 2 + original pairs
+    assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() >= 45 * 2 + rowRDDSmall.count())
+
+    // weighted Jaccard is ~0.465
+    blocker = new WeightedJaccardSimilarity(colNames,context,tok,0.466)
+    bJoin = new BroadcastJoin(sc,blocker,true)
+    assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() == rowRDDSmall.count())
+    blocker = new WeightedJaccardSimilarity(colNames,context,tok,0.465)
+    bJoin = new BroadcastJoin(sc,blocker,true)
+    assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() >= 45 * 2 + rowRDDSmall.count())
+
+
+    // 100 duplicates with Overlap similarity = 5
+    rowRDDLarge = sc.textFile(path + "/dirtyOverlap100dups").map(Row(_))
+    rowRDDSmall = rowRDDLarge.sample(false,0.5).cache()
+    blocker = new WeightedOverlapSimilarity(colNames,context,tok,6)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    // about half of self-pairs won't be considered duplicates
+    assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() >= (rowRDDSmall.count()/2 - 8))
+    blocker = new WeightedOverlapSimilarity(colNames,context,tok,5)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() >= 45 * 2 + rowRDDSmall.count()/2)
+
+    // weighted Overlap is 10
+    blocker = new WeightedOverlapSimilarity(colNames,context,tok,10.1)
+    bJoin = new BroadcastJoin(sc,blocker,true)
+    assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() >= (rowRDDSmall.count()/2 - 8))
+    blocker = new WeightedOverlapSimilarity(colNames,context,tok,10)
+    bJoin = new BroadcastJoin(sc,blocker,true)
+    assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() >= 45 * 2 + rowRDDSmall.count()/2)
+
+    // 100 duplicates with Dice similarity = 0.8
+    rowRDDLarge = sc.textFile(path + "/dirtyDice100dups").map(Row(_))
+    rowRDDSmall = rowRDDLarge.sample(false,0.5).cache()
+    blocker = new WeightedDiceSimilarity(colNames,context,tok,0.81)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() == rowRDDSmall.count())
+    blocker = new WeightedDiceSimilarity(colNames,context,tok,0.8)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() >= 45 * 2 + rowRDDSmall.count())
+
+    // weighted Dice is ~0.776
+    blocker = new WeightedDiceSimilarity(colNames,context,tok,0.777)
+    bJoin = new BroadcastJoin(sc,blocker,true)
+    assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() == rowRDDSmall.count())
+    blocker = new WeightedDiceSimilarity(colNames,context,tok,0.776)
+    bJoin = new BroadcastJoin(sc,blocker,true)
+    assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() >= 45 * 2 + rowRDDSmall.count())
+
+    // 100 duplicates with Cosine similarity = 0.5
+    rowRDDLarge = sc.textFile(path + "/dirtyCosine100dups").map(Row(_))
+    rowRDDSmall = rowRDDLarge.sample(false,0.5).cache()
+    blocker = new WeightedCosineSimilarity(colNames,context,tok,0.51)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() == rowRDDSmall.count())
+    blocker = new WeightedCosineSimilarity(colNames,context,tok,0.5)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() >= 45 * 2 + rowRDDSmall.count())
+
+    // weighted Cosine is ~0.473
+    blocker = new WeightedCosineSimilarity(colNames,context,tok,0.474)
+    bJoin = new BroadcastJoin(sc,blocker,true)
+    assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() == rowRDDSmall.count())
+    blocker = new WeightedCosineSimilarity(colNames,context,tok,0.473)
+    bJoin = new BroadcastJoin(sc,blocker,true)
+    assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() >= 45 * 2 + rowRDDSmall.count())
+
+  }*/
+
+  test("broadcast join speed"){
+    val context = List("record")
+    val colNames = List("record")
+    val tok = new DelimiterTokenizer(" ")
+    val path = "/Users/juanmanuelsanchez/Documents/sampleCleanData"
+    var blocker: AnnotatedSimilarityFeaturizer = null
+    var bJoin: SimilarityJoin = null
+    var rowRDDLarge: RDD[Row] = sc.textFile(path + "/1000testData").map(Row(_))
+    var rowRDDSmall: RDD[Row] = rowRDDLarge.sample(false,0.1).cache()
+
+    def time[R](block: => R, name:String): R = {
+      val t0 = System.nanoTime()
+      val result = block    // call-by-name
+      val t1 = System.nanoTime()
+      println("Elapsed time for " + name + ": " + (t1 - t0).toDouble/1000000000 + "sec")
+      result
+    }
+
+    blocker = new WeightedJaccardSimilarity(colNames,context,tok,0.5)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(time(bJoin.join(rowRDDLarge,rowRDDLarge).count(), "jaccard join") > 0)
+
+    blocker = new WeightedOverlapSimilarity(colNames,context,tok,10)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(time(bJoin.join(rowRDDLarge,rowRDDLarge).count(), "overlap join") > 0)
+
+    blocker = new WeightedDiceSimilarity(colNames,context,tok,0.8)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(time(bJoin.join(rowRDDLarge,rowRDDLarge).count(), "dice join") > 0)
+
+    blocker = new WeightedCosineSimilarity(colNames,context,tok,0.5)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(time(bJoin.join(rowRDDLarge,rowRDDLarge).count(), "cosine join") > 0)
 
   }
-
-  test("broadcast join") {
-
-    val jaccBlock = new WeightedJaccardBlocking(List(0),WordTokenizer(),0.5)
-
-    val RDDLarge = sc.parallelize(Seq("a b c c", "a b c c", "a a C f")).map(x => Row(x))
-    val RDDSmall = sc.parallelize(Seq("a b c c","a a C f")).map(x => Row(x))
-
-    val simpleLarge = sc.parallelize(Seq("a","b","c","a")).map(x => Row(x))
-    val simpleSmall = sc.parallelize(Seq("a","b","a")).map(x => Row(x))
-
-    val bJoin = new BroadcastJoin(sc,jaccBlock,List(0))
-
-    val sampleJ = bJoin.join(simpleSmall,simpleLarge).collect().toSeq
-    val selfJJ = bJoin.join(simpleLarge,simpleLarge).collect().toSeq
-
-    //assert(sampleJ == Seq((Row("a b c c"),Row("a b c c")), (Row("a b c c"),Row("a b c c")), (Row("a a C f"),Row("a a C f"))))
-
-    val selfJ = bJoin.join(RDDLarge,RDDLarge).collect().toSeq
-    assert(selfJ == Seq((Row("a b c c"),Row("a b c c"))))
-
-    val unionJ = bJoin.join(RDDSmall,RDDLarge,containment = false).collect().toSeq
-    assert(unionJ == Seq((Row("a b c c"),Row("a b c c")), (Row("a b c c"),Row("a b c c")), (Row("a a C f"),Row("a a C f"))))
-
-    // Weighted joins
-    val wJoin = new BroadcastJoin(sc,jaccBlock,List(0),true)
-
-    val sampleJW = wJoin.join(RDDSmall,RDDLarge).collect().toSeq
-    assert(sampleJW == Seq((Row("a b c c"),Row("a b c c")), (Row("a b c c"),Row("a b c c")), (Row("a a C f"),Row("a a C f"))))
-
-    val selfJW = wJoin.join(RDDLarge,RDDLarge).collect().toSeq
-    assert(selfJW == Seq((Row("a b c c"),Row("a b c c"))))
-
-    val unionJW = wJoin.join(RDDSmall,RDDLarge,containment = false).collect().toSeq
-    assert(unionJW == Seq((Row("a b c c"),Row("a b c c")), (Row("a b c c"),Row("a b c c")), (Row("a a C f"),Row("a a C f"))))
-
-  }
-
-
 
 
 
