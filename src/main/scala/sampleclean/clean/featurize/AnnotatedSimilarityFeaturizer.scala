@@ -2,13 +2,16 @@ package sampleclean.clean.featurize
 import org.apache.spark.sql.{SchemaRDD, Row}
 import uk.ac.shef.wit.simmetrics.similaritymetrics._
 
+import scala.collection.Seq
+
+
 /** 
  * One use for similarity featurizers is in Similarity joins.
  * This is when, we calculate all R x S such that sim(r,s) \le threshold.
  * A special class of similarity features have properties
  *  that allow for a type of optimization called prefix filtering.
  *
- *  We encode this logic into AnnotatedSimilarityFeaturizer. 
+ *  We encode this logic into AnnotatedSimilarityFeaturizer.
  */
 @serializable
 abstract class AnnotatedSimilarityFeaturizer(val colNames: List[String], 
@@ -20,8 +23,7 @@ abstract class AnnotatedSimilarityFeaturizer(val colNames: List[String],
 	extends Featurizer(colNames, context){
 
 		val canPrefixFilter: Boolean
-
-		//val tokenizer = tokenizer
+    val canPassJoin: Boolean
 
 		def featurize[K,V](rows: Set[Row], params: collection.immutable.Map[K,V]=null): (Set[Row], Array[Double]) = {
 
@@ -48,7 +50,7 @@ abstract class AnnotatedSimilarityFeaturizer(val colNames: List[String],
 			if(params != null)
 				tokenWeights = params.asInstanceOf[Map[String,Double]]
 
-			val simVal = similarity(tokens1, tokens2, threshold, tokenWeights)
+			val simVal = similar(tokens1, tokens2, threshold, tokenWeights)
 
 			var sim = 0.0
 			if (simVal)
@@ -79,17 +81,20 @@ abstract class AnnotatedSimilarityFeaturizer(val colNames: List[String],
         }
     }
 
-		def similarity(tokens1:Seq[String], 
+		def similar(tokens1:Seq[String],
 					  tokens2: Seq[String], 
 					  thresh:Double,
 					  tokenWeights: collection.Map[String, Double]): Boolean
+
+    def getSimilarity(tokens1: Seq[String], tokens2: Seq[String],
+                    tokenWeights: collection.Map[String, Double]): Double
 
 		 /**
    		  * Computes the number of tokens that can be removed from the tokenSet as per Prefix Filtering algorithm.
    		  * @param sortedTokens  token list. Must be sorted as per tokens' corresponding weights.
    		  * @param modThreshold modified threshold that depends on selected similarity measure.
    		  */
-  		def getRemovedSize (sortedTokens: Seq[String], modThreshold: Double, tokenWeights: collection.Map[String, Double]): Int = {
+     def getRemovedSize (sortedTokens: Seq[String], modThreshold: Double, tokenWeights: collection.Map[String, Double]): Int = {
     		if (canPrefixFilter) {
             val weighted = tokenWeights.size != 0
             val removedSize = {
@@ -123,8 +128,11 @@ abstract class AnnotatedSimilarityFeaturizer(val colNames: List[String],
    		* @param tokenWeights token-to-weight map
    		*/
   		def sumWeight (tokens: Seq[String], tokenWeights: collection.Map[String, Double]): Double = {
-      		tokens.foldLeft(0.0) ((accum, token) => accum + tokenWeights.getOrElse(token, 1.0))
+        if (tokenWeights.isEmpty) tokens.size
+        else tokens.foldLeft(0.0)((accum, token) => accum + tokenWeights.getOrElse(token, 0.0))
+
   		}
+
 }
 object AnnotatedSimilarityFeaturizer{
 /**
@@ -133,11 +141,12 @@ object AnnotatedSimilarityFeaturizer{
  */
  class WeightedJaccardSimilarity(colNames: List[String], 
                   context:List[String], 
-							  tokenizer:Tokenizer, 
+							  tokenizer:Tokenizer,
 							  threshold:Double) 
 	extends AnnotatedSimilarityFeaturizer(colNames, context, tokenizer, threshold) {
 
   val canPrefixFilter = true
+  val canPassJoin = false
   /**
    * Returns true if two token lists are similar; otherwise, returns false
    * @param tokens1 first token list.
@@ -145,7 +154,7 @@ object AnnotatedSimilarityFeaturizer{
    * @param threshold specified threshold.
    * @param tokenWeights token-to-weight map
    */
-  def similarity (tokens1: Seq[String],
+  def similar (tokens1: Seq[String],
                  tokens2: Seq[String],
                  threshold: Double,
                  tokenWeights: collection.Map[String, Double]): Boolean = {
@@ -163,10 +172,27 @@ object AnnotatedSimilarityFeaturizer{
     val unionWeight = weight1 + weight2 - intersectionWeight
 
     if (unionWeight == 0)
-      return false
+      false
     else
       intersectionWeight.toDouble / unionWeight + 1e-6 >= threshold
   }
+
+  def getSimilarity(tokens1: Seq[String], tokens2: Seq[String],
+                    tokenWeights: collection.Map[String, Double]): Double = {
+
+    val weight1 = sumWeight(tokens1, tokenWeights)
+    val weight2 = sumWeight(tokens2, tokenWeights)
+
+    val intersectionWeight = sumWeight(tokens1.intersect(tokens2), tokenWeights)
+    val unionWeight = weight1 + weight2 - intersectionWeight
+
+    if (unionWeight == 0)
+      0
+    else
+      intersectionWeight.toDouble / unionWeight
+
+  }
+
 
   /**
    * Calls getRemovedSize method with Jaccard-based parameters
@@ -191,11 +217,12 @@ object AnnotatedSimilarityFeaturizer{
  */
 class WeightedOverlapSimilarity(colNames: List[String], 
                   context:List[String], 
-							  tokenizer:Tokenizer, 
+							  tokenizer:Tokenizer,
 							  threshold:Double) 
 	extends AnnotatedSimilarityFeaturizer(colNames, context, tokenizer, threshold) {
 
   val canPrefixFilter = true
+  val canPassJoin = false
   /**
    * Returns true if two token lists are similar; otherwise, returns false
    * @param tokens1 first token list.
@@ -204,7 +231,7 @@ class WeightedOverlapSimilarity(colNames: List[String],
    * @param tokenWeights token-to-weight map         
    * @return
    */
-  def similarity(tokens1: Seq[String],
+  def similar(tokens1: Seq[String],
                 tokens2: Seq[String],
                 threshold: Double,
                 tokenWeights: collection.Map[String, Double]): Boolean = {
@@ -218,8 +245,16 @@ class WeightedOverlapSimilarity(colNames: List[String],
     else
       if (weight2 < threshold) false
 
-      sumWeight(tokens1.intersect(tokens2), tokenWeights) >= threshold
+    sumWeight(tokens1.intersect(tokens2), tokenWeights) >= threshold
   }
+
+  def getSimilarity(tokens1: Seq[String], tokens2: Seq[String],
+                    tokenWeights: collection.Map[String, Double]): Double = {
+
+    sumWeight(tokens1.intersect(tokens2), tokenWeights)
+
+  }
+
 
   /**
    * Calls getRemovedSize method with overlap-based parameters
@@ -240,11 +275,12 @@ class WeightedOverlapSimilarity(colNames: List[String],
  */
 class WeightedDiceSimilarity(colNames: List[String], 
                   context:List[String], 
-							  tokenizer:Tokenizer, 
+							  tokenizer:Tokenizer,
 							  threshold:Double)
 	extends AnnotatedSimilarityFeaturizer(colNames, context, tokenizer, threshold) {
 
-   val canPrefixFilter = true
+  val canPrefixFilter = true
+  val canPassJoin = false
 
   /**
    * Returns true if two token lists are similar; otherwise, returns false
@@ -253,7 +289,7 @@ class WeightedDiceSimilarity(colNames: List[String],
    * @param threshold specified threshold.
    * @param tokenWeights token-to-weight map         
    */
-  def similarity(tokens1: Seq[String],
+  def similar(tokens1: Seq[String],
                 tokens2: Seq[String],
                 threshold: Double,
                 tokenWeights: collection.Map[String, Double]): Boolean = {
@@ -265,7 +301,7 @@ class WeightedDiceSimilarity(colNames: List[String],
     val weightSum = weight1 + weight2
     if (weight1 < weight2)
       if (2*weight1 < weightSum*threshold) false
-    else
+    else  
       if (2*weight2 < weightSum*threshold) false
 
     val intersectionWeight = sumWeight(tokens1.intersect(tokens2), tokenWeights)
@@ -274,6 +310,22 @@ class WeightedDiceSimilarity(colNames: List[String],
       false
     else
       2 * intersectionWeight.toDouble / weightSum >= threshold
+
+  }
+
+  def getSimilarity(tokens1: Seq[String], tokens2: Seq[String],
+                    tokenWeights: collection.Map[String, Double]): Double = {
+
+    val weight1 = sumWeight(tokens1, tokenWeights)
+    val weight2 = sumWeight(tokens2, tokenWeights)
+
+    val weightSum = weight1 + weight2
+    val intersectionWeight = sumWeight(tokens1.intersect(tokens2), tokenWeights)
+
+    if (weightSum == 0)
+      0
+    else
+      2 * intersectionWeight.toDouble / weightSum
 
   }
 
@@ -301,11 +353,12 @@ class WeightedDiceSimilarity(colNames: List[String],
  */
 class WeightedCosineSimilarity(colNames: List[String], 
                   context:List[String], 
-							  tokenizer:Tokenizer, 
+							  tokenizer:Tokenizer,
 							  threshold:Double)
 	extends AnnotatedSimilarityFeaturizer(colNames, context, tokenizer, threshold) {
 
-   val canPrefixFilter = true
+  val canPrefixFilter = true
+  val canPassJoin = false
   /**
    * Returns true if two token lists are similar; otherwise, returns false
    * @param tokens1 first token list.
@@ -313,7 +366,7 @@ class WeightedCosineSimilarity(colNames: List[String],
    * @param threshold specified threshold.
    * @param tokenWeights token-to-weight map         
    */
-  def similarity(tokens1: Seq[String],
+  def similar(tokens1: Seq[String],
                 tokens2: Seq[String],
                 threshold: Double,
                 tokenWeights: collection.Map[String, Double]): Boolean = {
@@ -337,6 +390,22 @@ class WeightedCosineSimilarity(colNames: List[String],
 
   }
 
+  def getSimilarity(tokens1: Seq[String], tokens2: Seq[String],
+                    tokenWeights: collection.Map[String, Double]): Double = {
+
+    val weight1 = sumWeight(tokens1, tokenWeights)
+    val weight2 = sumWeight(tokens2, tokenWeights)
+
+    val weightSqrt = math.sqrt(weight1 * weight2)
+    val intersectionWeight = sumWeight(tokens1.intersect(tokens2), tokenWeights)
+
+    if (weightSqrt == 0)
+      0
+    else
+      intersectionWeight / weightSqrt
+
+  }
+
   /**
    * Calls getRemovedSize method with Cosine-based parameters
    * @param tokens token list.
@@ -353,4 +422,58 @@ class WeightedCosineSimilarity(colNames: List[String],
   }
 
 }
+  class EditBlocking(colNames: List[String],
+                            context:List[String],
+                               tokenizer:Tokenizer,
+                               threshold:Double)
+    extends  AnnotatedSimilarityFeaturizer(colNames, context, tokenizer, threshold) {
+
+    val canPrefixFilter = false
+    val canPassJoin = true
+
+    def similar(tokens1: Seq[String],
+                tokens2: Seq[String],
+                threshold: Double,
+                tokenWeights: collection.Map[String, Double]): Boolean = {
+
+      getSimilarity(tokens1, tokens2,tokenWeights) <= threshold.toInt
+
+    }
+
+    def getSimilarity(tokens1: Seq[String], tokens2: Seq[String], tokenWeights: collection.Map[String, Double]): Double = {
+
+      val thresholdInt = threshold.toInt
+      val _s = tokens1.mkString(" ")
+      val _t = tokens2.mkString(" ")
+      val (s, t) = if (_s.length > _t.length) (_s, _t) else (_t, _s)
+      val n = s.length
+      val m = t.length
+
+      if (n - m > thresholdInt) return thresholdInt + 1
+
+      var V = new Array[Array[Int]](thresholdInt * 3 + 2)
+      for (i <- 0 until V.length)
+        V(i) = Array.fill[Int](2)(Int.MinValue)
+
+      V(-1 + thresholdInt + 1)(-1 & 1) = 0
+
+      for (p <- 0 until thresholdInt + 1) {
+        val f = p & 1
+        val g = f ^ 1
+
+        for (k <- thresholdInt + 1 - p until thresholdInt + 1 + p + 1) {
+          V(k)(f) = math.max(math.max(V(k)(g), V(k + 1)(g)) + 1, V(k - 1)(g))
+          val d = k - thresholdInt - 1
+          if (V(k)(f) >= 0 && V(k)(f) + d >= 0)
+            while (V(k)(f) < n && V(k)(f) + d < m && s(V(k)(f)) == t(V(k)(f) + d))
+              V(k)(f) += 1
+        }
+        if (V(m - n + thresholdInt + 1)(f) >= n) return p
+      }
+      (thresholdInt + 1).toDouble
+
+    }
+
+
+  }
 }
