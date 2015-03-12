@@ -26,6 +26,9 @@ class JoinsTest extends FunSuite with Serializable {
   val conf = new SparkConf()
     .setMaster("local[4]")
     .setAppName("SCUnitTest")
+    //.set("spark.driver.memory","700m")
+    //.set("spark.executor.memory","700m")
+    //.set("spark.default.parallelism","16")
   val sc = new SparkContext(conf)
 
 
@@ -209,32 +212,42 @@ class JoinsTest extends FunSuite with Serializable {
     val path = "/Users/juanmanuelsanchez/Documents/sampleCleanData"
     var blocker: AnnotatedSimilarityFeaturizer = null
     var bJoin: SimilarityJoin = null
-    var rowRDDLarge: RDD[Row] = sc.textFile(path + "/1000testData").map(Row(_))
-    var rowRDDSmall: RDD[Row] = rowRDDLarge.sample(false,0.1).cache()
+    var rowRDDLarge: RDD[Row] = sc.textFile(path + "/1000testData").map(Row(_)).cache()
+    //var rowRDDSmall: RDD[Row] = rowRDDLarge.sample(false,0.1).cache()
+    rowRDDLarge.count()
+    //rowRDDSmall.count()
 
-    def time[R](block: => R, name:String): R = {
-      val t0 = System.nanoTime()
-      val result = block    // call-by-name
-      val t1 = System.nanoTime()
-      println("Elapsed time for " + name + ": " + (t1 - t0).toDouble/1000000000 + "sec")
-      result
+    def time[R](block: => R, name:String, iterations:Int): R = {
+      // 20 first iterations could be considered outliers
+      val times = (1 to iterations + 20).map {i =>
+        val t0 = System.nanoTime()
+        val result = block // call-by-name
+        val t1 = System.nanoTime()
+        t1 - t0
+      }
+      //println(times.map(_.toDouble /1000000000 ))
+      println("Elapsed time for " + name + ": " + (times.drop(20).sum.toDouble / times.drop(20).size) /1000000000 + "sec")
+      block
     }
 
-    blocker = new WeightedJaccardSimilarity(colNames,context,tok,0.5)
-    bJoin = new BroadcastJoin(sc,blocker,false)
-    assert(time(bJoin.join(rowRDDLarge,rowRDDLarge).count(), "jaccard join") > 0)
-
-    blocker = new WeightedOverlapSimilarity(colNames,context,tok,10)
-    bJoin = new BroadcastJoin(sc,blocker,false)
-    assert(time(bJoin.join(rowRDDLarge,rowRDDLarge).count(), "overlap join") > 0)
-
-    blocker = new WeightedDiceSimilarity(colNames,context,tok,0.8)
-    bJoin = new BroadcastJoin(sc,blocker,false)
-    assert(time(bJoin.join(rowRDDLarge,rowRDDLarge).count(), "dice join") > 0)
 
     blocker = new WeightedCosineSimilarity(colNames,context,tok,0.5)
     bJoin = new BroadcastJoin(sc,blocker,false)
-    assert(time(bJoin.join(rowRDDLarge,rowRDDLarge).count(), "cosine join") > 0)
+    assert(time(bJoin.join(rowRDDLarge,rowRDDLarge).count(), "cosine join",10) > 0)
+
+    blocker = new WeightedOverlapSimilarity(colNames,context,tok,10)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(time(bJoin.join(rowRDDLarge,rowRDDLarge).count(), "overlap join",10) > 0)
+
+    blocker = new WeightedDiceSimilarity(colNames,context,tok,0.8)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(time(bJoin.join(rowRDDLarge,rowRDDLarge).count(), "dice join",10) > 0)
+
+    blocker = new WeightedJaccardSimilarity(colNames,context,tok,0.5)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(time(bJoin.join(rowRDDLarge,rowRDDLarge).count(), "jaccard join",10) > 0)
+
+
 
   }
 
