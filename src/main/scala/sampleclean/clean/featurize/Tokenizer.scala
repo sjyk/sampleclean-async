@@ -13,7 +13,7 @@ abstract class Tokenizer{
       var stringA = ""
       var tokSeq: Seq[String] = Seq()
       for (col <- cols){
-        tokSeq = tokSeq ++ tokenSet(row.getString(col))
+        tokSeq = tokSeq ++ tokenSet(row(col).toString)
         //stringA = stringA + " " + row(col)
       }
       //return tokenSet(stringA.trim)
