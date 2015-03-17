@@ -35,10 +35,11 @@ class BroadcastJoin( @transient sc: SparkContext,
       var largeTable = rddB
 
       if (smallerA && containment) {
-        tokenCounts = computeTokenCount(rddA.map(blocker.tokenizer.tokenize(_, blocker.getCols())))
+        // token counts calculated using full data
+        tokenCounts = computeTokenCount(rddB.map(blocker.tokenizer.tokenize(_, blocker.getCols())))
       }
       else if (containment) {
-        tokenCounts = computeTokenCount(rddB.map(blocker.tokenizer.tokenize(_, blocker.getCols(false))))
+        tokenCounts = computeTokenCount(rddA.map(blocker.tokenizer.tokenize(_, blocker.getCols(false))))
         val n = smallTableSize
         smallTableSize = largeTableSize
         largeTableSize = n
@@ -120,6 +121,7 @@ class BroadcastJoin( @transient sc: SparkContext,
                   val (key2, row2) = broadcastDataValue(id2)
 
                   val similar: Boolean = blocker.similarity(key1, key2, blocker.threshold, weightsValue)._1
+
                   (key2, row2, similar)
                 }
             }.withFilter(_._3).map {

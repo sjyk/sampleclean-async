@@ -11,10 +11,13 @@ abstract class Tokenizer{
   def tokenize(row: Row, cols:List[Int]): Seq[String] = {
 
       var stringA = ""
+      var tokSeq: Seq[String] = Seq()
       for (col <- cols){
-        stringA = stringA + " " + row(col)
+        tokSeq = tokSeq ++ tokenSet(row.getString(col))
+        //stringA = stringA + " " + row(col)
       }
-      return tokenSet(stringA)
+      //return tokenSet(stringA.trim)
+      tokSeq
     }
   
   def tokenSet(text: String): Seq[String]
@@ -48,7 +51,7 @@ case class WordTokenizer() extends Tokenizer {
  * 
  */
 case class NullTokenizer() extends Tokenizer {
-  def tokenSet(str: String) = List(str).toSeq
+  def tokenSet(str: String) = List(str).toSeq.filter(_!="")
 }
 
 /**
@@ -70,6 +73,6 @@ case class GramTokenizer(gramSize: Int) extends Tokenizer {
  * This class tokenizes a string based on white space punctuation.
  */
 case class WhiteSpacePunctuationTokenizer() extends Tokenizer {
-  def tokenSet(str: String) =  str.trim.split("([.,!?:;'\"-]|\\s)+").toSeq
+  def tokenSet(str: String) =  str.trim.split("([.,!?:;'\"-]|\\s)+").toSeq.filter(_!="")
 }
 }
