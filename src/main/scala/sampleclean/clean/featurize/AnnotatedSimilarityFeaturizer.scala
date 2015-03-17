@@ -48,7 +48,7 @@ abstract class AnnotatedSimilarityFeaturizer(val colNames: List[String],
 			if(params != null)
 				tokenWeights = params.asInstanceOf[Map[String,Double]]
 
-			val simVal = similarity(tokens1, tokens2, threshold, tokenWeights)
+			val simVal = similarity(tokens1, tokens2, threshold, tokenWeights)._1
 
 			var sim = 0.0
 			if (simVal)
@@ -57,6 +57,37 @@ abstract class AnnotatedSimilarityFeaturizer(val colNames: List[String],
 			return (Set(rowA, rowB),
 					Array(sim))
 		}
+
+    def getSimilarityDouble[K,V](rows: Set[Row], params: collection.immutable.Map[K,V]=null): (Set[Row], Double) = {
+
+      val rowA = rows.head
+      val rowB = rows.last
+
+      var stringA = ""
+      var stringB = ""
+      for (col <- cols){
+        stringA = stringA + " " + rowA(col).asInstanceOf[String]
+
+        if(schemaMap == null)
+          stringB = stringB + " " + rowB(col).asInstanceOf[String]
+        else if(schemaMap.contains(col))
+          stringB = stringB + " " + rowB(schemaMap(col)).asInstanceOf[String]
+        else
+          throw new RuntimeException("The schemas do not align up between your tables")
+      }
+
+      val tokens1 = tokenizer.tokenSet(stringA)
+      val tokens2 = tokenizer.tokenSet(stringB)
+      var tokenWeights = Map[String,Double]()
+
+      if(params != null)
+        tokenWeights = params.asInstanceOf[Map[String,Double]]
+
+      val simVal = similarity(tokens1, tokens2, threshold, tokenWeights)._2
+
+      return (Set(rowA, rowB),
+          simVal)
+    }
 
     //TODO Fix A,B
     def getCols(a:Boolean = true):List[Int] ={
@@ -82,7 +113,7 @@ abstract class AnnotatedSimilarityFeaturizer(val colNames: List[String],
 		def similarity(tokens1:Seq[String], 
 					  tokens2: Seq[String], 
 					  thresh:Double,
-					  tokenWeights: collection.Map[String, Double]): Boolean
+					  tokenWeights: collection.Map[String, Double]): (Boolean,Double)
 
 		 /**
    		  * Computes the number of tokens that can be removed from the tokenSet as per Prefix Filtering algorithm.
@@ -148,7 +179,7 @@ object AnnotatedSimilarityFeaturizer{
   def similarity (tokens1: Seq[String],
                  tokens2: Seq[String],
                  threshold: Double,
-                 tokenWeights: collection.Map[String, Double]): Boolean = {
+                 tokenWeights: collection.Map[String, Double]): (Boolean,Double) = {
 
     val weight1 = sumWeight(tokens1, tokenWeights)
     val weight2 = sumWeight(tokens2, tokenWeights)
@@ -163,9 +194,9 @@ object AnnotatedSimilarityFeaturizer{
     val unionWeight = weight1 + weight2 - intersectionWeight
 
     if (unionWeight == 0)
-      return false
+      return (false,0.0)
     else
-      intersectionWeight.toDouble / unionWeight + 1e-6 >= threshold
+      return (intersectionWeight.toDouble / unionWeight + 1e-6 >= threshold, intersectionWeight.toDouble / unionWeight)
   }
 
   /**
@@ -207,7 +238,7 @@ class WeightedOverlapSimilarity(colNames: List[String],
   def similarity(tokens1: Seq[String],
                 tokens2: Seq[String],
                 threshold: Double,
-                tokenWeights: collection.Map[String, Double]): Boolean = {
+                tokenWeights: collection.Map[String, Double]): (Boolean, Double) = {
 
     val weight1 = sumWeight(tokens1, tokenWeights)
     val weight2 = sumWeight(tokens2, tokenWeights)
@@ -218,7 +249,7 @@ class WeightedOverlapSimilarity(colNames: List[String],
     else
       if (weight2 < threshold) false
 
-      sumWeight(tokens1.intersect(tokens2), tokenWeights) >= threshold
+      return(sumWeight(tokens1.intersect(tokens2), tokenWeights) >= threshold, sumWeight(tokens1.intersect(tokens2), tokenWeights) )
   }
 
   /**
@@ -256,7 +287,7 @@ class WeightedDiceSimilarity(colNames: List[String],
   def similarity(tokens1: Seq[String],
                 tokens2: Seq[String],
                 threshold: Double,
-                tokenWeights: collection.Map[String, Double]): Boolean = {
+                tokenWeights: collection.Map[String, Double]): (Boolean,Double) = {
 
     val weight1 = sumWeight(tokens1, tokenWeights)
     val weight2 = sumWeight(tokens2, tokenWeights)
@@ -271,9 +302,9 @@ class WeightedDiceSimilarity(colNames: List[String],
     val intersectionWeight = sumWeight(tokens1.intersect(tokens2), tokenWeights)
 
     if (weightSum == 0)
-      false
+      return (false, 0.0)
     else
-      2 * intersectionWeight.toDouble / weightSum >= threshold
+      return (2 * intersectionWeight.toDouble / weightSum >= threshold, 2 * intersectionWeight.toDouble / weightSum)
 
   }
 
@@ -316,7 +347,7 @@ class WeightedCosineSimilarity(colNames: List[String],
   def similarity(tokens1: Seq[String],
                 tokens2: Seq[String],
                 threshold: Double,
-                tokenWeights: collection.Map[String, Double]): Boolean = {
+                tokenWeights: collection.Map[String, Double]): (Boolean,Double) = {
 
     val weight1 = sumWeight(tokens1, tokenWeights)
     val weight2 = sumWeight(tokens2, tokenWeights)
@@ -324,16 +355,16 @@ class WeightedCosineSimilarity(colNames: List[String],
     //Length Filtering
     val weightSqrt = math.sqrt(weight1 * weight2)
     if (weight1 < weight2)
-      if (weight1 < weightSqrt*threshold) false
+      if (weight1 < weightSqrt*threshold) return(false,0.0)
     else
-      if (weight2 < weightSqrt*threshold) false
+      if (weight2 < weightSqrt*threshold) return(false,0.0)
 
     val intersectionWeight = sumWeight(tokens1.intersect(tokens2), tokenWeights)
 
     if (weightSqrt == 0)
-      false
+      return (false,0.0)
     else
-      intersectionWeight / weightSqrt >= threshold
+      return (intersectionWeight / weightSqrt >= threshold, intersectionWeight / weightSqrt)
 
   }
 

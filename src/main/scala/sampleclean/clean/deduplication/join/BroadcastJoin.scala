@@ -119,7 +119,7 @@ class BroadcastJoin( @transient sc: SparkContext,
                 else {
                   val (key2, row2) = broadcastDataValue(id2)
 
-                  val similar: Boolean = blocker.similarity(key1, key2, blocker.threshold, weightsValue)
+                  val similar: Boolean = blocker.similarity(key1, key2, blocker.threshold, weightsValue)._1
                   (key2, row2, similar)
                 }
             }.withFilter(_._3).map {
