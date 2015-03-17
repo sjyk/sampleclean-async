@@ -121,7 +121,7 @@ class PassJoin( @transient sc: SparkContext,
                 }
                 else {
                   val similar = {
-                    blocker.similar(key1, key2, intThreshold, Map[String, Double]())
+                    blocker.similarity(key1, key2, intThreshold, Map[String, Double]())._1
                   }
                   (string2, row2, similar)
                 }

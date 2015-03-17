@@ -43,7 +43,7 @@ class QueryBuilder(scc: SampleCleanContext) {
 	/** Returns the syntax for table sampling
 	*/
 	def tableConsistentHash(sampleFrac:Long, onKey:String):String ={
-		return " where hash(" +onKey +") % " + sampleFrac + " = 1" 
+		return " where hash(" +onKey +") % " + sampleFrac + " = 0" 
 	}
 
 	/** Takes a list of attributes and formats them into a selection string

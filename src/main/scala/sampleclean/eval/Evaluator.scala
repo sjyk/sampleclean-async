@@ -45,9 +45,9 @@ import org.apache.spark.sql.{SchemaRDD, Row}
  */
 class Evaluator(scc:SampleCleanContext,
 				algorithms:List[SampleCleanAlgorithm], 
-				unaryConstraints:scala.collection.mutable.Map[(String,String),String] 
+				val unaryConstraints:scala.collection.mutable.Map[(String,String),String] 
 									=  scala.collection.mutable.Map(),
-				binaryConstraints:scala.collection.mutable.Map[(String,String,String), Boolean] 
+				val binaryConstraints:scala.collection.mutable.Map[(String,String,String), Boolean] 
 									=  scala.collection.mutable.Map())
 				extends Serializable
 {
@@ -77,6 +77,7 @@ class Evaluator(scc:SampleCleanContext,
 	  	  binaryConstraints((hash1,hash2,attr))= same
 	  	  binaryKeySet += hash1
 	  	  binaryKeySet += hash2
+	  	  //println(binaryConstraints)
 	  }
 
 	  /**
@@ -192,6 +193,8 @@ class Evaluator(scc:SampleCleanContext,
 			  resultTable = ((unaryResults._2+0.0)/(unaryResults._1), 
 			  				 (binaryResults._2+0.0)/(binaryResults._1),
 			  				 totalTime) :: resultTable 	
+
+			  printResults()
 	  	  }
 
 	  	  scc.resetSample(sampleName) //reset the sample
@@ -199,6 +202,8 @@ class Evaluator(scc:SampleCleanContext,
 
 	  	  printResults() //prints a formatted table
 	  } 
+
+	  
 
 	  /**
 	   * This prints a formatted table of the results

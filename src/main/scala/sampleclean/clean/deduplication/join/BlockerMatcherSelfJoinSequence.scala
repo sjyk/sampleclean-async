@@ -23,7 +23,7 @@ import sampleclean.clean.deduplication.blocker.Blocker
 class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
               		   sampleTableName:String,
               		   blocker: Blocker,
-					   matchers: List[Matcher]) extends Serializable {
+					   var matchers: List[Matcher]) extends Serializable {
 	
 	var join:SimilarityJoin = null
 
@@ -43,7 +43,10 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 		if (blocker != null)
 			blocks = blocker.block(data)
 		else
-			matchedData = join.join(data,data,true,true)
+			{ 
+			  matchedData = join.join(data,data,true,true)
+			  println("Candidate Pairs Size: " + matchedData.count)
+			}	
 
 		for (m <- matchers)
 		{
@@ -54,6 +57,11 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 		}
 
 		return matchedData
+	}
+
+	def addMatcher(matcher: Matcher) = {
+		matchers = matcher :: matchers
+		matchers = matchers.reverse  
 	}
 
 	def updateContext(newContext:List[String]) = {
