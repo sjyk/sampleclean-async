@@ -26,7 +26,7 @@ abstract class SampleCleanAlgorithm(params:AlgorithmParameters,
 	*/
 	var blocking:Boolean = true
 
-	/**The execution function of the this algorithm
+	/**The execution function of this algorithm
 	*/
 	def exec()
 

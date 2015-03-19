@@ -1,3 +1,5 @@
+package dedupTesting
+
 import org.apache.spark.sql.Row
 import org.apache.spark.{SparkContext, SparkConf}
 import org.scalatest.FunSuite
