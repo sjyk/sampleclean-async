@@ -29,13 +29,14 @@ class LearningSimilarityFeaturizer(colNames: List[String],
 
     val colMapper = (colSubSet: List[String]) => colSubSet.map(x => cols(colNames.indexOf(x)))
 
-    def similar(tokens1:Seq[String],
+    def similarity(tokens1:Seq[String],
                    tokens2:Seq[String], 
                    thresh:Double,
-                   tokenWeights: collection.Map[String, Double]): Boolean =
+                   tokenWeights: collection.Map[String, Double]): (Boolean,Double) =
     {
         val featureVector = baseFeaturizer.getSimilarities(tokens1(0),tokens2(0))
-        return (activeLearningStrategy.currentModel.predict(Vectors.dense(featureVector.toArray)) > 0.5)
+        return (activeLearningStrategy.currentModel.predict(Vectors.dense(featureVector.toArray)) > 0.5, 
+                activeLearningStrategy.currentModel.predict(Vectors.dense(featureVector.toArray)))
     }
 
     // TODO

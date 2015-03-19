@@ -23,7 +23,7 @@ import sampleclean.clean.featurize._
 class EntityResolution(params:AlgorithmParameters, 
 							scc: SampleCleanContext,
               sampleTableName:String,
-              components: BlockerMatcherSelfJoinSequence
+              val components: BlockerMatcherSelfJoinSequence
               ) extends SampleCleanAlgorithm(params, scc, sampleTableName) {
 
     //validate params before starting
@@ -89,14 +89,13 @@ class EntityResolution(params:AlgorithmParameters,
      */
 	  def apply(candidatePairs: RDD[(Row, Row)]):Unit = {
        val sampleTableRDD = scc.getCleanSample(sampleTableName)
-    	 apply(candidatePairs.collect(), 
-                sampleTableRDD)
+    	 apply(candidatePairs, sampleTableRDD)
 	  }
 
      /* TODO fix!
       Apply function implementation for the AbstractDedup Class
      */	
-  	def apply(candidatePairs: Array[(Row, Row)], 
+  	def apply(candidatePairs: RDD[(Row, Row)], 
                 sampleTableRDD:RDD[Row]):Unit = {
 
     var resultRDD = sampleTableRDD.map(x =>
@@ -106,17 +105,29 @@ class EntityResolution(params:AlgorithmParameters,
     val edges = candidatePairs.map( x => (x._1(0).asInstanceOf[String].hashCode.toLong,
       x._2(0).asInstanceOf[String].hashCode.toLong, 1.0) )
 
-    graphXGraph = GraphXInterface.addEdges(graphXGraph, scc.getSparkContext().parallelize(edges))
+    graphXGraph = GraphXInterface.addEdges(graphXGraph, edges)
 
     // Run the connected components algorithm
     def merge_vertices(v1: (String, Set[String]), v2: (String, Set[String])): (String, Set[String]) = {
+      
+      var b1 = v1
+      var b2 = v2
+
+      if(v1._1.hashCode.toLong < v2._1.hashCode.toLong) //handles tiebreaks
+      {
+          b1 = v2
+          b2 = v1
+      }
+
       val winner:String = mergeStrategy.toLowerCase.trim match {
-        case "mostconcise" => if (v1._1.length < v2._1.length) v1._1 else v2._1
-        case "mostfrequent" => if (v1._2.size > v2._2.size) v1._1 else v2._1
+        case "mostconcise" => if (b1._1.length < b2._1.length) b1._1 else b2._1
+        case "mostfrequent" => if (b1._2.size > b2._2.size) b1._1 else b2._1
         case _ => throw new RuntimeException("Invalid merge strategy: " + mergeStrategy)
       }
       (winner, v1._2 ++ v2._2)
     }
+
+    println("In apply")
     
     val connectedPairs = GraphXInterface.connectedComponents(graphXGraph, merge_vertices)
     
@@ -192,6 +203,18 @@ object EntityResolution {
         val join = new BroadcastJoin(scc.getSparkContext(), similarity, weighting)
         val blockerMatcher = new BlockerMatcherSelfJoinSequence(scc,sampleName, join, List(matcher))
         return new EntityResolution(algoPara, scc, sampleName, blockerMatcher)
+    }
+
+    def createCrowdMatcher(scc:SampleCleanContext,
+                           attr: String,
+                           sampleName: String):Matcher = {
+
+        val baseFeaturizer = new SimilarityFeaturizer(List(attr), 
+                                                      scc.getTableContext(sampleName), 
+                                                      List("Levenshtein", "JaroWinkler"))
+
+        val alStrategy = new ActiveLearningStrategy(List(attr), baseFeaturizer)
+        return new ActiveLeaningMatcher(scc, sampleName, alStrategy)
     }
 
 }

@@ -76,8 +76,6 @@ class SampleCleanContext(@transient sc: SparkContext) {
 			var baseQuery = qb.createTableAs(qb.getBaseName(baseTable)) +
 			qb.buildSelectQuery(selectionList,baseTable)
 
-			hiveContext.hql(baseQuery)
-
 			hiveContext.hql(query)
 
 			hiveContext.hql("cache table "+ qb.getCleanSampleName(tableName))
@@ -90,6 +88,8 @@ class SampleCleanContext(@transient sc: SparkContext) {
 			hiveContext.hql(query)
 
 			hiveContext.hql("cache table "+ qb.getDirtySampleName(tableName))
+
+			hiveContext.hql(baseQuery)
 		}
 		
 		return (hiveContext.hql(qb.buildSelectQuery(List("*"),
@@ -122,8 +122,6 @@ class SampleCleanContext(@transient sc: SparkContext) {
 			var baseQuery = qb.createTableAs(qb.getBaseName(baseTable)) +
 			qb.buildSelectQuery(selectionList,baseTable)
 
-			hiveContext.hql(baseQuery)
-
 			hiveContext.hql(query)
 
 			hiveContext.hql(qb.setTableParent(qb.getCleanSampleName(tableName),qb.getBaseName(baseTable) + " " + 1.0/samplingFrac))
@@ -133,6 +131,8 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		
 
 			hiveContext.hql(query)
+
+			hiveContext.hql(baseQuery)
 		}
 		
 		return (hiveContext.hql(qb.buildSelectQuery(List("*"),
