@@ -7,18 +7,19 @@ import sampleclean.api.SampleCleanContext
 import org.apache.spark.sql.{SchemaRDD, Row}
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
+import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer
+import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
+import org.apache.spark.rdd.RDD
 
 
 class MonotonicSimilarityThresholdTuner(scc: SampleCleanContext,
-										blockersAndMatchers: BlockerMatcherSelfJoinSequence,
-										eval:Evaluator) extends Serializable {
+										eval:Evaluator,
+										simfeature: AnnotatedSimilarityFeaturizer) extends Serializable {
 
 	var tree : scala.collection.mutable.Map[String, Set[(String, Double)]]  = scala.collection.mutable.Map()
 
-	def rowsToSimilarity(rows:Set[Any]):Double = {
-		return blockersAndMatchers.
-			   join.simfeature.
-			   getSimilarityDouble(rows.asInstanceOf[Set[Row]])._2
+	def rowsToSimilarity[K,V](rows:Set[Any], params: collection.immutable.Map[K,V]=null):Double = {
+		return simfeature.getSimilarityDouble(rows.asInstanceOf[Set[Row]],params)._2
 	}
 
 	def addEdge(edge:(Double,(Row,Row))) = {
@@ -56,12 +57,17 @@ class MonotonicSimilarityThresholdTuner(scc: SampleCleanContext,
 	def tuneThreshold(sampleTableName: String):Double = {
 		val data = scc.getCleanSample(sampleTableName).filter(x => eval.binaryKeySet.contains(x(0).asInstanceOf[String]))
 		//todo add error handling clean up
+		var tokenWeights = collection.immutable.Map[String, Double]()
+      	var tokenCounts = collection.immutable.Map[String, Int]()
+      	tokenCounts = computeTokenCount(data.map(simfeature.tokenizer.tokenize(_, simfeature.getCols())))
+      	tokenWeights = tokenCounts.map(x => (x._1, math.log10(data.count.toDouble / x._2)))
+
 		val edgeList = data.cartesian(data).map(x => 
-												(rowsToSimilarity(x.productIterator.toSet), (x._1, x._2)))
+												(rowsToSimilarity(x.productIterator.toSet, tokenWeights), (x._1, x._2)))
 							.filter(x => x._1 > 1e-6)
 							.filter(x => eval.binaryConstraints.contains( (x._2._1(0).asInstanceOf[String],
 																		   x._2._2(0).asInstanceOf[String], 
-							blockersAndMatchers.join.simfeature.colNames(0))))
+							simfeature.colNames(0))))
 							.sortByKey(false).collect()
 
 		for(edge <- edgeList)
@@ -79,4 +85,18 @@ class MonotonicSimilarityThresholdTuner(scc: SampleCleanContext,
 		return min
 		//println(reachableSet(tree.keySet.last, Set()))
 	}
+
+	def getCandidatePairsCount(sampleTableName: String, thresh:Double):Long = {
+		val data = scc.getCleanSample(sampleTableName)
+		return data.cartesian(data).map(x => rowsToSimilarity(x.productIterator.toSet)).filter(x => x > thresh).count()
+	}
+
+	def computeTokenCount(data: RDD[(Seq[String])]): collection.immutable.Map[String, Int] = {
+    val m = data.flatMap{
+      case tokens =>
+        for (x <- tokens.distinct)
+        yield (x, 1)
+    }.reduceByKeyLocally(_ + _)
+    collection.immutable.Map(m.toList: _*)
+  	}
 }

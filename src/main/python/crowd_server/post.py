@@ -19,11 +19,11 @@ class HTTPSConnectionV3(httplib.HTTPSConnection):
         if self._tunnel_host:
             self.sock = sock
             self._tunnel()
-        try:
-            self.sock = ssl.wrap_socket(sock, self.key_file, self.cert_file, ssl_version=ssl.PROTOCOL_TLSv1)
-        except ssl.SSLError, e:
-            print("Trying SSLv3.")
-            self.sock = ssl.wrap_socket(sock, self.key_file, self.cert_file, ssl_version=ssl.PROTOCOL_TLSv1)
+        #try:
+        #    self.sock = ssl.wrap_socket(sock, self.key_file, self.cert_file, ssl_version=ssl.PROTOCOL_TLSv1)
+        #except ssl.SSLError, e:
+        #    print("Trying SSLv3.")
+        #    self.sock = ssl.wrap_socket(sock, self.key_file, self.cert_file, ssl_version=ssl.PROTOCOL_TLSv1)
 
 class HTTPSHandlerV3(urllib2.HTTPSHandler):
     def https_open(self, req):
@@ -33,7 +33,7 @@ def send_request(data, crowds, num_requests) :
 
     # Send request
     params = {'data' : json.dumps(data)}
-    url = 'https://127.0.0.1:8000/crowds/%s/tasks/'
+    url = 'http://127.0.0.1:8000/crowds/%s/tasks/'
     for crowd in crowds:
         for i in range(num_requests):
             response = urllib2.urlopen(url%crowd,
