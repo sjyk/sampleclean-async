@@ -108,7 +108,8 @@ case class ActiveLearningStrategy(displayedColNames: List[String], featurizer:Fe
                candidatePairs: RDD[(Row, Row)],
                colMapper1: List[String] => List[Int],
                colMapper2: List[String] => List[Int],
-               onUpdateDupCounts: RDD[(Row, Row)] => Unit) = {
+               onUpdateDupCounts: RDD[(Row, Row)] => Unit,
+               passthrough:Boolean = false) = {
 
     // Assign a unique id for each candidate pair
     val candidatePairsWithId = candidatePairs.map((utils.randomUUID(), _)).cache()
@@ -168,20 +169,28 @@ case class ActiveLearningStrategy(displayedColNames: List[String], featurizer:Fe
       currentModel = model
 
       val crowdLabeledData = trainingFuture.getLabeledData
-      crowdLabeledData match {
+      if(!passthrough){
+        crowdLabeledData match {
         case None => // do nothing
         case Some(crowdData) =>
           mergedLabeledData = modelLabeledData.leftOuterJoin(crowdData).map{
             case (pid, (modelLabel, None)) => (pid, modelLabel)
             case (pid, (modelLabel, Some(crowdLabel))) => (pid, crowdLabel)
         }
+        }
+      }
+      else{
+        crowdLabeledData match {
+        case None => // do nothing
+        case Some(crowdData) =>
+          mergedLabeledData = crowdData
+        }
       }
 
       assert(mergedLabeledData.count() == modelLabeledData.count())
       assert(mergedLabeledData.count() == candidatePairsWithId.count())
 
-      val duplicatePairs = mergedLabeledData.filter(_._2 > 0.5).join(candidatePairsWithId).map(_._2._2) // 1: duplicate; 0: non-duplicate
-      println("test")
+      var duplicatePairs = mergedLabeledData.filter(_._2 > 0.5).join(candidatePairsWithId).map(_._2._2) // 1: duplicate; 0: non-duplicate
       onUpdateDupCounts(duplicatePairs)
     }
 

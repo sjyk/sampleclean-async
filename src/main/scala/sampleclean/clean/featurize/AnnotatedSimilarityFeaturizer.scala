@@ -17,7 +17,7 @@ import scala.collection.Seq
 abstract class AnnotatedSimilarityFeaturizer(val colNames: List[String], 
                   context:List[String],
 								  val tokenizer:Tokenizer, 
-								  val threshold:Double,
+								  var threshold:Double,
                   val minSize: Int = 0,
                   val schemaMap: Map[Int,Int]= null)
 	extends Featurizer(colNames, context){
@@ -151,8 +151,6 @@ abstract class AnnotatedSimilarityFeaturizer(val colNames: List[String],
       			return 0
   		}
 
-
-
   		/**
    		* Computes the sum of individual token weights over a token list.
    		* If a token is not found on the given map, it assumes the token has a weight of 0.
@@ -164,6 +162,10 @@ abstract class AnnotatedSimilarityFeaturizer(val colNames: List[String],
         else tokens.foldLeft(0.0)((accum, token) => accum + tokenWeights.getOrElse(token, 0.0))
 
   		}
+
+      override def toString():String = {
+        return this.getClass.getSimpleName + " @ " + threshold
+      }
 
 }
 object AnnotatedSimilarityFeaturizer{

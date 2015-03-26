@@ -119,14 +119,25 @@ object Deduptest {
     var algorithm21 = EntityResolution.textAttributeAutomatic(scc, "restaurant_sample", "name", 0.00, true)
 
     //var algorithm2 = EntityResolution.textAttributeAutomatic(scc, "paper_aff_sample", "affiliation", 0.9, true)
-    val e = new Evaluator(scc, List(algorithm2))
+    val e = new Evaluator(scc, List())
     //val e = new Evaluator(scc, List(algorithm1, algorithm1, algorithm2, algorithm3, algorithm4, algorithm5, algorithm6, algorithm7, algorithm8, algorithm9, algorithm10, algorithm11, algorithm12, algorithm13, algorithm14, algorithm15, algorithm16, algorithm17, algorithm18, algorithm19, algorithm20, algorithm21))
     val gt = scc.getCleanSample("restaurant_sample")
     //val allRows = gt.collect()
     //gt.map( x => (x(3).toString(), x)).groupByKey().collect().foreach(x => addPrecisionConstraintsForGroup(e, x._2, allRows))
     gt.map( x => (x(3).toString(), x)).groupByKey().collect().foreach(x => addConstraintsForGroup(e, x._2))
-    val m = new MonotonicSimilarityThresholdTuner(scc,algorithm2.components, e)
-    println(m.tuneThreshold("restaurant_sample"))
+    //val m = new MonotonicSimilarityThresholdTuner(scc,e,algorithm2.components.join.simfeature)
+    //val s = new SimilarityMetricChooser(scc,e)
+    //println(s.tuneThresholdAndMetric("restaurant_sample",List("name")))
+    //println(m.getCandidatePairsCount("restaurant_sample",m.tuneThreshold("restaurant_sample")))
+
+    val cols = List("name")
+    val baseFeaturizer = new SimilarityFeaturizer(cols, 
+                                                      scc.getTableContext("restaurant_sample"), 
+                                                      List("Levenshtein", "JaroWinkler"))
+    val s = new CrowdMatcherChooser(scc,e)
+    println(s.getCrowdEstimate("restaurant_sample", "name", baseFeaturizer))
+
+    //val e2 = new Evaluator(scc, List(algorithm2))
 
     //e.addBinaryConstraint("81eb205e-6fe2-48ce-962e-394ffaedbe74","41fb55cb-dd6a-4c43-bc0d-3e619ca07cc2" ,"affiliation", true)
     //e.evaluate("restaurant_sample")
