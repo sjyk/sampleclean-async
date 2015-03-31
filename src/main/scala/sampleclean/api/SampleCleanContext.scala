@@ -223,6 +223,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		val sqlContext = new SQLContext(sc)
 		val tableNameClean = qb.getCleanSampleName(tableName)
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
+    // TODO spark issues in test
 		hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceSSSchema(rdd)),"tmp")
 		hiveContext.hql(qb.createTableAs(tmpTableName) +qb.buildSelectQuery(List("*"),"tmp"))
 

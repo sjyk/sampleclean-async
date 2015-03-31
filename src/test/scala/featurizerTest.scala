@@ -210,7 +210,7 @@ class featurizerTest extends FunSuite with Serializable {
     seq1 = Seq("a","b","c","a","c")
     seq2 = Seq("a","b","d","a","e")
 
-    assert(sim.similar(seq1,seq2,thresh,Map[String,Double]()))
+    assert(sim.similarity(seq1,seq2,thresh,Map[String,Double]())._1)
     assert(sim.getSimilarity(seq1,seq2,Map[String,Double]()) == thresh)
     assert(sim.getSimilarity(seq1,seq2,weights) == 2.0 / 7)
 
@@ -218,7 +218,7 @@ class featurizerTest extends FunSuite with Serializable {
     thresh = 3.0
     sim = new WeightedOverlapSimilarity(colNames,context,tok,thresh)
 
-    assert(sim.similar(seq1,seq2,thresh,Map[String,Double]()))
+    assert(sim.similarity(seq1,seq2,thresh,Map[String,Double]())._1)
     assert(sim.getSimilarity(seq1,seq2,Map[String,Double]()) == thresh)
     assert(sim.getSimilarity(seq1,seq2,weights) == 4.0)
 
@@ -226,7 +226,7 @@ class featurizerTest extends FunSuite with Serializable {
     thresh = 0.6
     sim = new WeightedDiceSimilarity(colNames,context,tok,thresh)
 
-    assert(sim.similar(seq1,seq2,thresh,Map[String,Double]()))
+    assert(sim.similarity(seq1,seq2,thresh,Map[String,Double]())._1)
     assert(sim.getSimilarity(seq1,seq2,Map[String,Double]()) == thresh)
     assert(sim.getSimilarity(seq1,seq2,weights) == 4.0 / 9)
 
@@ -234,7 +234,7 @@ class featurizerTest extends FunSuite with Serializable {
     thresh = 0.6
     sim = new WeightedCosineSimilarity(colNames,context,tok,thresh)
 
-    assert(sim.similar(seq1,seq2,thresh,Map[String,Double]()))
+    assert(sim.similarity(seq1,seq2,thresh,Map[String,Double]())._1)
     assert(sim.getSimilarity(seq1,seq2,Map[String,Double]()) == thresh)
     assert(sim.getSimilarity(seq1,seq2,weights) == 1.0 / math.sqrt(5))
 
@@ -243,7 +243,7 @@ class featurizerTest extends FunSuite with Serializable {
     thresh = 2.0
     sim = new EditBlocking(colNames,context,tok,thresh)
 
-    assert(sim.similar(seq1,seq2,thresh,Map[String,Double]()))
+    assert(sim.similarity(seq1,seq2,thresh,Map[String,Double]())._1)
     assert(sim.getSimilarity(seq1,seq2,Map[String,Double]()) == thresh)
     assert(sim.getSimilarity(seq1,seq2,weights) == 2.0)
 
