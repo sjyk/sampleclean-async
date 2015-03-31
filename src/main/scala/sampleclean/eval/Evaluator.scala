@@ -7,6 +7,8 @@ import org.apache.spark.sql.SQLContext
 import sampleclean.clean.algorithm.AlgorithmParameters
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SchemaRDD, Row}
+import sampleclean.clean.deduplication.ActiveLearningStrategy
+import org.apache.spark.mllib.regression.LabeledPoint
 
 /**
  * The Evaluator class executes a set of SampleCleanAlgorithms
@@ -78,6 +80,30 @@ class Evaluator(scc:SampleCleanContext,
 	  	  binaryKeySet += hash1
 	  	  binaryKeySet += hash2
 	  	  //println(binaryConstraints)
+	  }
+
+
+	  /**
+	   * Get Crowd Labels With Active Learning
+	   */
+	  def getCrowdLabelsActive(sampleTableName:String, 
+	  						   attr:String, 
+	  						   activeLearningStrategy:ActiveLearningStrategy) = {
+
+	  	val colMapper = (colNames: List[String]) =>  List(attr).map(scc.getTableContext(sampleTableName).indexOf(_))
+	    val emptyLabeledRDD = scc.getSparkContext().parallelize(new Array[(String, LabeledPoint)](0))
+	    val data = scc.getCleanSample(sampleTableName)
+      	//val activeLearningStrategy = params.get("activeLearningStrategy").asInstanceOf[ActiveLearningStrategy]
+      	activeLearningStrategy.asyncRun(emptyLabeledRDD, 
+                                        data.cartesian(data), 
+                                        colMapper, 
+                                        colMapper, 
+                                        onReceiveNewMatches(_),
+                                        true)
+	  }
+
+	  def onReceiveNewMatches(rows:RDD[(Row,Row)]) = {
+	  	  rows.collect().foreach(println)
 	  }
 
 	  /**
