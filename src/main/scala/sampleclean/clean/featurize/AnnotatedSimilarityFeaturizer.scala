@@ -478,37 +478,68 @@ class WeightedCosineSimilarity(colNames: List[String],
 
     def getSimilarity(tokens1: Seq[String], tokens2: Seq[String], tokenWeights: collection.Map[String, Double]): Double = {
 
-      val thresholdInt = threshold.toInt
-      val _s = tokens1.mkString(" ")
-      val _t = tokens2.mkString(" ")
-      val (s, t) = if (_s.length > _t.length) (_s, _t) else (_t, _s)
-      val n = s.length
-      val m = t.length
+      if (threshold == 0) getSimilarity(tokens1,tokens2)
+      else {
+        val thresholdInt = threshold.toInt
+        val _s = tokens1.mkString(" ")
+        val _t = tokens2.mkString(" ")
+        val (s, t) = if (_s.length > _t.length) (_s, _t) else (_t, _s)
+        val n = s.length
+        val m = t.length
 
-      if (n - m > thresholdInt) return thresholdInt + 1
+        if (n - m > thresholdInt) return thresholdInt + 1
 
-      var V = new Array[Array[Int]](thresholdInt * 3 + 2)
-      for (i <- 0 until V.length)
-        V(i) = Array.fill[Int](2)(Int.MinValue)
+        var V = new Array[Array[Int]](thresholdInt * 3 + 2)
+        for (i <- 0 until V.length)
+          V(i) = Array.fill[Int](2)(Int.MinValue)
 
-      V(-1 + thresholdInt + 1)(-1 & 1) = 0
+        V(-1 + thresholdInt + 1)(-1 & 1) = 0
 
-      for (p <- 0 until thresholdInt + 1) {
-        val f = p & 1
-        val g = f ^ 1
+        for (p <- 0 until thresholdInt + 1) {
+          val f = p & 1
+          val g = f ^ 1
 
-        for (k <- thresholdInt + 1 - p until thresholdInt + 1 + p + 1) {
-          V(k)(f) = math.max(math.max(V(k)(g), V(k + 1)(g)) + 1, V(k - 1)(g))
-          val d = k - thresholdInt - 1
-          if (V(k)(f) >= 0 && V(k)(f) + d >= 0)
-            while (V(k)(f) < n && V(k)(f) + d < m && s(V(k)(f)) == t(V(k)(f) + d))
-              V(k)(f) += 1
+          for (k <- thresholdInt + 1 - p until thresholdInt + 1 + p + 1) {
+            V(k)(f) = math.max(math.max(V(k)(g), V(k + 1)(g)) + 1, V(k - 1)(g))
+            val d = k - thresholdInt - 1
+            if (V(k)(f) >= 0 && V(k)(f) + d >= 0)
+              while (V(k)(f) < n && V(k)(f) + d < m && s(V(k)(f)) == t(V(k)(f) + d))
+                V(k)(f) += 1
+          }
+          if (V(m - n + thresholdInt + 1)(f) >= n) return p
         }
-        if (V(m - n + thresholdInt + 1)(f) >= n) return p
+        (thresholdInt + 1).toDouble
       }
-      (thresholdInt + 1).toDouble
 
     }
+
+    // based on Wikipedia article
+    def getSimilarity(tokens1: Seq[String], tokens2: Seq[String]): Double = {
+      val str1 = tokens1.mkString(" ")
+      val str2 = tokens2.mkString(" ")
+
+      val lenStr1 = str1.length
+      val lenStr2 = str2.length
+
+      val d: Array[Array[Int]] = Array.ofDim(lenStr1 + 1, lenStr2 + 1)
+
+      for (i <- 0 to lenStr1) d(i)(0) = i
+      for (j <- 0 to lenStr2) d(0)(j) = j
+
+      for (i <- 1 to lenStr1; j <- 1 to lenStr2) {
+        val cost = if (str1(i - 1) == str2(j-1)) 0 else 1
+
+        d(i)(j) = min(
+          d(i-1)(j  ) + 1,     // deletion
+          d(i  )(j-1) + 1,     // insertion
+          d(i-1)(j-1) + cost   // substitution
+        )
+      }
+
+      d(lenStr1)(lenStr2)
+    }
+
+    def min(nums: Int*): Int = nums.min
 
 
 

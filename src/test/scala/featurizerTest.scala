@@ -70,7 +70,7 @@ class featurizerTest extends FunSuite with Serializable {
 
   test("similarity featurizer"){
     // Test SampleClean similarity implementations
-    var metrics = List("JaccardSimilarity","DiceSimilarity","CosineSimilarity","OverlapSimilarity")
+    val metrics = List("JaccardSimilarity","DiceSimilarity","CosineSimilarity","OverlapSimilarity","EditDistance")
 
 
     def distances(seq1: Seq[String],seq2: Seq[String]): Seq[Double] = {
@@ -113,7 +113,7 @@ class featurizerTest extends FunSuite with Serializable {
     var row2 = Row()
 
     var feat = featurizer.featurize(Set(row1,row2))
-    assert((feat._1, feat._2.toSeq) == (Set(row1,row2), Seq(0.0,0.0,0.0,0.0)))
+    assert((feat._1, feat._2.toSeq) == (Set(row1,row2), Seq(0.0,0.0,0.0,0.0,0.0)))
 
     // Equal rows
     colNames = context
@@ -122,7 +122,7 @@ class featurizerTest extends FunSuite with Serializable {
 
     featurizer = new SimilarityFeaturizer(colNames,context, metrics)
     feat = featurizer.featurize(Set(row1,row2))
-    assert((feat._1, feat._2.toSeq) == (Set(row1,row2), Seq(1.0,1.0,1.0,4.0)))
+    assert((feat._1, feat._2.toSeq) == (Set(row1,row2), Seq(1.0,1.0,1.0,4.0,0.0)))
 
     // Single attribute
     colNames = List("col1")
@@ -131,22 +131,20 @@ class featurizerTest extends FunSuite with Serializable {
 
     featurizer = new SimilarityFeaturizer(colNames,context, metrics)
     feat = featurizer.featurize(Set(row1,row2))
-    assert((feat._1, feat._2.toSeq) == (Set(row1,row2), distances(Seq("a","b","c","d"),Seq("a","c"))))
+    assert((feat._1, feat._2.toSeq) == (Set(row1,row2), distances(Seq("a","b","c","d"),Seq("a","c")) ++ Seq(4)))
 
     // Multiple attribute
     colNames = List("col1","col2")
     featurizer = new SimilarityFeaturizer(colNames,context, metrics)
     feat = featurizer.featurize(Set(row1,row2))
-    assert((feat._1, feat._2.toSeq) == (Set(row1,row2), distances(Seq("a","b","c","d","b","c"),Seq("a","c","b"))))
+    assert((feat._1, feat._2.toSeq) == (Set(row1,row2), distances(Seq("a","b","c","d","b","c"),Seq("a","c","b")) ++ Seq(6)))
 
     // featurize
     colNames = List("col1")
     featurizer = new SimilarityFeaturizer(colNames,context, metrics)
     feat = featurizer.featurize(Set(Row("a "),Row(" a")))
-    assert((feat._1, feat._2.toSeq) == (Set(Row("a "),Row(" a")), Seq(1.0,1.0,1.0,1.0)))
+    assert((feat._1, feat._2.toSeq) == (Set(Row("a "),Row(" a")), Seq(1.0,1.0,1.0,1.0,0.0)))
 
-    // TODO include weighted similarity joins?
-    // TODO EditDistance
 
 
    /* //blocking featurizer
@@ -204,11 +202,12 @@ class featurizerTest extends FunSuite with Serializable {
     var weights: Map[String,Double] = Map[String,Double]()
     weights = Map[String,Double]("a" -> 1, "b" -> 2, "c" -> 3, "d" -> 4)
 
+    seq1 = Seq("a","b","c","a","c")
+    seq2 = Seq("a","b","d","a","e")
+
     // Weighted Jaccard
     thresh = 3.0 / 7
     sim = new WeightedJaccardSimilarity(colNames,context,tok,thresh)
-    seq1 = Seq("a","b","c","a","c")
-    seq2 = Seq("a","b","d","a","e")
 
     assert(sim.similarity(seq1,seq2,thresh,Map[String,Double]())._1)
     assert(sim.getSimilarity(seq1,seq2,Map[String,Double]()) == thresh)
@@ -237,7 +236,6 @@ class featurizerTest extends FunSuite with Serializable {
     assert(sim.similarity(seq1,seq2,thresh,Map[String,Double]())._1)
     assert(sim.getSimilarity(seq1,seq2,Map[String,Double]()) == thresh)
     assert(sim.getSimilarity(seq1,seq2,weights) == 1.0 / math.sqrt(5))
-
 
     // Edit
     thresh = 2.0
