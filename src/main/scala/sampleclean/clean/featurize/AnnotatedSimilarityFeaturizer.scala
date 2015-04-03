@@ -470,7 +470,9 @@ class WeightedCosineSimilarity(colNames: List[String],
                 threshold: Double,
                 tokenWeights: collection.Map[String, Double]): (Boolean,Double) = {
 
-      (getSimilarity(tokens1, tokens2,tokenWeights) <= threshold.toInt, getSimilarity(tokens1, tokens2,tokenWeights))
+      val sim = getSimilarity(tokens1, tokens2,tokenWeights)
+
+      (sim <= threshold.toInt, sim)
 
     }
 
@@ -507,6 +509,7 @@ class WeightedCosineSimilarity(colNames: List[String],
       (thresholdInt + 1).toDouble
 
     }
+
 
 
   }

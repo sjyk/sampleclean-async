@@ -11,12 +11,11 @@ import scala.collection.Seq
 
 
 class PassJoin( @transient sc: SparkContext,
-               blocker: AnnotatedSimilarityFeaturizer,
-               projection:List[Int]) extends SimilarityJoin(sc,blocker,false) {
+               blocker: AnnotatedSimilarityFeaturizer) extends SimilarityJoin(sc,blocker,false) {
 
   @Override
   override def join(rddA: RDD[Row],
-                    rddB:RDD[Row],
+                    rddB: RDD[Row],
                     smallerA:Boolean = true,
                     containment:Boolean = true): RDD[(Row,Row)] = {
 
@@ -43,7 +42,7 @@ class PassJoin( @transient sc: SparkContext,
         smallTable = rddB
         largeTable = rddA
       }
-      else {
+      else if (!containment) {
         largeTableSize = largeTableSize + smallTableSize
       }
 
@@ -52,7 +51,7 @@ class PassJoin( @transient sc: SparkContext,
       //Add a record ID into smallTable. Id is a unique id assigned to each row.
       val smallTableWithId: RDD[(Long, (Seq[String], String, Row))] = smallTable.zipWithUniqueId()
         .map(x => {
-        val block = blocker.tokenizer.tokenize(x._1, projection)
+        val block = blocker.tokenizer.tokenize(x._1, blocker.getCols(false))
         (x._2, (block, block.mkString(" "), x._1))
       }).cache()
 
@@ -90,7 +89,7 @@ class PassJoin( @transient sc: SparkContext,
         if (isSelfJoin) smallTableWithId
         else {
           largeTable.map(row => {
-            val key = blocker.tokenizer.tokenize(row,projection)
+            val key = blocker.tokenizer.tokenize(row,blocker.getCols(false))
             (0L, (key,key.mkString(" "), row))
           })
         }
@@ -120,6 +119,8 @@ class PassJoin( @transient sc: SparkContext,
                   (null, null, false)
                 }
                 else {
+                  if(id1 == id2) {
+                  }
                   val similar = {
                     blocker.similarity(key1, key2, intThreshold, Map[String, Double]())._1
                   }
