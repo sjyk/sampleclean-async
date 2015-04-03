@@ -18,6 +18,7 @@ class blockerMatcherTest extends FunSuite with Serializable {
   val conf = new SparkConf()
     .setMaster("local[4]")
     .setAppName("SCUnitTest")
+    .set("spark.driver.allowMultipleContexts","true")
   val sc = new SparkContext(conf)
   val scc = new SampleCleanContext(sc)
 
@@ -57,10 +58,6 @@ class blockerMatcherTest extends FunSuite with Serializable {
   val tok = new DelimiterTokenizer(" ")
 
   test("self join sequence"){
-
-
-    //val path = "./src/test/resources"
-    //val rdd = sc.textFile(path + "/dirtyJaccard100dups").map(Row(_))
     scc.initializeConsistent("test", "test_sample", "col0", 1)
 
     val blocker = new WeightedJaccardSimilarity(colNames,context,tok,0.5)
@@ -70,8 +67,6 @@ class blockerMatcherTest extends FunSuite with Serializable {
 
     val blockMatch = new BlockerMatcherSelfJoinSequence(scc, "test_sample",bJoin,List(matcher))
     assert(blockMatch.blockAndMatch(rdd).count() == 100)
-    //blockMatch.updateContext(context.map(x => x + x))
-    //assert(blocker.context == context.map(x => x + x))
 
   }
 

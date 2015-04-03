@@ -12,7 +12,7 @@ import org.apache.spark.util.Utils
 
 import sampleclean.clean.deduplication._
 import sampleclean.clean.deduplication.join.{SimilarityJoin, PassJoin, BroadcastJoin}
-import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer.{WeightedCosineSimilarity, WeightedDiceSimilarity, WeightedOverlapSimilarity, WeightedJaccardSimilarity}
+import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
 import sampleclean.clean.featurize.Tokenizer.{DelimiterTokenizer, WhiteSpaceTokenizer, WordTokenizer}
 import sampleclean.clean.featurize.{AnnotatedSimilarityFeaturizer, Tokenizer, SimilarityFeaturizer}
 
@@ -22,9 +22,7 @@ class joinsTest extends FunSuite with Serializable {
   val conf = new SparkConf()
     .setMaster("local[4]")
     .setAppName("SCUnitTest")
-    //.set("spark.driver.memory","700m")
-    //.set("spark.executor.memory","700m")
-    //.set("spark.default.parallelism","16")
+    .set("spark.driver.allowMultipleContexts","true")
   val sc = new SparkContext(conf)
 
 
@@ -107,6 +105,16 @@ class joinsTest extends FunSuite with Serializable {
     assert(bJoin.join(rowRDDLarge,rowRDDLarge).count() == 0)
     blocker = new WeightedCosineSimilarity(colNames,context,tok,0.473)
     bJoin = new BroadcastJoin(sc,blocker,true)
+    assert(bJoin.join(rowRDDLarge,rowRDDLarge).count() == 100)
+
+    // 100 duplicates with Edit (Levenshtein) similarity = 10
+    rowRDDLarge = sc.textFile(path + "/dirtyEdit100dups").map(Row(_))
+    blocker = new EditBlocking(colNames,context,tok,9)
+    bJoin = new PassJoin(sc,blocker)
+    val p = bJoin.join(rowRDDLarge,rowRDDLarge)
+    assert(p.count() == 0)
+    blocker = new EditBlocking(colNames,context,tok,10)
+    bJoin = new PassJoin(sc,blocker)
     assert(bJoin.join(rowRDDLarge,rowRDDLarge).count() == 100)
 
 
@@ -197,6 +205,16 @@ class joinsTest extends FunSuite with Serializable {
     assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() == rowRDDSmall.count())
     blocker = new WeightedCosineSimilarity(colNames,context,tok,0.473)
     bJoin = new BroadcastJoin(sc,blocker,true)
+    assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() >= 40 * 2 + rowRDDSmall.count())
+
+    // 100 duplicates with Edit (Levenshtein) similarity = 10
+    rowRDDLarge = sc.textFile(path + "/dirtyEdit100dups").map(Row(_))
+    rowRDDSmall = rowRDDLarge.sample(false,0.5).cache()
+    blocker = new EditBlocking(colNames,context,tok,9)
+    bJoin = new BroadcastJoin(sc,blocker,false)
+    assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() == rowRDDSmall.count())
+    blocker = new EditBlocking(colNames,context,tok,10)
+    bJoin = new BroadcastJoin(sc,blocker,false)
     assert(bJoin.join(rowRDDSmall,rowRDDLarge).count() >= 40 * 2 + rowRDDSmall.count())
 
   }

@@ -21,6 +21,7 @@ class recordDedupTest extends FunSuite with Serializable {
   val conf = new SparkConf()
     .setMaster("local[4]")
     .setAppName("SCUnitTest")
+    .set("spark.driver.allowMultipleContexts","true")
   val sc = new SparkContext(conf)
   val scc = new SampleCleanContext(sc)
   val context = List("id") ++ (0 until 20).toList.map("col" + _.toString)
