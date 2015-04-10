@@ -9,13 +9,13 @@ http://spark.apache.org/docs/latest/ec2-scripts.html), and can be called as
 either:
 
 ```shell
-./sampleclean-ec2 CREDENTIALS_DIRECTORY SPARK-EC2-ARG [SPARK-EC2-ARG ...]
+./sampleclean-ec2.sh CREDENTIALS_DIRECTORY SPARK-EC2-ARG [SPARK-EC2-ARG ...]
 ```
 
 or:
 
 ```shell
-./sampleclean-ec2 SPARK-EC2-ARG [SPARK-EC2-ARG ...]
+./sampleclean-ec2.sh SPARK-EC2-ARG [SPARK-EC2-ARG ...]
 ```
 
 In the latter case, `CREDENTIALS_DIRECTORY` will be set to the value of the
@@ -32,7 +32,7 @@ credentials needed for using AWS and EC2:
 * (optional) The `sampleclean1.eecs.berkeley.edu-san.key` file containing the
   private key for the ssl certificate.
 
-For help with `SPARK-EC2-ARGs`, run `./sampleclean-ec2 --help`.
+For help with `SPARK-EC2-ARGs`, run `./sampleclean-ec2.sh --help`.
 
 
 Launching a cluster
@@ -42,11 +42,11 @@ For example, to launch a cluster named sampleclean with 8 slaves, then run the
 crowd server:
 ```shell
 # Alternatively, use a pre-saved ami with --master-ami AMI_ID
-./sampleclean-ec2 ~/.ssh/aws/sampleclean/ -s 8 -t m1.large launch sampleclean
+./sampleclean-ec2.sh ~/.ssh/aws/sampleclean/ -s 8 -t m1.large launch sampleclean
 # ... lots of output ...
-./sampleclean-ec2 ~/.ssh/aws/sampleclean/ get-master sampleclean
+./sampleclean-ec2.sh ~/.ssh/aws/sampleclean/ get-master sampleclean
 # ... get the master's hostname ...
-./sampleclean-ec2 ~/.ssh/aws/sampleclean/ login sampleclean
+./sampleclean-ec2.sh ~/.ssh/aws/sampleclean/ login sampleclean
 > workon sampleclean
 > cd $PROJECT_HOME
 > ./run.sh -d
@@ -59,7 +59,7 @@ Running code on the cluster
 To actually get code running on a cluster you've launched, you'll need to:
 
 * ssh into the cluster:
-  `./sampleclean-ec2 ~/.ssh/aws/sampleclean/ login CLUSTER_NAME`
+  `./sampleclean-ec2.sh ~/.ssh/aws/sampleclean/ login CLUSTER_NAME`
 
 * Copy data to the master's hdfs instance:
   `/root/ephemeral-hdfs/bin/hadoop dfs -put LOCAL/PATH/TO/data HDFS/PATH/TO/data`

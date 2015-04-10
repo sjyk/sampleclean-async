@@ -7,7 +7,7 @@ import sampleclean.clean.featurize.Tokenizer._
 import sampleclean.clean.featurize._
 
 
-class featurizerSuite extends FunSuite with Serializable {
+class FeaturizerSuite extends FunSuite with Serializable {
 
   test("Tokenizer"){
     val str = """ a`b~c!d@e#f$g%h^i&j*k(l)m_n-o+p=q[r}s\tñu|v;w:x"y'z/aa?bb>cc<dd,ee.ff gg """
