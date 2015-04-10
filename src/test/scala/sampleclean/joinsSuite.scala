@@ -1,23 +1,16 @@
-package dedupTesting
+package sampleclean
 
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SQLContext
-import org.apache.spark.sql.catalyst.expressions.Row
-
-import org.scalatest.FunSuite
 import org.apache.spark._
-
-import org.apache.spark.SparkContext._
-import org.apache.spark.util.Utils
-
-import sampleclean.clean.deduplication._
-import sampleclean.clean.deduplication.join.{SimilarityJoin, PassJoin, BroadcastJoin}
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.expressions.Row
+import org.scalatest.FunSuite
+import sampleclean.clean.deduplication.join.{BroadcastJoin, PassJoin, SimilarityJoin}
+import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer
 import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
-import sampleclean.clean.featurize.Tokenizer.{DelimiterTokenizer, WhiteSpaceTokenizer, WordTokenizer}
-import sampleclean.clean.featurize.{AnnotatedSimilarityFeaturizer, Tokenizer, SimilarityFeaturizer}
+import sampleclean.clean.featurize.Tokenizer.DelimiterTokenizer
 
 
-class joinsTest extends FunSuite with Serializable {
+class joinsSuite extends FunSuite with Serializable {
 
   val conf = new SparkConf()
     .setMaster("local[4]")

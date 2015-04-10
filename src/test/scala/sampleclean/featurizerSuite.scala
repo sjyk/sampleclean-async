@@ -1,14 +1,13 @@
-package dedupTesting
+package sampleclean
 
 import org.apache.spark.sql.Row
-import org.apache.spark.{SparkContext, SparkConf}
 import org.scalatest.FunSuite
 import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
-import sampleclean.clean.featurize._
 import sampleclean.clean.featurize.Tokenizer._
+import sampleclean.clean.featurize._
 
 
-class featurizerTest extends FunSuite with Serializable {
+class featurizerSuite extends FunSuite with Serializable {
 
   test("Tokenizer"){
     val str = """ a`b~c!d@e#f$g%h^i&j*k(l)m_n-o+p=q[r}s\tñu|v;w:x"y'z/aa?bb>cc<dd,ee.ff gg """

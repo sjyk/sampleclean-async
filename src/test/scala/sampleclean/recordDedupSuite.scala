@@ -1,23 +1,20 @@
-package dedupTesting
+package sampleclean
 
+import org.apache.spark.SparkContext._
 import org.apache.spark.sql.catalyst.expressions.Row
-import org.apache.spark.{SparkContext, SparkConf}
+import org.apache.spark.{SparkConf, SparkContext}
 import org.scalatest.FunSuite
+import sampleclean.api.SampleCleanContext
+import sampleclean.clean.algorithm.AlgorithmParameters
 import sampleclean.clean.deduplication.RecordDeduplication
-import sampleclean.clean.deduplication.join.{BroadcastJoin}
+import sampleclean.clean.deduplication.join.{BlockerMatcherJoinSequence, BroadcastJoin}
 import sampleclean.clean.deduplication.matcher.AllMatcher
 import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer
 import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer.WeightedJaccardSimilarity
 import sampleclean.clean.featurize.Tokenizer.DelimiterTokenizer
 
-import sampleclean.api.SampleCleanContext
-import org.apache.spark.SparkContext._
-import sampleclean.clean.algorithm.AlgorithmParameters
 
-import sampleclean.clean.deduplication.join.BlockerMatcherJoinSequence
-
-
-class recordDedupTest extends FunSuite with Serializable {
+class recordDedupSuite extends FunSuite with Serializable {
   val conf = new SparkConf()
     .setMaster("local[4]")
     .setAppName("SCUnitTest")
