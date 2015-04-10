@@ -1,5 +1,6 @@
 package sampleclean.clean
 
+import org.apache.spark.sql.catalyst.expressions.Row
 import org.scalatest.FunSuite
 import sampleclean.api.SampleCleanContext
 import sampleclean.clean.algorithm.AlgorithmParameters
@@ -23,7 +24,15 @@ class RemoteClusterSuite extends FunSuite with RemoteSCContext{
     new BlockerMatcherJoinSequence(scc, sampleTableName,bJoin,List(matcher))
   }
 
-  test("api"){
+  test("hdfs") {
+    withSampleCleanContext { scc =>
+      val master = scc.getSparkContext().master
+      val rowRDDLarge = scc.getSparkContext().textFile("hdfs://%s:9000/testData/csvJaccard100dups".format(master)).map(x => Row.fromSeq(x.split(",", -1).toSeq))
+    println(rowRDDLarge.count())
+    }
+  }
+
+  /*test("api"){
     withFullRecords (1,{ scc =>
       // Initialize algorithm
       scc.resetSample(sampleTableName)
@@ -45,5 +54,5 @@ class RemoteClusterSuite extends FunSuite with RemoteSCContext{
       assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
     })
 
-  }
+  }*/
 }
