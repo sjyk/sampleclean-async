@@ -1,4 +1,4 @@
-package sampleclean
+package sampleclean.clean
 
 import org.apache.spark.{SparkConf, SparkContext}
 import sampleclean.api.SampleCleanContext
