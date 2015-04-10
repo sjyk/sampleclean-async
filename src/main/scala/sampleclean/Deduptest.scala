@@ -23,7 +23,7 @@ import sampleclean.clean.featurize.SimilarityFeaturizer
 import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
 import sampleclean.clean.featurize.LearningSimilarityFeaturizer
 import sampleclean.clean.featurize.Tokenizer._
-import sampleclean.clean.extraction.LearningSplitExtraction
+//import sampleclean.clean.extraction.LearningSplitExtraction
 
 import sampleclean.clean.deduplication.EntityResolution._
 import sampleclean.eval._

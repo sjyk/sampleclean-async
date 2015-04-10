@@ -9,7 +9,7 @@ import sampleclean.clean.featurize.SimilarityFeaturizer
 import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
 import sampleclean.clean.featurize.LearningSimilarityFeaturizer
 import sampleclean.clean.featurize.Tokenizer._
-import sampleclean.clean.extraction.LearningSplitExtraction
+//import sampleclean.clean.extraction.LearningSplitExtraction
 
 
 /** The SampleCleanParser is the class that handles parsing SampleClean commands
@@ -434,7 +434,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
   def demoTamr() = {
 
-    println("Demo1: Tamr Extraction By Example")
+   /* println("Demo1: Tamr Extraction By Example")
 
     val algoPara2 = new AlgorithmParameters()
     algoPara2.put("newSchema", List("aff1","aff2"))
@@ -447,7 +447,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
     val pp = new SampleCleanPipeline(saqp, List(d))
     activePipelines += pp
-    pp.exec()
+    pp.exec()*/
   }
 
   def demoCorleone() = {
