@@ -64,6 +64,28 @@ trait LocalSCContext extends Serializable{
       sc.stop()
     }
   }
+
+  def withFullRecordsLarge[T](sample:Int, f: SampleCleanContext => T): T = {
+    val conf = new SparkConf()
+      .set("spark.driver.allowMultipleContexts","true")
+    val sc = new SparkContext("local", "test", conf)
+    val scc = new SampleCleanContext(sc)
+    val context = List("id") ++ (0 until 20).toList.map("col" + _.toString)
+
+    val contextString = context.mkString(" String,") + " String"
+    val hiveContext = scc.getHiveContext()
+    scc.closeHiveSession()
+    hiveContext.hql("DROP TABLE IF EXISTS test")
+    hiveContext.hql("CREATE TABLE IF NOT EXISTS test(%s) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'".format(contextString))
+    hiveContext.hql("LOAD DATA LOCAL INPATH './src/test/resources/csvJaccard100000dups' OVERWRITE INTO TABLE test")
+    scc.initializeConsistent("test", "test_sample", "id", sample)
+
+    try {
+      f(scc)
+    } finally {
+      sc.stop()
+    }
+  }
 }
 
 

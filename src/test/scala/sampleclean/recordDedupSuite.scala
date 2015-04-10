@@ -2,7 +2,6 @@ package sampleclean
 
 import org.apache.spark.SparkContext._
 import org.apache.spark.sql.catalyst.expressions.Row
-import org.apache.spark.{SparkConf, SparkContext}
 import org.scalatest.FunSuite
 import sampleclean.api.SampleCleanContext
 import sampleclean.clean.algorithm.AlgorithmParameters
@@ -85,28 +84,27 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
       scc.resetSample(sampleTableName)
       val params = new AlgorithmParameters()
 
-      var t0 = System.nanoTime()
+      val t0 = System.nanoTime()
       val similarity = new WeightedJaccardSimilarity(colNames, scc.getTableContext(sampleTableName), tok, 0.5)
       val RD = new RecordDeduplication(params, scc, sampleTableName, defaultBM(scc, similarity))
       RD.setTableParameters(sampleTableName)
-      val t01 = System.nanoTime()
+      val t1 = System.nanoTime()
       RD.synchronousExecAndRead()
-      val t02 = System.nanoTime()
+      val t2 = System.nanoTime()
       assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 100)
-      var t1 = System.nanoTime()
-
-      println("Exec() in algorithm lasted " + (t02 - t01).toDouble / 1000000000 + " seconds.")
-      println("Whole cleaning algorithm lasted " + (t1 - t0).toDouble / 1000000000 + " seconds.")
+      val t3 = System.nanoTime()
 
       val rowRDDLarge = scc.getSparkContext().textFile("./src/test/resources/csvJaccard100dups").map(x => Row.fromSeq(x.split(",", -1).toSeq))
 
-      t0 = System.nanoTime()
+      val t4 = System.nanoTime()
       val blocker = new WeightedJaccardSimilarity(colNames, scc.getTableContext(sampleTableName).drop(2), tok, 0.5)
       val bJoin = new BroadcastJoin(scc.getSparkContext(), blocker, false)
       assert(bJoin.join(rowRDDLarge, rowRDDLarge).count() == 100)
-      t1 = System.nanoTime()
+      val t5 = System.nanoTime()
 
-      println("Join lasted " + (t1 - t0).toDouble / 1000000000 + " seconds.")
+      println("Exec() in algorithm lasted " + (t2 - t1).toDouble / 1000000000 + " seconds.")
+      println("Whole cleaning algorithm lasted " + (t3 - t0).toDouble / 1000000000 + " seconds.")
+      println("Join lasted " + (t5 - t4).toDouble / 1000000000 + " seconds.")
     })
 
 
