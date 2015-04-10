@@ -10,7 +10,7 @@ trait RemoteSCContext extends Serializable {
   def withSampleCleanContext[T](f: SampleCleanContext => T): T = {
     val master = ("cat /root/ephemeral-hdfs/conf/masters" !!).trim()
     val conf = new SparkConf()
-      .setMaster(master)
+      .setMaster("spark://" + master + ":7077")
       .setAppName("test")
       .set("spark.driver.allowMultipleContexts","true")
     val sc = new SparkContext(conf)
@@ -25,7 +25,7 @@ trait RemoteSCContext extends Serializable {
   def withFullRecords[T](sample:Int, f: SampleCleanContext => T): T = {
     val master = ("cat /root/ephemeral-hdfs/conf/masters" !!).trim()
     val conf = new SparkConf()
-      .setMaster(master)
+      .setMaster("spark://" + master + ":7077")
       .setAppName("test")
       .set("spark.driver.allowMultipleContexts","true")
     val sc = new SparkContext(conf)
