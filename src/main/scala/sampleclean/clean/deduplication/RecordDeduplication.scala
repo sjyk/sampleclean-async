@@ -39,8 +39,8 @@ class RecordDeduplication(params:AlgorithmParameters,
     	}
 
 		def exec()={
-			val sampleTableRDD = scc.getCleanSample(sampleTableName)
-			val fullTableRDD = scc.getFullTable(sampleTableName)
+			val sampleTableRDD = scc.getCleanSample(sampleTableName).repartition(scc.getSparkContext().defaultParallelism)
+			val fullTableRDD = scc.getFullTable(sampleTableName).repartition(scc.getSparkContext().defaultParallelism)
 			apply(components.blockAndMatch(sampleTableRDD,fullTableRDD))
 		}
 

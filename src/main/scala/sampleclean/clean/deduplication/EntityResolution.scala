@@ -63,7 +63,7 @@ class EntityResolution(params:AlgorithmParameters,
         validateParameters()
         setTableParameters(sampleTableName)
 
-        val sampleTableRDD = scc.getCleanSample(sampleTableName)
+        val sampleTableRDD = scc.getCleanSample(sampleTableName).repartition(scc.getSparkContext().defaultParallelism)
         val attrCountGroup = sampleTableRDD.map(x => 
                                           (x(attrCol).asInstanceOf[String],
                                            x(hashCol).asInstanceOf[String])).
@@ -88,7 +88,7 @@ class EntityResolution(params:AlgorithmParameters,
       Apply function implementation for the AbstractDedup Class
      */
 	  def apply(candidatePairs: RDD[(Row, Row)]):Unit = {
-       val sampleTableRDD = scc.getCleanSample(sampleTableName)
+       val sampleTableRDD = scc.getCleanSample(sampleTableName).repartition(scc.getSparkContext().defaultParallelism)
     	 apply(candidatePairs, sampleTableRDD)
 	  }
 

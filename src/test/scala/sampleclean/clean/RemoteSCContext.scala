@@ -12,7 +12,7 @@ trait RemoteSCContext extends Serializable {
     val conf = new SparkConf()
       .setMaster("spark://" + master + ":7077")
       .setAppName("test")
-      .set("spark.driver.allowMultipleContexts","true")
+      //.set("spark.driver.allowMultipleContexts","true")
     val sc = new SparkContext(conf)
     val scc = new SampleCleanContext(sc)
     try {
@@ -27,7 +27,7 @@ trait RemoteSCContext extends Serializable {
     val conf = new SparkConf()
       .setMaster("spark://" + master + ":7077")
       .setAppName("test")
-      .set("spark.driver.allowMultipleContexts","true")
+      //.set("spark.driver.allowMultipleContexts","true")
     val sc = new SparkContext(conf)
     val scc = new SampleCleanContext(sc)
     val context = List("id") ++ (0 until 20).toList.map("col" + _.toString)
@@ -37,7 +37,7 @@ trait RemoteSCContext extends Serializable {
     scc.closeHiveSession()
     hiveContext.hql("DROP TABLE IF EXISTS test")
     hiveContext.hql("CREATE TABLE IF NOT EXISTS test(%s) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'".format(contextString))
-    hiveContext.hql("LOAD DATA INPATH 'hdfs://%s:9000/testData/csvJaccard100dups' OVERWRITE INTO TABLE test".format(master))
+    hiveContext.hql("LOAD DATA INPATH '%s/csvJaccard100000dups' OVERWRITE INTO TABLE test".format(sc.master.replace("spark","hdfs").replace("7077","9000")))
     scc.initializeConsistent("test", "test_sample", "id", sample)
 
     try {

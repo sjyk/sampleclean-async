@@ -26,8 +26,8 @@ class RemoteClusterSuite extends FunSuite with RemoteSCContext{
 
   test("hdfs") {
     withSampleCleanContext { scc =>
-      val master = scc.getSparkContext().master
-      val rowRDDLarge = scc.getSparkContext().textFile("hdfs://%s:9000/testData/csvJaccard100dups".format(master)).map(x => Row.fromSeq(x.split(",", -1).toSeq))
+      val master = scc.getSparkContext().master.replace("spark","hdfs").replace("7077","9000")
+      val rowRDDLarge = scc.getSparkContext().textFile("%s/csvJaccard100000dups".format(master)).map(x => Row.fromSeq(x.split(",", -1).toSeq))
     println(rowRDDLarge.count())
     }
   }
