@@ -1,11 +1,11 @@
 package sampleclean.clean.featurize
-import org.apache.spark.sql.{SchemaRDD, Row}
+import org.apache.spark.sql.Row
 
 /* With the ensemble featurizer we can take a set of featurizers and 
 combine them together.
  */
 @serializable
-abstract class EnsembleFeaturizer(cols: List[Int], featurizers:List[Featurizer]){
+private [sampleclean] abstract class EnsembleFeaturizer(cols: List[Int], featurizers:List[Featurizer]){
 
 	/**
 	 */

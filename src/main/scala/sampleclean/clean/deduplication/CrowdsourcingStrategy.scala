@@ -22,7 +22,7 @@ import sampleclean.clean.featurize.Featurizer
 /**
  * This class is used to request crowd participation
  */
-case class CrowdsourcingStrategy(displayedColNames: List[String], featurizer:Featurizer) {
+private [sampleclean] case class CrowdsourcingStrategy(displayedColNames: List[String], featurizer:Featurizer) {
   var crowdParameters = CrowdConfiguration() // Use defaults
   var taskParameters = CrowdTaskConfiguration() // Use defaults
   private val crowdTask = new DeduplicationTask()

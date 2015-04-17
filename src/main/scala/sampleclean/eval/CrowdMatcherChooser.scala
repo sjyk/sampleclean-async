@@ -16,7 +16,7 @@ import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.mllib.linalg.{Vector, Vectors}
 
-class CrowdMatcherChooser(scc: SampleCleanContext,
+private [sampleclean] class CrowdMatcherChooser(scc: SampleCleanContext,
 						  eval:Evaluator) extends Serializable {
 
 	def pairToLabeledPoint[K,V](attr:String,

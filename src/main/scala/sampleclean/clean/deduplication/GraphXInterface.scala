@@ -5,7 +5,7 @@ import org.apache.spark.rdd.RDD
 
 import scala.reflect.ClassTag
 
-object GraphXInterface {
+private [sampleclean] object GraphXInterface {
 
   /**
    * Builds a graph from an RDD of vertex data and an RDD of edge data.

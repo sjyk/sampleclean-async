@@ -2,14 +2,10 @@ package sampleclean.clean.deduplication
 
 import sampleclean.api.SampleCleanContext
 import org.apache.spark.SparkContext._
-import org.apache.spark.sql.SQLContext
-
 import sampleclean.clean.algorithm.SampleCleanAlgorithm
 import sampleclean.clean.algorithm.AlgorithmParameters
-
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SchemaRDD, Row}
-
+import org.apache.spark.sql.Row
 import sampleclean.clean.deduplication.join.BlockerMatcherJoinSequence
 
 

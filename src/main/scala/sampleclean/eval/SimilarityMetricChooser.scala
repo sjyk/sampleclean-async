@@ -12,7 +12,7 @@ import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
 import sampleclean.clean.featurize.Tokenizer._
 
 
-class SimilarityMetricChooser(scc: SampleCleanContext,
+private [sampleclean] class SimilarityMetricChooser(scc: SampleCleanContext,
 							  eval:Evaluator) {
 
 	def tuneThresholdAndMetric(sampleTableName: String, 

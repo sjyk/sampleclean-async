@@ -6,7 +6,7 @@ import sampleclean.api.SampleCleanContext;
 * of methods to manipulate HIVEQL queries.
 */
 @serializable
-class QueryBuilder(scc: SampleCleanContext) {
+private [sampleclean] class QueryBuilder(scc: SampleCleanContext) {
 
 	//some common templates
 	val CTAS_TEMPLATE = "CREATE TABLE %s AS "

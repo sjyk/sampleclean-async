@@ -9,7 +9,6 @@ import org.apache.spark.mllib.regression.LabeledPoint
 /**
  * An Active Learning Matcher will match similar candidates
  * based on an Active Learning Strategy.
- * @param alstrategy
  */
 class ActiveLearningMatcher( scc: SampleCleanContext,
                             sampleTableName:String,

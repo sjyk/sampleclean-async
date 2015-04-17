@@ -12,7 +12,7 @@ import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
 import org.apache.spark.rdd.RDD
 
 
-class MonotonicSimilarityThresholdTuner(scc: SampleCleanContext,
+private [sampleclean] class MonotonicSimilarityThresholdTuner(scc: SampleCleanContext,
 										eval:Evaluator,
 										simfeature: AnnotatedSimilarityFeaturizer) extends Serializable {
 

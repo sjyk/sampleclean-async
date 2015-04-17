@@ -16,7 +16,7 @@ import sampleclean.crowd._
 import sampleclean.crowd.context.{DeduplicationPointLabelingContext, DeduplicationGroupLabelingContext}
 
 
-class CrowdMatcher(scc: SampleCleanContext, 
+private [sampleclean] class CrowdMatcher(scc: SampleCleanContext,
                             sampleTableName: String,
                             crowdsourcingStrategy:CrowdsourcingStrategy) extends
 							    Matcher(scc, sampleTableName) {

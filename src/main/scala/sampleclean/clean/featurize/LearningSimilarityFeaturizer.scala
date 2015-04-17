@@ -14,7 +14,7 @@ import scala.collection.Seq
 /* This class implements the similarity based featurizer used in Deduplication
  */
 @serializable
-class LearningSimilarityFeaturizer(colNames: List[String],
+private [sampleclean] class LearningSimilarityFeaturizer(colNames: List[String],
                   context: List[String],
                   val baseFeaturizer: SimilarityFeaturizer,
                   scc: SampleCleanContext,
