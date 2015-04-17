@@ -9,9 +9,23 @@ import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer
 
 import scala.collection.Seq
 
-
+/**
+ * A PassJoin is an implementation of a Similarity Join optimized
+ * for String comparisons. Currently, this algorithm
+ * is only supported by the EditBlocking Similarity Featurizer.
+ * In a distributed environment, this optimization involves
+ * broadcasting a series of maps to each node.
+ *
+ * '''Note:''' because the algorithm may collect large RDDs into maps by using
+ * driver memory, java heap problems could arise. In this case, it is
+ * recommended to increase allocated driver memory through Spark configuration
+ * spark.driver.memory
+ *
+ * @param sc Spark Context
+ * @param featurizer Similarity Featurizer optimized for [[PassJoin]]
+ */
 class PassJoin( @transient sc: SparkContext,
-               blocker: AnnotatedSimilarityFeaturizer) extends SimilarityJoin(sc,blocker,false) {
+               featurizer: AnnotatedSimilarityFeaturizer) extends SimilarityJoin(sc,featurizer,false) {
 
   @Override
   override def join(rddA: RDD[Row],
@@ -21,13 +35,13 @@ class PassJoin( @transient sc: SparkContext,
 
     println("Starting Broadcast Pass Join")
 
-    if (!blocker.canPassJoin) {
+    if (!featurizer.usesStringPrefixFiltering) {
       super.join(rddA, rddB, smallerA, containment)
     }
 
     else {
 
-      val intThreshold = blocker.threshold.toInt
+      val intThreshold = featurizer.threshold.toInt
 
       var largeTableSize = rddB.count()
       var smallTableSize = rddA.count()
@@ -51,7 +65,7 @@ class PassJoin( @transient sc: SparkContext,
       //Add a record ID into smallTable. Id is a unique id assigned to each row.
       val smallTableWithId: RDD[(Long, (Seq[String], String, Row))] = smallTable.zipWithUniqueId()
         .map(x => {
-        val block = blocker.tokenizer.tokenize(x._1, blocker.getCols(false))
+        val block = featurizer.tokenizer.tokenize(x._1, featurizer.getCols(false))
         (x._2, (block, block.mkString(" "), x._1))
       }).cache()
 
@@ -89,7 +103,7 @@ class PassJoin( @transient sc: SparkContext,
         if (isSelfJoin) smallTableWithId
         else {
           largeTable.map(row => {
-            val key = blocker.tokenizer.tokenize(row,blocker.getCols(false))
+            val key = featurizer.tokenizer.tokenize(row,featurizer.getCols(false))
             (0L, (key,key.mkString(" "), row))
           })
         }
@@ -122,7 +136,7 @@ class PassJoin( @transient sc: SparkContext,
                   if(id1 == id2) {
                   }
                   val similar = {
-                    blocker.similarity(key1, key2, intThreshold, Map[String, Double]())._1
+                    featurizer.optimizedSimilarity(key1, key2, intThreshold, Map[String, Double]())._1
                   }
                   (string2, row2, similar)
                 }
@@ -140,7 +154,7 @@ class PassJoin( @transient sc: SparkContext,
    * @param seg_str_len length of string to be segmented
    *@param threshold specified threshold
    */
-  def genEvenSeg(seg_str_len: Int, threshold: Int): Seq[(Int, Int, Int, Int)] = {
+  private def genEvenSeg(seg_str_len: Int, threshold: Int): Seq[(Int, Int, Int, Int)] = {
     val partNum = threshold + 1
     var segLength = seg_str_len / partNum
     var segStartPos = 0
@@ -167,7 +181,7 @@ class PassJoin( @transient sc: SparkContext,
    * @param threshold specified threshold
    * @param selfJoin if true, assumes a self-join is being performed
    */
-  def genOptimalSubs(strLength: Int, threshold: Int, selfJoin: Boolean = false): Seq[(Int, Int, Int, Int)] = {
+  private def genOptimalSubs(strLength: Int, threshold: Int, selfJoin: Boolean = false): Seq[(Int, Int, Int, Int)] = {
 
     val candidateLengths = {
       if (!selfJoin) strLength - threshold to strLength + threshold
@@ -185,7 +199,7 @@ class PassJoin( @transient sc: SparkContext,
    * @param sub_str_len substring length
    * @param threshold specified threshold
    */
-  def genSubstrings(seg_str_len: Int, sub_str_len: Int, threshold: Int): Seq[(Int, Int, Int, Int)] = {
+  private def genSubstrings(seg_str_len: Int, sub_str_len: Int, threshold: Int): Seq[(Int, Int, Int, Int)] = {
     val partNum = threshold + 1
     // first value is segment starting position, second value is segment length
     val segInfo = genEvenSeg(seg_str_len, threshold)

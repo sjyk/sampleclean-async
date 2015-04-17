@@ -2,36 +2,40 @@ package sampleclean.api
 
 import org.apache.spark.sql.SchemaRDD
 import org.apache.spark.sql.hive.HiveContext
-import org.apache.spark.SparkContext
-import org.apache.spark.sql.Row
 import scala.util.Random
 
 import sampleclean.util.TypeUtils._
 
 
-
-/* This class provides the approximate query processing 
-* for SampleClean. Currently, it supports SUM, COUNT, AVG
-* and returns confidence intervals in the form of CLT variance
-* estimates.
-*/
+/**
+ * This class provides the approximate query processing
+ * for SampleClean. Currently, it supports SUM, COUNT, AVG
+ * and returns confidence intervals in the form of CLT variance
+ * estimates.
+ */
 @serializable
 class SampleCleanAQP() {
 
-	  /**Internal method to calculate the normalization for the AVG query
-	  */
+	  /**
+     * Internal method to calculate the normalization for the AVG query
+	   */
 	  private def duplicationRate(rdd:SchemaRDD):Double=
 	  {
 	  	  return rdd.count()/rdd.map( x => 1.0/x(1).asInstanceOf[Int]).reduce(_ + _)
 	  }
 
-	  /*This query executes rawSC with a group given an attribute to aggregate, 
-	  * expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
-	  * It returns a tuple of the estimate, and the variance of the estimate (EST, VAR_EST)
-
-	  *Args (SampleCleanContext, Name of Sample to Query, 
-	  *Attr to Query, Agg Function to Use, Predicate, Sampling Ratio)
-	  */
+  // TODO: group? preserveTableName?
+  /**
+   * This query executes rawSC with a group given an attribute to aggregate,
+   * expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
+   * It returns a tuple of the estimate, and the variance of the estimate (EST, VAR_EST)
+   * @param attr attribute to query
+   * @param expr aggregate function to use
+   * @param pred predicate
+   * @param group
+   * @param sampleRatio sampling ratio
+   * @param preserveTableName
+   */
 	 def rawSCQueryGroup(scc:SampleCleanContext, sampleName: String, 
 	  				  attr: String, expr: String, 
 	  				  pred:String,
@@ -290,13 +294,13 @@ class SampleCleanAQP() {
 	  		return (System.nanoTime, List(("1",(0.0,0.0))))
 	  }
 
-	def deltaCountToVariance(c:Double,k:Double,sampleRatio:Double):Double={
+	private [sampleclean] def deltaCountToVariance(c:Double,k:Double,sampleRatio:Double):Double={
 		val n = k/sampleRatio
 		return n*Math.sqrt((1-c/n)*c/n)/Math.sqrt(k)
 	}
 
 
-	def compareQueryResults(qr1:(Long, List[(String, (Double, Double))]),
+	private [sampleclean] def compareQueryResults(qr1:(Long, List[(String, (Double, Double))]),
 							qr2:(Long, List[(String, (Double, Double))])): (Long, List[(String, Double)]) = {
 
 		val timeStamp = Math.max(qr1._1,qr2._1)

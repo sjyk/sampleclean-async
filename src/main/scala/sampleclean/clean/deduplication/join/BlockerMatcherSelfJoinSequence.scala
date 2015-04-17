@@ -1,32 +1,45 @@
 package sampleclean.clean.deduplication.join
 
 import sampleclean.api.SampleCleanContext
-import org.apache.spark.SparkContext._
-import org.apache.spark.sql.SQLContext
-import sampleclean.clean.algorithm.AlgorithmParameters
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SchemaRDD, Row}
+import org.apache.spark.sql.Row
 import sampleclean.clean.deduplication.matcher.Matcher
 import sampleclean.clean.deduplication.blocker.Blocker
 
 /**
- * This class acts as a wrapper for blocker+matcher routines.
- * This class has two constructors, blocker+List[matchers]
- * or simjoin + List[Matchers]. We treat a similarity join
+ * This class acts as a wrapper for blocker + matcher routines.
+ * This class has two constructors, requiring a blocker + List[matchers]
+ * or a similarity join + List[Matchers]. We treat a similarity join
  * as a combination blocking and matching sequence.
  *
  * We call this the "BlockerMatcherSelfJoinSequence" because
  * in this class we apply the operation to the same sample.
- * 
- * @type {[type]}
+ *
+ * @param scc SampleClean Context
+ * @param sampleTableName
+ * @param blocker
+ * @param matchers
  */
 class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
               		   sampleTableName:String,
               		   blocker: Blocker,
 					   var matchers: List[Matcher]) extends Serializable {
 	
-	var join:SimilarityJoin = null
+	private [sampleclean] var join:SimilarityJoin = null
 
+  /**
+   * Create a BlockerMatcherSelfJoinSequence based on a similarity join
+   * and a list of matchers.
+   * @param scc SampleClean Context
+   * @param sampleTableName
+   * @param simjoin Similarity Join
+   * @param matchers Because the Similarity Join should contain a matching
+   *                 step, this parameter commonly refers to a matcher that
+   *                 matches all pairs such as:
+   *                 [[sampleclean.clean.deduplication.matcher.AllMatcher]]
+   *                 or to an asynchronous matcher such as
+   *                 [[sampleclean.clean.deduplication.matcher.ActiveLearningMatcher]]
+   */
 	def this(scc: SampleCleanContext,
               		   sampleTableName:String,
               		   simjoin: SimilarityJoin,
@@ -35,6 +48,9 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 		join = simjoin
 	}
 
+  /**
+   * Executes the algorithm.
+   */
 	def blockAndMatch(data:RDD[Row]):RDD[(Row,Row)] = {
 
 		var blocks:RDD[Set[Row]] = null
@@ -59,12 +75,16 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 		return matchedData
 	}
 
+  /**
+   * Adds a new matcher to the matcher list
+   * @param matcher
+   */
 	def addMatcher(matcher: Matcher) = {
 		matchers = matcher :: matchers
 		matchers = matchers.reverse  
 	}
 
-	def updateContext(newContext:List[String]) = {
+	private [sampleclean] def updateContext(newContext:List[String]) = {
 
 		if(blocker != null)
 			blocker.updateContext(newContext)
@@ -79,14 +99,14 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 	}
 
 
-	def setOnReceiveNewMatches(func: RDD[(Row,Row)] => Unit) ={
+	private [sampleclean] def setOnReceiveNewMatches(func: RDD[(Row,Row)] => Unit) ={
 		if(matchers.last.asynchronous)
 			matchers.last.onReceiveNewMatches = func
 		else
 			println("[SampleClean] Asychrony has no effect in this pipeline")
 	}
 
-	def printPipeline()={
+	private [sampleclean] def printPipeline()={
 			print("RDD[Row] --> ")
 			if (blocker != null)
 				print(blocker.getClass.getSimpleName + " --> ")

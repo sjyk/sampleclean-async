@@ -3,10 +3,9 @@ package sampleclean.clean.deduplication
 import sampleclean.api.SampleCleanContext
 import sampleclean.clean.algorithm.SampleCleanAlgorithm
 import org.apache.spark.SparkContext._
-import org.apache.spark.sql.SQLContext
 import sampleclean.clean.algorithm.AlgorithmParameters
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SchemaRDD, Row}
+import org.apache.spark.sql.Row
 import org.apache.spark.graphx._
 import sampleclean.clean.deduplication.join.BlockerMatcherSelfJoinSequence
 
@@ -16,9 +15,19 @@ import sampleclean.clean.featurize.Tokenizer._
 import sampleclean.clean.deduplication.matcher._
 import sampleclean.clean.featurize._
 
-/* This is the abstract class for attribute deduplication
- * it implements many basic structure and the error handling 
+/**
+ * This is the abstract class for attribute deduplication
+ * it implements many basic structure and the error handling
  * for the class.
+ *
+ * Companion object provides a few common scenarios.
+ * @param params algorithm parameters including "attr" and "mergeStrategy".
+ *               "attr" refers to the attribute name that will be considered for deduplication.
+ *               "mergeStrategy" refers to a strategy used to resolve a set of duplicated attributes.
+ *               Allowed strategies are "mostConcise" and "mostFrequent"
+ * @param scc SampleClean Context
+ * @param sampleTableName
+ * @param components blocker + matcher routine.
  */
 class EntityResolution(params:AlgorithmParameters, 
 							scc: SampleCleanContext,
@@ -42,7 +51,7 @@ class EntityResolution(params:AlgorithmParameters,
     /*
       Sets the dynamic variables at exec time
      */
-    def setTableParameters(sampleTableName: String) = {
+    private [sampleclean] def setTableParameters(sampleTableName: String) = {
         attrCol = scc.getColAsIndex(sampleTableName,attr)
         hashCol = scc.getColAsIndex(sampleTableName,"hash")
         //curSampleTableName = sampleTableName
@@ -51,7 +60,7 @@ class EntityResolution(params:AlgorithmParameters,
     /*
       This function validates the parameters of the class
      */
-    def validateParameters() = {
+    private [sampleclean] def validateParameters() = {
         if(!params.exists("attr"))
           throw new RuntimeException("Attribute deduplication is specified on a single attribute, you need to provide this as a parameter: attr")
 
@@ -87,7 +96,7 @@ class EntityResolution(params:AlgorithmParameters,
     /*
       Apply function implementation for the AbstractDedup Class
      */
-	  def apply(candidatePairs: RDD[(Row, Row)]):Unit = {
+	  private [sampleclean] def apply(candidatePairs: RDD[(Row, Row)]):Unit = {
        val sampleTableRDD = scc.getCleanSample(sampleTableName).repartition(scc.getSparkContext().defaultParallelism)
     	 apply(candidatePairs, sampleTableRDD)
 	  }
@@ -95,61 +104,61 @@ class EntityResolution(params:AlgorithmParameters,
      /* TODO fix!
       Apply function implementation for the AbstractDedup Class
      */	
-  	def apply(candidatePairs: RDD[(Row, Row)], 
+  	private [sampleclean] def apply(candidatePairs: RDD[(Row, Row)],
                 sampleTableRDD:RDD[Row]):Unit = {
 
-    var resultRDD = sampleTableRDD.map(x =>
-      (x(hashCol).asInstanceOf[String], x(attrCol).asInstanceOf[String]))
+      var resultRDD = sampleTableRDD.map(x =>
+        (x(hashCol).asInstanceOf[String], x(attrCol).asInstanceOf[String]))
 
-    // Add new edges to the graph
-    val edges = candidatePairs.map( x => (x._1(0).asInstanceOf[String].hashCode.toLong,
-      x._2(0).asInstanceOf[String].hashCode.toLong, 1.0) )
+      // Add new edges to the graph
+      val edges = candidatePairs.map( x => (x._1(0).asInstanceOf[String].hashCode.toLong,
+        x._2(0).asInstanceOf[String].hashCode.toLong, 1.0) )
 
-    graphXGraph = GraphXInterface.addEdges(graphXGraph, edges)
+      graphXGraph = GraphXInterface.addEdges(graphXGraph, edges)
 
-    // Run the connected components algorithm
-    def merge_vertices(v1: (String, Set[String]), v2: (String, Set[String])): (String, Set[String]) = {
-      
-      var b1 = v1
-      var b2 = v2
+      // Run the connected components algorithm
+      def merge_vertices(v1: (String, Set[String]), v2: (String, Set[String])): (String, Set[String]) = {
 
-      if(v1._1.hashCode.toLong < v2._1.hashCode.toLong) //handles tiebreaks
-      {
-          b1 = v2
-          b2 = v1
-      }
+        var b1 = v1
+        var b2 = v2
 
-      val winner:String = mergeStrategy.toLowerCase.trim match {
-        case "mostconcise" => if (b1._1.length < b2._1.length) b1._1 else b2._1
-        case "mostfrequent" => if (b1._2.size > b2._2.size) b1._1 else b2._1
-        case _ => throw new RuntimeException("Invalid merge strategy: " + mergeStrategy)
-      }
-      (winner, v1._2 ++ v2._2)
-    }
-
-    println("In apply")
-    
-    val connectedPairs = GraphXInterface.connectedComponents(graphXGraph, merge_vertices)
-    
-    println("[Sampleclean] Merging values from "
-      + connectedPairs.map(v => (v._2, 1)).reduceByKey(_ + _).filter(x => x._2 > 1).count
-      + " components...")
-
-    // Join with the old data to merge in new values.
-    val flatPairs = connectedPairs.flatMap(vertex => vertex._2._2.map((_, vertex._2._1)))
-    val newAttrs = flatPairs.asInstanceOf[RDD[(String, String)]].reduceByKey((x, y) => x)
-    val joined = resultRDD.leftOuterJoin(newAttrs).mapValues(tuple => {
-      tuple._2 match {
-        case Some(newAttr) => {
-          if (tuple._1 != newAttr) println(tuple._1 + " => " + newAttr)
-          newAttr
+        if(v1._1.hashCode.toLong < v2._1.hashCode.toLong) //handles tiebreaks
+        {
+            b1 = v2
+            b2 = v1
         }
-        case None => tuple._1
+
+        val winner:String = mergeStrategy.toLowerCase.trim match {
+          case "mostconcise" => if (b1._1.length < b2._1.length) b1._1 else b2._1
+          case "mostfrequent" => if (b1._2.size > b2._2.size) b1._1 else b2._1
+          case _ => throw new RuntimeException("Invalid merge strategy: " + mergeStrategy)
+        }
+        (winner, v1._2 ++ v2._2)
       }
-    })
-    
-    scc.updateTableAttrValue(sampleTableName, attr, joined)
-    this.onUpdateNotify()
+
+      println("In apply")
+
+      val connectedPairs = GraphXInterface.connectedComponents(graphXGraph, merge_vertices)
+
+      println("[Sampleclean] Merging values from "
+        + connectedPairs.map(v => (v._2, 1)).reduceByKey(_ + _).filter(x => x._2 > 1).count
+        + " components...")
+
+      // Join with the old data to merge in new values.
+      val flatPairs = connectedPairs.flatMap(vertex => vertex._2._2.map((_, vertex._2._1)))
+      val newAttrs = flatPairs.asInstanceOf[RDD[(String, String)]].reduceByKey((x, y) => x)
+      val joined = resultRDD.leftOuterJoin(newAttrs).mapValues(tuple => {
+        tuple._2 match {
+          case Some(newAttr) => {
+            if (tuple._1 != newAttr) println(tuple._1 + " => " + newAttr)
+            newAttr
+          }
+          case None => tuple._1
+        }
+      })
+
+      scc.updateTableAttrValue(sampleTableName, attr, joined)
+      this.onUpdateNotify()
 
   	}
 
@@ -157,6 +166,28 @@ class EntityResolution(params:AlgorithmParameters,
 
 object EntityResolution {
 
+  /**
+   * This method builds an Entity Resolution algorithm that will
+   * resolve automatically. It uses several default values and is designed
+   * for simple Entity Resolution tasks. For more flexibility in
+   * parameters (such as setting a Similarity Featurizer and Tokenizer),
+   * refer to the [[EntityResolution]] class.
+   *
+   * This algorithm uses the Jaccard Similarity for pairwise comparison.
+   *
+   * @param scc SampleClean Context
+   * @param sampleName
+   * @param attribute name of attribute to resolve
+   * @param threshold threshold used in the algorithm. Must be
+   *                  between 0.0 and 1.0
+   * @param weighting If set to true, the algorithm will automatically calculate
+   *                 token weights. Default token weights are defined based on
+   *                 token idf values.
+   *
+   *                 Adding weights into the join might lead to more reliable
+   *                 pair comparisons and speed up the algorithm if there is
+   *                 an abundance of common words in the dataset.
+   */
     def textAttributeAutomatic(scc:SampleCleanContext,
                                sampleName:String, 
                                attribute: String, 
@@ -178,6 +209,28 @@ object EntityResolution {
         return new EntityResolution(algoPara, scc, sampleName, blockerMatcher)
     }
 
+  /**
+   * This method builds an Entity Resolution algorithm that will
+   * resolve asynchronously. It uses several default values and is designed
+   * for simple Entity Resolution tasks. For more flexibility in
+   * parameters (such as setting a Similarity Featurize, Tokenizer and
+   * Active Learning Strategy), refer to the [[EntityResolution]] class.
+   *
+   * This algorithm uses the Jaccard Similarity for pairwise comparison.
+   *
+   * @param scc SampleClean Context
+   * @param sampleName
+   * @param attribute name of attribute to resolve
+   * @param threshold threshold used in the algorithm. Must be
+   *                  between 0.0 and 1.0
+   * @param weighting If set to true, the algorithm will automatically calculate
+   *                 token weights. Default token weights are defined based on
+   *                 token idf values.
+   *
+   *                 Adding weights into the join might lead to more reliable
+   *                 pair comparisons and speed up the algorithm if there is
+   *                 an abundance of common words in the dataset.
+   */
     def textAttributeActiveLearning(scc:SampleCleanContext,
                                sampleName:String, 
                                attribute: String, 
@@ -194,7 +247,7 @@ object EntityResolution {
                                                       List("Levenshtein", "JaroWinkler"))
 
         val alStrategy = new ActiveLearningStrategy(cols, baseFeaturizer)
-        val matcher = new ActiveLeaningMatcher(scc, sampleName, alStrategy)
+        val matcher = new ActiveLearningMatcher(scc, sampleName, alStrategy)
         val similarity = new WeightedJaccardSimilarity(List(attribute), 
                                                    scc.getTableContext(sampleName),
                                                    WordTokenizer(), 
@@ -205,7 +258,7 @@ object EntityResolution {
         return new EntityResolution(algoPara, scc, sampleName, blockerMatcher)
     }
 
-    def createCrowdMatcher(scc:SampleCleanContext,
+    private [sampleclean] def createCrowdMatcher(scc:SampleCleanContext,
                            attr: String,
                            sampleName: String):Matcher = {
 
@@ -214,7 +267,7 @@ object EntityResolution {
                                                       List("Levenshtein", "JaroWinkler"))
 
         val alStrategy = new ActiveLearningStrategy(List(attr), baseFeaturizer)
-        return new ActiveLeaningMatcher(scc, sampleName, alStrategy)
+        return new ActiveLearningMatcher(scc, sampleName, alStrategy)
     }
 
 }

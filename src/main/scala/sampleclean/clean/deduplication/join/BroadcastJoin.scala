@@ -5,14 +5,45 @@ import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.sql._
 
-//fix smallerA bug
+//TODO fix smallerA bug
 
-
+/**
+ * A Broadcast join is an implementation of a Similarity Join that uses
+ * an optimization called Prefix Filtering. In a distributed environment,
+ * this optimization involves broadcasting a series of maps to each node.
+ *
+ * '''Note:''' because the algorithm may collect large RDDs into maps by using
+ * driver memory, java heap problems could arise. In this case, it is
+ * recommended to increase allocated driver memory through Spark configuration
+ * spark.driver.memory
+ *
+ * @param sc Spark Context
+ * @param featurizer Similarity Featurizer optimized for Prefix Filtering
+ * @param weighted If set to true, the algorithm will automatically calculate
+ *                 token weights. Default token weights are defined based on
+ *                 token idf values.
+ *
+ *                 Adding weights into the join might lead to more reliable
+ *                 pair comparisons but could add overhead to the algorithm.
+ *                 However, smart optimizations such as Prefix Filtering used in
+ *                 some implementations of [[AnnotatedSimilarityFeaturizer]]
+ *                 might actually reduce overhead if there is
+ *                 an abundance of common tokens in the dataset.
+ */
 class BroadcastJoin( @transient sc: SparkContext,
-					 blocker: AnnotatedSimilarityFeaturizer, 
+					 featurizer: AnnotatedSimilarityFeaturizer,
 					 weighted:Boolean = false) extends
-					 SimilarityJoin(sc,blocker,weighted) {
+					 SimilarityJoin(sc,featurizer,weighted) {
 
+  /**
+   * Perform a Broadcast Join
+   * @param rddA First RDD of rows
+   * @param rddB Second RDD of rows
+   * @param smallerA True if rddA is smaller or equal to rddB
+   * @param containment True if one RDD is contained within
+   *                    the other (e.g. one is a sample)
+   * @return an RDD with pairs of similar rows.
+   */
   @Override
 	override def join(rddA: RDD[Row],
 			 rddB:RDD[Row], 
@@ -21,7 +52,7 @@ class BroadcastJoin( @transient sc: SparkContext,
 
     println("[SampleClean] Executing BroadcastJoin")
 
-    if (!blocker.canPrefixFilter) {
+    if (!featurizer.usesTokenPrefixFiltering) {
       super.join(rddA, rddB, smallerA, containment)
     }
 
@@ -36,10 +67,10 @@ class BroadcastJoin( @transient sc: SparkContext,
 
       if (smallerA && containment) {
         // token counts calculated using full data
-        tokenCounts = computeTokenCount(rddB.map(blocker.tokenizer.tokenize(_, blocker.getCols())))
+        tokenCounts = computeTokenCount(rddB.map(featurizer.tokenizer.tokenize(_, featurizer.getCols())))
       }
       else if (containment) {
-        tokenCounts = computeTokenCount(rddA.map(blocker.tokenizer.tokenize(_, blocker.getCols(false))))
+        tokenCounts = computeTokenCount(rddA.map(featurizer.tokenizer.tokenize(_, featurizer.getCols(false))))
         val n = smallTableSize
         smallTableSize = largeTableSize
         largeTableSize = n
@@ -47,8 +78,8 @@ class BroadcastJoin( @transient sc: SparkContext,
         largeTable = rddA
       }
       else {
-        tokenCounts = computeTokenCount(rddA.map(blocker.tokenizer.tokenize(_, blocker.getCols())).
-                                        union(rddB.map(blocker.tokenizer.tokenize(_, blocker.getCols(false)))))
+        tokenCounts = computeTokenCount(rddA.map(featurizer.tokenizer.tokenize(_, featurizer.getCols())).
+                                        union(rddB.map(featurizer.tokenizer.tokenize(_, featurizer.getCols(false)))))
 
         largeTableSize = largeTableSize + smallTableSize
       }
@@ -60,7 +91,7 @@ class BroadcastJoin( @transient sc: SparkContext,
       println("[SampleClean] Calculated Token Weights: " + tokenWeights)
       //Add a record ID into sampleTable. Id is a unique id assigned to each row.
       val smallTableWithId: RDD[(Long, (Seq[String], Row))] = smallTable.zipWithUniqueId
-        .map(x => (x._2, (blocker.tokenizer.tokenize(x._1, blocker.getCols(false)), x._1))).cache()
+        .map(x => (x._2, (featurizer.tokenizer.tokenize(x._1, featurizer.getCols(false)), x._1))).cache()
 
 
       // Set a global order to all tokens based on their frequencies
@@ -74,7 +105,7 @@ class BroadcastJoin( @transient sc: SparkContext,
       // Build an inverted index for the prefixes of sample data
       val invertedIndex: RDD[(String, Seq[Long])] = smallTableWithId.flatMap {
         case (id, (tokens, value)) =>
-          if (tokens.size < blocker.minSize) Seq()
+          if (tokens.size < featurizer.minSize) Seq()
           else {
             val sorted = sortTokenSet(tokens, tokenRankMap)
             for (x <- sorted)
@@ -93,7 +124,7 @@ class BroadcastJoin( @transient sc: SparkContext,
       val scanTable = {
         if (selfJoin) smallTableWithId
         else {
-          largeTable.map(row => (0L, (blocker.tokenizer.tokenize(row,blocker.getCols(false)), row)))
+          largeTable.map(row => (0L, (featurizer.tokenizer.tokenize(row,featurizer.getCols(false)), row)))
         }
       }
 
@@ -101,13 +132,13 @@ class BroadcastJoin( @transient sc: SparkContext,
       //Generate the candidates whose prefixes have overlap, and then verify their overlap similarity
       scanTable.flatMap({
         case (id1, (key1, row1)) =>
-          if (key1.length >= blocker.minSize) {
+          if (key1.length >= featurizer.minSize) {
             val weightsValue = broadcastWeights.value
             val broadcastDataValue = broadcastData.value
             val broadcastIndexValue = broadcastIndex.value
 
             val sorted: Seq[String] = sortTokenSet(key1, broadcastRank.value)
-            val removedSize = blocker.getRemovedSize(sorted, blocker.threshold, weightsValue)
+            val removedSize = featurizer.getRemovedSize(sorted, featurizer.threshold, weightsValue)
             val filtered = sorted.dropRight(removedSize)
 
             filtered.foldLeft(List[Long]()) {
@@ -120,7 +151,7 @@ class BroadcastJoin( @transient sc: SparkContext,
                 else {
                   val (key2, row2) = broadcastDataValue(id2)
 
-                  val similar: Boolean = blocker.similarity(key1, key2, blocker.threshold, weightsValue)._1
+                  val similar: Boolean = featurizer.optimizedSimilarity(key1, key2, featurizer.threshold, weightsValue)._1
 
                   (key2, row2, similar)
                 }

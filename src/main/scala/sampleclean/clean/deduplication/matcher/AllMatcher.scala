@@ -1,20 +1,14 @@
 package sampleclean.clean.deduplication.matcher
 
 import sampleclean.api.SampleCleanContext
-import org.apache.spark.SparkContext._
-import org.apache.spark.sql.SQLContext
-
-import sampleclean.clean.algorithm.AlgorithmParameters
-
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SchemaRDD, Row}
-import sampleclean.activeml._
-import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.sql.Row
 
-import org.apache.spark.graphx._
-import sampleclean.crowd._
-import sampleclean.crowd.context.{DeduplicationPointLabelingContext, DeduplicationGroupLabelingContext}
-
+/**
+ * The AllMatcher class is used to match all similar candidates
+ * in the input RDD.
+ *
+ */
 class AllMatcher(scc: SampleCleanContext, 
 				 sampleTableName: String) extends
 				 Matcher(scc, sampleTableName) {

@@ -1,17 +1,19 @@
 package sampleclean.clean.featurize
 
-import org.apache.spark.sql.{SchemaRDD, Row}
+import org.apache.spark.sql.Row
 import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
-
 import uk.ac.shef.wit.simmetrics.similaritymetrics._
 import uk.ac.shef.wit.simmetrics.tokenisers.TokeniserWhitespace
 
 /**
- * One common type of featurizers are similarity featurizers which
- * are widely used in deduplication and entity resolution workflows.
+ * One common type of featurizers are Similarity Featurizers;
+ * these are widely used in deduplication and entity resolution workflows.
+ * In this case, a Similarity Featurizer will take two rows and calculate a series
+ * of values that represent different aspects of "similiarity" between
+ * them.
  * 
- * This set of featurizers takes in a list of metrics. Acceptable ones
- * include:
+ * Each aspect will be one of the following similarity metrics:
+ *
 "BlockDistance", "ChapmanLengthDeviation", "ChapmanMatchingSoundex"
 "ChapmanMeanLength", "ChapmanOrderedNameCompoundSimilarity", "CosineSimilarity"
 "DiceSimilarity", "EuclideanDistance", "JaccardSimilarity", "Jaro"
@@ -26,6 +28,15 @@ class SimilarityFeaturizer(colNames: List[String],
                            metrics:List[String]) 
 	extends Featurizer(colNames, context){
 
+  /**
+   * This function takes a set of rows and returns a tuple.
+   *
+   * The first element of the tuple is a set of primary keys and the second
+   * element is an array of doubles which are the features (known as a feature vector).
+   *
+   * @param rows A set of Rows. If more than 2, only the first and last will be compared.
+   * @param params not needed for this implementation.
+   */
 		def featurize[K,V](rows: Set[Row], params: collection.immutable.Map[K,V]=null): (Set[Row], Array[Double]) = {
 
 			val rowA = rows.head
@@ -43,7 +54,14 @@ class SimilarityFeaturizer(colNames: List[String],
 				   )
 		}
 
-    // All use white space tokenizer by default and assume equal token weights
+  /**
+   * This function calculates a list of similarities between two strings.
+   * All use white space tokenizer by default and assume equal token weights
+   *
+   * @param s1 First string
+   * @param s2 Second string
+   * @param simMeasures list of allowed similarity measures (see [[SimilarityFeaturizer]] )
+   */
 		def getSimilarities(s1: String, s2: String, simMeasures: List[String] = metrics): List[Double] = {
 
     		val measures: List[Object] = simMeasures.map(measure =>
@@ -69,11 +87,11 @@ class SimilarityFeaturizer(colNames: List[String],
         		case "TagLinkToken" => new TagLinkToken
 
             // SampleClean implementations
-            case "JaccardSimilarity" => new WeightedJaccardSimilarity(List(), List(), null,0)
-            case "DiceSimilarity" => new WeightedDiceSimilarity(List(), List(), null,0)
-            case "CosineSimilarity" => new WeightedCosineSimilarity(List(), List(), null,0)
-            case "OverlapSimilarity" => new WeightedOverlapSimilarity(List(), List(), null,0)
-            case "EditDistance" => new EditBlocking(List(), List(), null,0)
+            case "JaccardSimilarity" => new WeightedJaccardSimilarity(List(), List(), null)
+            case "DiceSimilarity" => new WeightedDiceSimilarity(List(), List(), null)
+            case "CosineSimilarity" => new WeightedCosineSimilarity(List(), List(), null)
+            case "OverlapSimilarity" => new WeightedOverlapSimilarity(List(), List(), null)
+            case "EditDistance" => new EditBlocking(List(), List(), null)
 
         		case _ => throw new NoSuchElementException(measure + " measure not found")
       		}
@@ -99,7 +117,7 @@ class SimilarityFeaturizer(colNames: List[String],
               val tokens1 = tokenizer.tokenizeToArrayList(s1).toArray.toSeq.asInstanceOf[Seq[String]]
               val tokens2 = tokenizer.tokenizeToArrayList(s2).toArray.toSeq.asInstanceOf[Seq[String]]
 
-              m.getSimilarity(tokens1,tokens2,Map[String,Double]())
+              m.similarity(tokens1,tokens2,Map[String,Double]())
 
             }
             case _ => measure.asInstanceOf[AbstractStringMetric].getSimilarity(s1, s2).toDouble

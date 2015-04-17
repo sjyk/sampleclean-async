@@ -1,27 +1,28 @@
 package sampleclean.api
 
-import java.net.InetSocketAddress
-import java.util.concurrent.ConcurrentHashMap
-
 import com.twitter.finagle.Service
-import com.twitter.finagle.builder.{ClientBuilder, Server, ServerBuilder}
+import com.twitter.finagle.builder.ClientBuilder
 import com.twitter.finagle.http._
-import com.twitter.finagle.http.service.RoutingService
-import com.twitter.util.{Future => TFuture}
 import org.jboss.netty.handler.codec.http.{HttpRequest, HttpResponse, HttpResponseStatus}
 import org.json4s.JsonDSL._
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import org.json4s.native.Serialization
-import org.json4s.native.Serialization.{write => swrite}
 
-import scala.collection.mutable
-import scala.concurrent.{Future, Promise}
-import scala.util.{Failure, Success}
-
+//TODO other parameters??
+//TODO remove dashboard code??
 /**
  * This class defines a sampleclean query object
- * @type {[type]}
+ *
+ * @param scc SampleClean Context
+ * @param saqp
+ * @param sampleName
+ * @param attr attribute to query
+ * @param expr aggregate function to use
+ * @param pred predicate
+ * @param group
+ * @param rawSC
+ * @param querystring
  */
 @serializable
 class SampleCleanQuery(scc:SampleCleanContext,
@@ -36,9 +37,10 @@ class SampleCleanQuery(scc:SampleCleanContext,
 
   var vizServer = "localhost:8000"
 
-	/** The execute method provies a way to execute the query
-	 *  the result is the current time and tuple result of estimate + confidence interval
-	 *  this is in a list to support group by aggregates.
+	/**
+   * The execute method provides a way to execute the query.
+	 * The result is the current time and tuple result of estimate + confidence interval
+	 * this is in a list to support group by aggregates.
 	 */
 	def execute(dashboard:Boolean = false):(Long, List[(String, (Double, Double))])= {
 
@@ -127,7 +129,7 @@ class SampleCleanQuery(scc:SampleCleanContext,
 
 	}
 
-	def query2Map(query:(Long, List[(String, (Double, Double))])):Map[String,Double] ={
+	private [sampleclean] def query2Map(query:(Long, List[(String, (Double, Double))])):Map[String,Double] ={
       var listOfResults = query._2
       var result:Map[String,Double] = Map()
       listOfResults = listOfResults.sortBy(-_._2._1)

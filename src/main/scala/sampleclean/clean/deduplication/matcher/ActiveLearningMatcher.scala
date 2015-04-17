@@ -1,22 +1,17 @@
 package sampleclean.clean.deduplication.matcher
 
 import sampleclean.api.SampleCleanContext
-import org.apache.spark.SparkContext._
-import org.apache.spark.sql.SQLContext
 import sampleclean.clean.deduplication.ActiveLearningStrategy
-
-import sampleclean.clean.algorithm.AlgorithmParameters
-
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SchemaRDD, Row}
-import sampleclean.activeml._
+import org.apache.spark.sql.Row
 import org.apache.spark.mllib.regression.LabeledPoint
 
-import sampleclean.crowd._
-import sampleclean.crowd.context.{DeduplicationPointLabelingContext, DeduplicationGroupLabelingContext}
-
-
-class ActiveLeaningMatcher( scc: SampleCleanContext, 
+/**
+ * An Active Learning Matcher will match similar candidates
+ * based on an Active Learning Strategy.
+ * @param alstrategy
+ */
+class ActiveLearningMatcher( scc: SampleCleanContext,
                             sampleTableName:String,
                             alstrategy:ActiveLearningStrategy) extends
 							              Matcher(scc, sampleTableName) {
