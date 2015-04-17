@@ -34,7 +34,7 @@ import org.apache.spark.sql.Row
 * application. We execute commands read from the command 
 * line.
 */
-object Deduptest {
+private [sampleclean] object Deduptest {
 
   def addConstraintsForGroup(e:Evaluator,group: Iterable[Row]) = {
       val groupArray = group.toArray

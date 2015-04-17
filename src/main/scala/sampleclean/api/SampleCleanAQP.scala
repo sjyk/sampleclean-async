@@ -12,6 +12,18 @@ import sampleclean.util.TypeUtils._
  * for SampleClean. Currently, it supports SUM, COUNT, AVG
  * and returns confidence intervals in the form of CLT variance
  * estimates.
+ *
+ * SampleClean supports two types of queries:
+ *
+ * RawSC: Estimates the query result based on the cleaned sample only
+ *
+ * NormalizedSC: Estimates the query result based
+ * on the full dataset, the dirty sample and the cleaned sample.
+ *
+ * NormalizedSC is recommended if the data is mostly clean as it
+ * will take into account the full dataset. If the data contains a large
+ * or unknown amount of dirtiness, RawSC is recommended as it
+ * will focus on the cleaned sample.
  */
 @serializable
 class SampleCleanAQP() {
@@ -24,17 +36,19 @@ class SampleCleanAQP() {
 	  	  return rdd.count()/rdd.map( x => 1.0/x(1).asInstanceOf[Int]).reduce(_ + _)
 	  }
 
-  // TODO: group? preserveTableName?
+  // TODO: preserveTableName?
   /**
    * This query executes rawSC with a group given an attribute to aggregate,
    * expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
    * It returns a tuple of the estimate, and the variance of the estimate (EST, VAR_EST)
    * @param attr attribute to query
-   * @param expr aggregate function to use
+   * @param expr aggregate function to use {SUM, COUNT, AVG}
    * @param pred predicate
-   * @param group
+   * @param group group by this attribute
    * @param sampleRatio sampling ratio
    * @param preserveTableName
+   * @return a tuple containing the query time in nanoseconds and
+   *         the query result as (group (estimate, variance))
    */
 	 def rawSCQueryGroup(scc:SampleCleanContext, sampleName: String, 
 	  				  attr: String, expr: String, 
@@ -135,7 +149,7 @@ class SampleCleanAQP() {
 	  		//return (System.nanoTime, List(("test",(0.0,0.0))))
 	  }
 
-	 def materializeJoinResult(scc:SampleCleanContext, 
+	 private [sampleclean] def materializeJoinResult(scc:SampleCleanContext,
 	 						    sampleName1: String,
 	 						    sampleName2: String, 
 	 						    key1:String, 
@@ -168,9 +182,20 @@ class SampleCleanAQP() {
 	 	return materializeJoinResult(scc,params._1,params._2,params._3,params._4,tableName)
 	 }
 
-	  /*Args (SampleCleanContext, Name of Sample to Query, 
-	  *Attr to Query, Agg Function to Use, Predicate, Sampling Ratio)
-	  */
+  /**
+   * This query executes rawSC with a group given an attribute to aggregate,
+   * expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
+   * It returns a tuple of the estimate, and the variance of the estimate (EST, VAR_EST)
+   * @param scc SampleClean Context
+   * @param sampleName
+   * @param attr attribute to query
+   * @param expr aggregate function to use {SUM, COUNT, AVG}
+   * @param pred predicate
+   * @param group group by this attribute
+   * @param sampleRatio sampling ratio
+   * @return a tuple containing the query time in nanoseconds and
+   *         the query result as (group (estimate, variance))
+   */
 	 def normalizedSCQueryGroup(scc:SampleCleanContext, sampleName: String, 
 	  				  attr: String, expr: String, 
 	  				  pred:String,
