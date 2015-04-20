@@ -49,3 +49,7 @@ class RecordDeduplication(params:AlgorithmParameters,
 		}
 
 }
+
+object RecordDeduplication{
+  
+}

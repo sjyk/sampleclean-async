@@ -20,7 +20,7 @@ class AllMatcher(scc: SampleCleanContext,
   	}
 
     def matchPairs(candidatePairs: => RDD[Set[Row]]): RDD[(Row,Row)] = {
-      return matchPairs(candidatePairs.flatMap(selfCartesianProduct))
+      return candidatePairs.flatMap(selfCartesianProduct)
   	}
 
 

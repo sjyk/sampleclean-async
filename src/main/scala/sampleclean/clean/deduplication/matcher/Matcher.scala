@@ -29,10 +29,12 @@ abstract class Matcher(scc: SampleCleanContext,
   def selfCartesianProduct(rowSet: Set[Row]):List[(Row,Row)] = {
 
     var crossProduct:List[(Row,Row)] = List()
-    for (r <- rowSet)
-      for (s <- rowSet)
-        if (r != s)
-          crossProduct = (r,s) :: crossProduct
+    var tempSet:Set[Row] = rowSet
+    for (r <- rowSet) {
+      tempSet = tempSet.drop(1)
+      for (s <- tempSet)
+        crossProduct = crossProduct :+ (r, s)
+    }
     return crossProduct
 
   }

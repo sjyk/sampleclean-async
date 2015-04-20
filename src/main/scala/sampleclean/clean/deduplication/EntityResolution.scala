@@ -24,7 +24,11 @@ import sampleclean.clean.featurize._
  * @param params algorithm parameters including "attr" and "mergeStrategy".
  *               "attr" refers to the attribute name that will be considered for deduplication.
  *               "mergeStrategy" refers to a strategy used to resolve a set of duplicated attributes.
+ *               i.e. pick one between {USA, U.S.A, United States, United States of America, ...}
+ *
  *               Allowed strategies are "mostConcise" and "mostFrequent"
+ *               mostConcise will pick the shortest String
+ *               mostFrequent will pick the most common String
  * @param scc SampleClean Context
  * @param sampleTableName
  * @param components blocker + matcher routine.
@@ -173,7 +177,8 @@ object EntityResolution {
    * parameters (such as setting a Similarity Featurizer and Tokenizer),
    * refer to the [[EntityResolution]] class.
    *
-   * This algorithm uses the Jaccard Similarity for pairwise comparison.
+   * This algorithm uses the Jaccard Similarity for pairwise comparison
+   * and a word tokenizer.
    *
    * @param scc SampleClean Context
    * @param sampleName
@@ -216,7 +221,8 @@ object EntityResolution {
    * parameters (such as setting a Similarity Featurize, Tokenizer and
    * Active Learning Strategy), refer to the [[EntityResolution]] class.
    *
-   * This algorithm uses the Jaccard Similarity for pairwise comparison.
+   * This algorithm uses the Jaccard Similarity for pairwise comparison
+   * and a word tokenizer.
    *
    * @param scc SampleClean Context
    * @param sampleName

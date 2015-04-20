@@ -61,10 +61,10 @@ class SampleCleanContext(@transient sc: SparkContext) {
    *
    * @param baseTable name of base table
    * @param sampleTable name of sample table
-   * @param samplingFrac sampling parameter r used to create (100/r) percent sample
+   * @param samplingRatio sampling ratio between 0.0 and 1.0
    * @param persist set to true to persist RDD in HIVE (default = true)
    */
-	def initialize(baseTable:String, sampleTable:String, samplingFrac: Double, persist:Boolean=true): (SchemaRDD, SchemaRDD) = {
+	def initialize(baseTable:String, sampleTable:String, samplingRatio: Double, persist:Boolean=true): (SchemaRDD, SchemaRDD) = {
 
 		val hiveContext = new HiveContext(sc)
 		//creates the clean sample using table sampling procedure
@@ -77,7 +77,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		{
 			var query = qb.createTableAs(qb.getCleanSampleName(sampleTable)) +
 			qb.buildSelectQuery(selectionList,baseTable) +
-			qb.tableSample(samplingFrac)
+			qb.tableSample(samplingRatio)
 
 			var baseQuery = qb.createTableAs(qb.getBaseName(baseTable)) +
 			qb.buildSelectQuery(selectionList,baseTable)
@@ -86,7 +86,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 
 			hiveContext.hql("cache table "+ qb.getCleanSampleName(sampleTable))
 
-			hiveContext.hql(qb.setTableParent(qb.getCleanSampleName(sampleTable),qb.getBaseName(baseTable) + " " + samplingFrac))
+			hiveContext.hql(qb.setTableParent(qb.getCleanSampleName(sampleTable),qb.getBaseName(baseTable) + " " + samplingRatio))
 
 			query = qb.createTableAs(qb.getDirtySampleName(sampleTable)) +
 					qb.buildSelectQuery(List("*"),qb.getCleanSampleName(sampleTable))
@@ -113,10 +113,10 @@ class SampleCleanContext(@transient sc: SparkContext) {
    * @param baseTable name of base table
    * @param sampleTable name of sample table
    * @param onKey name of column that contains unique identifiers
-   * @param samplingFrac sampling parameter r used to create (100/r) percent sample
+   * @param samplingRatio sampling ratio between 0.0 and 1.0
    * @param persist set to true to persist RDD in HIVE (default = true)
    */
-	def initializeConsistent(baseTable:String, sampleTable:String, onKey:String, samplingFrac: Long, persist:Boolean=true): (SchemaRDD, SchemaRDD) = {
+	def initializeConsistent(baseTable:String, sampleTable:String, onKey:String, samplingRatio: Double, persist:Boolean=true): (SchemaRDD, SchemaRDD) = {
 
 		val hiveContext = new HiveContext(sc)
 		//creates the clean sample using a consistent hashing procedure
@@ -127,14 +127,14 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		{
 			var query = qb.createTableAs(qb.getCleanSampleName(sampleTable)) +
 			qb.buildSelectQuery(selectionList,baseTable) +
-			qb.tableConsistentHash(samplingFrac,onKey)
+			qb.tableConsistentHash((1.0 / samplingRatio).toLong,onKey)
 
 			var baseQuery = qb.createTableAs(qb.getBaseName(baseTable)) +
 			qb.buildSelectQuery(selectionList,baseTable)
 
 			hiveContext.hql(query)
 
-			hiveContext.hql(qb.setTableParent(qb.getCleanSampleName(sampleTable),qb.getBaseName(baseTable) + " " + 1.0/samplingFrac))
+			hiveContext.hql(qb.setTableParent(qb.getCleanSampleName(sampleTable),qb.getBaseName(baseTable) + " " + samplingRatio))
 
 			query = qb.createTableAs(qb.getDirtySampleName(sampleTable)) +
 					qb.buildSelectQuery(List("*"),qb.getCleanSampleName(sampleTable))
