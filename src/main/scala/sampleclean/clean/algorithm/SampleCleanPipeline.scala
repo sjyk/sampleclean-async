@@ -36,7 +36,7 @@ class SampleCleanPipeline(saqp: SampleCleanAQP,
 	 */
 	def notification()={
 		for(q <- queryList)
-			q.execute(true)
+			q.execute()
 	}
 
   /**

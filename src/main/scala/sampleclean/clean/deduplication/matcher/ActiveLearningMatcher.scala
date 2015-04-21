@@ -15,7 +15,7 @@ class ActiveLearningMatcher( scc: SampleCleanContext,
                             alstrategy:ActiveLearningStrategy) extends
 							              Matcher(scc, sampleTableName) {
 
-  private [sampleclean] val asynchronous = true
+  val asynchronous = true
 
   private [sampleclean] val colMapper = (colNames: List[String]) => colNames.map(context.indexOf(_))
 			
@@ -39,7 +39,7 @@ class ActiveLearningMatcher( scc: SampleCleanContext,
       return matchPairs(candidatePairs.flatMap(selfCartesianProduct))
   }
 	
-  private [sampleclean] override def updateContext(newContext:List[String]) ={
+  override def updateContext(newContext:List[String]) ={
       super.updateContext(newContext)
       alstrategy.updateContext(newContext)
   }

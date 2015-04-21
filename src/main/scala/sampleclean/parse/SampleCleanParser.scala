@@ -140,8 +140,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
    									parsedExpr._1,
    									pred,
    									group,
-                    rawSC,
-                    command)
+                    rawSC)
    		
    }
 
@@ -276,7 +275,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
       val splitComponents = command.split("\\s+") //split on whitespace
       val exprClean = splitComponents.drop(1).mkString(" ") //remove 'select*'
       val scQuery = queryParser(exprClean, exprClean.toLowerCase.contains("rawsc"))
-      scQuery.execute(true)
+      scQuery.execute()
       watchedQueries = watchedQueries + scQuery
       activePipelines foreach { _.registerQuery(scQuery) }
     }
@@ -342,7 +341,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
        return ("Dedup", (System.nanoTime - now)/1000000)
      }
   	 else if(firstToken.equals("selectrawsc")){
-  		  printQuery(queryParser(command).execute(false))
+  		  printQuery(queryParser(command).execute())
   		  return ("Complete", (System.nanoTime - now)/1000000)
   	  }
       else if(firstToken.equals("selectnsc")){
