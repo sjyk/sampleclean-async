@@ -36,7 +36,7 @@ class SampleCleanAQP() {
 	  	  return rdd.count()/rdd.map( x => 1.0/x(1).asInstanceOf[Int]).reduce(_ + _)
 	  }
 
-  // TODO: preserveTableName?
+  // TODO: preserveTableName
   /**
    * This query executes rawSC with a group given an attribute to aggregate,
    * expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
@@ -50,7 +50,7 @@ class SampleCleanAQP() {
    * @return a tuple containing the query time in nanoseconds and
    *         the query result as (group (estimate, variance))
    */
-	 def rawSCQueryGroup(scc:SampleCleanContext, sampleName: String, 
+	 private [sampleclean] def rawSCQueryGroup(scc:SampleCleanContext, sampleName: String,
 	  				  attr: String, expr: String, 
 	  				  pred:String,
 	  				  group: String, 
@@ -177,7 +177,7 @@ class SampleCleanAQP() {
 	 	return (query1, query2)
 	 }
 
-	 def materializeJoinResult(scc:SampleCleanContext, expr:String,tableName:String):(SchemaRDD,SchemaRDD)= {
+	 private [sampleclean] def materializeJoinResult(scc:SampleCleanContext, expr:String,tableName:String):(SchemaRDD,SchemaRDD)= {
 	 	val params = scc.qb.joinExpr(expr)
 	 	return materializeJoinResult(scc,params._1,params._2,params._3,params._4,tableName)
 	 }
@@ -196,7 +196,7 @@ class SampleCleanAQP() {
    * @return a tuple containing the query time in nanoseconds and
    *         the query result as (group (estimate, variance))
    */
-	 def normalizedSCQueryGroup(scc:SampleCleanContext, sampleName: String, 
+	 private [sampleclean] def normalizedSCQueryGroup(scc:SampleCleanContext, sampleName: String,
 	  				  attr: String, expr: String, 
 	  				  pred:String,
 	  				  group: String, 

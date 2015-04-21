@@ -15,19 +15,17 @@ import sampleclean.clean.featurize.Tokenizer.WordTokenizer
 /**
  * This is an abstract class for record deduplication. It
  * implements a basic structure and error handling for the class.
- * @param params not used for this class
  * @param scc SampleClean context
  * @param sampleTableName
  * @param components blocker + matcher routine.
  */
-class RecordDeduplication(params:AlgorithmParameters,
-							scc: SampleCleanContext,
+class RecordDeduplication(scc: SampleCleanContext,
 							sampleTableName: String,
 							components: BlockerMatcherJoinSequence) extends
-							SampleCleanAlgorithm(params, scc, sampleTableName) {
+							SampleCleanAlgorithm(null, scc, sampleTableName) {
 
 		//fix
-		val colList = (0 until scc.getHiveTableSchema(scc.qb.getCleanSampleName(sampleTableName)).length).toList
+		private [sampleclean] val colList = (0 until scc.getHiveTableSchema(scc.qb.getCleanSampleName(sampleTableName)).length).toList
 		
 		//these are dynamic class variables
     private [sampleclean] var hashCol = 0
@@ -37,6 +35,9 @@ class RecordDeduplication(params:AlgorithmParameters,
         hashCol = scc.getColAsIndex(sampleTableName,"hash")
     }
 
+  /**
+   * Execute Record Deduplication
+   */
 		def exec()={
 			val sampleTableRDD = scc.getCleanSample(sampleTableName).repartition(scc.getSparkContext().defaultParallelism)
 			val fullTableRDD = scc.getFullTable(sampleTableName).repartition(scc.getSparkContext().defaultParallelism)
@@ -93,7 +94,7 @@ object RecordDeduplication{
     val matcher = new AllMatcher(scc, sampleName)
 
     val blockerMatcher = new BlockerMatcherJoinSequence(scc,sampleName, join, List(matcher))
-    return new RecordDeduplication(null,scc,sampleName,blockerMatcher)
+    return new RecordDeduplication(scc,sampleName,blockerMatcher)
 
   }
 }

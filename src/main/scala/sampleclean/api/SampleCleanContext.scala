@@ -52,7 +52,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 	}
 
 	//a reference to the contexts Query Builder
-  private [sampleclean] val qb = new QueryBuilder(this)
+  val qb = new QueryBuilder(this)
 
   /**
    * This function initializes the clean and dirty samples as
@@ -221,7 +221,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 	}
 
 	/**
-   * Resets the clean sample from dirty sample
+   * Resets the clean sample to the initial dirty sample
    * @param sampleTable sample table name
 	 */
 	def resetSample(sampleTable: String) = {
@@ -563,8 +563,10 @@ class SampleCleanContext(@transient sc: SparkContext) {
 	}
 
   /**
-   * Returns the sampling ratio used to create a sample table
-   * @param tableName sample table name
+   * Returns the sampling ratio used to create a sample table.
+   * The table should exist in Hive. The clean sample name can be
+   * accessed through getCleanSampleName from the class val qb
+   * @param tableName table name
    */
 	def getSamplingRatio(tableName:String):Double =
 	{

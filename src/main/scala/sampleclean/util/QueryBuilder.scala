@@ -1,6 +1,6 @@
 package sampleclean.util
 
-import sampleclean.api.SampleCleanContext;
+import sampleclean.api.SampleCleanContext
 
 /** The QueryBuilder Class provides a set 
 * of methods to manipulate HIVEQL queries.
