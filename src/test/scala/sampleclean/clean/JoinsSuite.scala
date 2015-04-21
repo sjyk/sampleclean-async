@@ -94,11 +94,11 @@ class JoinsSuite extends FunSuite with LocalSCContext {
 
       // 100 duplicates with Edit (Levenshtein) similarity = 10
       rowRDDLarge = sc.textFile(path + "/dirtyEdit100dups").map(Row(_))
-      blocker = new EditBlocking(colNames, context, tok, 9)
+      blocker = new EditFeaturizer(colNames, context, tok, 9)
       bJoin = new PassJoin(sc, blocker)
       val p = bJoin.join(rowRDDLarge, rowRDDLarge)
       assert(p.count() == 0)
-      blocker = new EditBlocking(colNames, context, tok, 10)
+      blocker = new EditFeaturizer(colNames, context, tok, 10)
       bJoin = new PassJoin(sc, blocker)
       assert(bJoin.join(rowRDDLarge, rowRDDLarge).count() == 100)
     }
@@ -198,10 +198,10 @@ class JoinsSuite extends FunSuite with LocalSCContext {
       // 100 duplicates with Edit (Levenshtein) similarity = 10
       rowRDDLarge = sc.textFile(path + "/dirtyEdit100dups").map(Row(_))
       rowRDDSmall = rowRDDLarge.sample(false, 0.5).cache()
-      blocker = new EditBlocking(colNames, context, tok, 9)
+      blocker = new EditFeaturizer(colNames, context, tok, 9)
       bJoin = new BroadcastJoin(sc, blocker, false)
       assert(bJoin.join(rowRDDSmall, rowRDDLarge).count() == rowRDDSmall.count())
-      blocker = new EditBlocking(colNames, context, tok, 10)
+      blocker = new EditFeaturizer(colNames, context, tok, 10)
       bJoin = new BroadcastJoin(sc, blocker, false)
       assert(bJoin.join(rowRDDSmall, rowRDDLarge).count() >= 40 * 2 + rowRDDSmall.count())
     }

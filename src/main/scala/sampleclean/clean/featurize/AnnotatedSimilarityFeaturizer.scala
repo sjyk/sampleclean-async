@@ -488,11 +488,14 @@ class WeightedCosineSimilarity(colNames: List[String],
 
 }
 /**
- * This class represents a similarity join based on the Levenshtein similarity measure.
- * Token weights cannot be taken into account since this is fundamentally a string-string
+ * This class represents a similarity join based on the Levenshtein (aka Edit Distance)
+ * similarity measure. Token weights cannot be taken into
+ * account since this is fundamentally a string-string
  * comparison measure.
+ *
+ * This measure is optimized for the Pass Join.
  */
-  class EditBlocking(colNames: List[String],
+  class EditFeaturizer(colNames: List[String],
                             context:List[String],
                                tokenizer:Tokenizer,
                                threshold:Double = 0)

@@ -58,25 +58,39 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
   test("api"){
     withFullRecords (1,{ scc =>
       // Initialize algorithm
-      scc.resetSample(sampleTableName)
-      val params = new AlgorithmParameters()
 
       var similarity = new WeightedJaccardSimilarity(colNames, scc.getTableContext(sampleTableName), tok, 0.5)
-      var RD = new RecordDeduplication(params, scc, sampleTableName, defaultBM(scc, similarity))
+      var RD = new RecordDeduplication(null, scc, sampleTableName, defaultBM(scc, similarity))
       RD.setTableParameters(sampleTableName)
       assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
-      RD.synchronousExecAndRead()
+      RD.exec()
       assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 100)
 
       scc.resetSample(sampleTableName)
       similarity = new WeightedJaccardSimilarity(colNames, scc.getTableContext(sampleTableName), tok, 0.51)
-      RD = new RecordDeduplication(params, scc, sampleTableName, defaultBM(scc, similarity))
+      RD = new RecordDeduplication(null, scc, sampleTableName, defaultBM(scc, similarity))
       RD.setTableParameters(sampleTableName)
       assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
-      RD.synchronousExecAndRead()
+      RD.exec()
       assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
     })
 
+  }
+
+  test("object"){
+    withFullRecords(1,{scc =>
+
+      var RD = RecordDeduplication.textAutomatic(scc, sampleTableName,colNames,0.5,false)
+      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
+      RD.exec()
+      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 100)
+
+      scc.resetSample(sampleTableName)
+      RD = RecordDeduplication.textAutomatic(scc, sampleTableName,colNames,0.51,false)
+      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
+      RD.exec()
+      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
+    })
   }
 
   test("overhead"){

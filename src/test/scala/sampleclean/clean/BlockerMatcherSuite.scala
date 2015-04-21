@@ -3,9 +3,11 @@ package sampleclean.clean
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Row
 import org.scalatest.FunSuite
+import sampleclean.clean.deduplication.ActiveLearningStrategy
 import sampleclean.clean.deduplication.join.{BlockerMatcherJoinSequence, BlockerMatcherSelfJoinSequence, BroadcastJoin}
-import sampleclean.clean.deduplication.matcher.{AllMatcher, Matcher}
+import sampleclean.clean.deduplication.matcher.{ActiveLearningMatcher, AllMatcher, Matcher}
 import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer.WeightedJaccardSimilarity
+import sampleclean.clean.featurize.SimilarityFeaturizer
 import sampleclean.clean.featurize.Tokenizer.DelimiterTokenizer
 
 
@@ -15,7 +17,7 @@ class BlockerMatcherSuite extends FunSuite with LocalSCContext {
   val tok = new DelimiterTokenizer(" ")
   val sampleTableName = "test_sample"
 
-  test("matcher") {
+  test("sync matchers") {
     withSampleCleanContext { scc =>
       val row1 = Row("a", "b", "c")
       val row2 = Row("d", "e", "f")
@@ -23,20 +25,45 @@ class BlockerMatcherSuite extends FunSuite with LocalSCContext {
 
       m = new AllMatcher(scc, sampleTableName)
 
-      // does not include equal rows
-      val cartesian = Set((row2, row1), (row1, row2))
-      assert(m.selfCartesianProduct(Set(row1, row1)) == List())
-      assert(m.selfCartesianProduct(Set(row1, row2)).toSet == cartesian)
+      // does not include equal rows and returns only (a,b) not (b,a)
+      assert(m.selfCartesianProduct(Set(row1)) == List())
+      assert(m.selfCartesianProduct(Set(row1, row2)) == List((row1,row2)))
 
 
       val candidates1: RDD[Set[Row]] = scc.getSparkContext().parallelize(Seq(Set(row1, row2)))
       val candidates2: RDD[(Row, Row)] = scc.getSparkContext().parallelize(Seq((row1, row2)))
-      // TODO should they be the same?
-      //assert(m.matchPairs(candidates1).collect() == m.matchPairs(candidates2).collect())
+      assert(m.matchPairs(candidates1).collect().toSeq == m.matchPairs(candidates2).collect().toSeq)
 
-      // TODO asynchronous matchers
       }
     }
+
+  test("async matchers"){
+    /*withSampleCleanContext {scc =>
+      val row1 = Row("a", "b", "c")
+      val row2 = Row("a", "b", "f")
+      val cols = List("col0","col1","col2")
+      var candidatesReceived = false
+
+      // Active Learning
+      val featurizer = new SimilarityFeaturizer(cols, cols, List("JaccardSimilarity","JaccardSimilarity"))
+
+      val alStrategy = new ActiveLearningStrategy(cols, featurizer)
+      val m = new ActiveLearningMatcher(scc,"uselessName", alStrategy)
+
+      val candidates1: RDD[Set[Row]] = scc.getSparkContext().parallelize(Seq(Set(row1, row2)))
+      val candidates2: RDD[(Row, Row)] = scc.getSparkContext().parallelize(Seq((row1, row2)))
+
+      m.context = cols
+      m.onReceiveNewMatches = {_ => candidatesReceived = true}
+
+      m.matchPairs(candidates1)
+      assert(candidatesReceived)
+
+      candidatesReceived = false
+      m.matchPairs(candidates2)
+      assert(candidatesReceived)
+    }*/
+  }
 
 
 
@@ -55,7 +82,7 @@ class BlockerMatcherSuite extends FunSuite with LocalSCContext {
 }
 
   test("sample join sequence") {
-    withFullRecords(2, { scc =>
+    withFullRecords(0.5, { scc =>
 
       val blocker = new WeightedJaccardSimilarity(colNames, scc.getTableContext(sampleTableName), tok, 0.465)
       val bJoin = new BroadcastJoin(scc.getSparkContext(), blocker, false)

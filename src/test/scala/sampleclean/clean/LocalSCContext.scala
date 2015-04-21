@@ -43,7 +43,7 @@ trait LocalSCContext extends Serializable{
     }
   }
 
-  def withFullRecords[T](sample:Int, f: SampleCleanContext => T): T = {
+  def withFullRecords[T](sample:Double, f: SampleCleanContext => T): T = {
     val conf = new SparkConf()
       .set("spark.driver.allowMultipleContexts","true")
     val sc = new SparkContext("local", "test", conf)
@@ -65,7 +65,7 @@ trait LocalSCContext extends Serializable{
     }
   }
 
-  def withFullRecordsLarge[T](sample:Int, f: SampleCleanContext => T): T = {
+  def withFullRecordsLarge[T](sample:Double, f: SampleCleanContext => T): T = {
     val conf = new SparkConf()
       .set("spark.driver.allowMultipleContexts","true")
     val sc = new SparkContext("local", "test", conf)

@@ -26,6 +26,10 @@ abstract class Matcher(scc: SampleCleanContext,
 
   val asynchronous:Boolean
 
+  /**
+   * For Set(a,b), a == b, it does not return (a,a) or (b,b)
+   * and returns only (a,b) not (b,a)
+   */
   def selfCartesianProduct(rowSet: Set[Row]):List[(Row,Row)] = {
 
     var crossProduct:List[(Row,Row)] = List()

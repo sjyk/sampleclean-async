@@ -78,7 +78,6 @@ class EntityResolutionSuite extends FunSuite with LocalSCContext {
   test("api") {
     withSingleAttribute (1,{ scc =>
       // Initialize algorithm
-      //scc.resetSample(sampleTableName)
       val params = new AlgorithmParameters()
       params.put("attr", attr)
       params.put("mergeStrategy", "mostFrequent")
@@ -92,6 +91,17 @@ class EntityResolutionSuite extends FunSuite with LocalSCContext {
       assert(scc.getCleanSampleAttr(sampleTableName, "col0").map(x => (x.getString(1), x.getString(0))).groupByKey().count() == 101)
     })
 
+  }
+
+  test("Object"){
+    withSingleAttribute(1, {scc =>
+      val ER = EntityResolution.textAttributeAutomatic(scc,sampleTableName,attr,0.5,false)
+
+      assert(scc.getCleanSampleAttr(sampleTableName, "col0").map(x => (x.getString(1), x.getString(0))).groupByKey().count() == 201)
+      ER.exec()
+      assert(scc.getCleanSampleAttr(sampleTableName, "col0").map(x => (x.getString(1), x.getString(0))).groupByKey().count() == 101)
+
+    })
   }
 
   test("overhead") {

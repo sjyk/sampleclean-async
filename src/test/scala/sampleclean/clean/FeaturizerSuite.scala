@@ -69,7 +69,7 @@ class FeaturizerSuite extends FunSuite with Serializable {
 
   test("similarity featurizer"){
     // Test SampleClean similarity implementations
-    val metrics = List("JaccardSimilarity","DiceSimilarity","CosineSimilarity","OverlapSimilarity","EditDistance")
+    val metrics = List("JaccardSimilarity","DiceSimilarity","CosineSimilarity","OverlapSimilarity","Levenshtein")
 
 
     def distances(seq1: Seq[String],seq2: Seq[String]): Seq[Double] = {
@@ -208,41 +208,41 @@ class FeaturizerSuite extends FunSuite with Serializable {
     thresh = 3.0 / 7
     sim = new WeightedJaccardSimilarity(colNames,context,tok,thresh)
 
-    assert(sim.similarity(seq1,seq2,thresh,Map[String,Double]())._1)
-    assert(sim.getSimilarity(seq1,seq2,Map[String,Double]()) == thresh)
-    assert(sim.getSimilarity(seq1,seq2,weights) == 2.0 / 7)
+    assert(sim.optimizedSimilarity(seq1,seq2,thresh,Map[String,Double]())._1)
+    assert(sim.similarity(seq1,seq2,Map[String,Double]()) == thresh)
+    assert(sim.similarity(seq1,seq2,weights) == 2.0 / 7)
 
     // Weighted Overlap
     thresh = 3.0
     sim = new WeightedOverlapSimilarity(colNames,context,tok,thresh)
 
-    assert(sim.similarity(seq1,seq2,thresh,Map[String,Double]())._1)
-    assert(sim.getSimilarity(seq1,seq2,Map[String,Double]()) == thresh)
-    assert(sim.getSimilarity(seq1,seq2,weights) == 4.0)
+    assert(sim.optimizedSimilarity(seq1,seq2,thresh,Map[String,Double]())._1)
+    assert(sim.similarity(seq1,seq2,Map[String,Double]()) == thresh)
+    assert(sim.similarity(seq1,seq2,weights) == 4.0)
 
     // Weighted Dice
     thresh = 0.6
     sim = new WeightedDiceSimilarity(colNames,context,tok,thresh)
 
-    assert(sim.similarity(seq1,seq2,thresh,Map[String,Double]())._1)
-    assert(sim.getSimilarity(seq1,seq2,Map[String,Double]()) == thresh)
-    assert(sim.getSimilarity(seq1,seq2,weights) == 4.0 / 9)
+    assert(sim.optimizedSimilarity(seq1,seq2,thresh,Map[String,Double]())._1)
+    assert(sim.similarity(seq1,seq2,Map[String,Double]()) == thresh)
+    assert(sim.similarity(seq1,seq2,weights) == 4.0 / 9)
 
     // Weighted Cosine
     thresh = 0.6
     sim = new WeightedCosineSimilarity(colNames,context,tok,thresh)
 
-    assert(sim.similarity(seq1,seq2,thresh,Map[String,Double]())._1)
-    assert(sim.getSimilarity(seq1,seq2,Map[String,Double]()) == thresh)
-    assert(sim.getSimilarity(seq1,seq2,weights) == 1.0 / math.sqrt(5))
+    assert(sim.optimizedSimilarity(seq1,seq2,thresh,Map[String,Double]())._1)
+    assert(sim.similarity(seq1,seq2,Map[String,Double]()) == thresh)
+    assert(sim.similarity(seq1,seq2,weights) == 1.0 / math.sqrt(5))
 
     // Edit
     thresh = 2.0
-    sim = new EditBlocking(colNames,context,tok,thresh)
+    sim = new EditFeaturizer(colNames,context,tok,thresh)
 
-    assert(sim.similarity(seq1,seq2,thresh,Map[String,Double]())._1)
-    assert(sim.getSimilarity(seq1,seq2,Map[String,Double]()) == thresh)
-    assert(sim.getSimilarity(seq1,seq2,weights) == 2.0)
+    assert(sim.optimizedSimilarity(seq1,seq2,thresh,Map[String,Double]())._1)
+    assert(sim.similarity(seq1,seq2,Map[String,Double]()) == thresh)
+    assert(sim.similarity(seq1,seq2,weights) == 2.0)
 
 
     // featurize

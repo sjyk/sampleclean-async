@@ -16,8 +16,8 @@ import sampleclean.clean.deduplication.matcher._
 import sampleclean.clean.featurize._
 
 /**
- * This is the abstract class for attribute deduplication
- * it implements many basic structure and the error handling
+ * This is the base class for attribute deduplication.
+ * It implements a basic structure and error handling
  * for the class.
  *
  * Companion object provides a few common scenarios.
@@ -47,10 +47,10 @@ class EntityResolution(params:AlgorithmParameters,
     val mergeStrategy = params.get("mergeStrategy").asInstanceOf[String]
     
     //these are dynamic class variables
-    var attrCol = 1
-    var hashCol = 0
+    private [sampleclean] var attrCol = 1
+    private [sampleclean] var hashCol = 0
 
-    var graphXGraph:Graph[(String, Set[String]), Double] = null
+    private [sampleclean] var graphXGraph:Graph[(String, Set[String]), Double] = null
 
     /*
       Sets the dynamic variables at exec time
@@ -177,7 +177,7 @@ object EntityResolution {
    * parameters (such as setting a Similarity Featurizer and Tokenizer),
    * refer to the [[EntityResolution]] class.
    *
-   * This algorithm uses the Jaccard Similarity for pairwise comparison
+   * This algorithm uses the Jaccard Similarity for pairwise comparisons
    * and a word tokenizer.
    *
    * @param scc SampleClean Context
@@ -221,8 +221,10 @@ object EntityResolution {
    * parameters (such as setting a Similarity Featurize, Tokenizer and
    * Active Learning Strategy), refer to the [[EntityResolution]] class.
    *
-   * This algorithm uses the Jaccard Similarity for pairwise comparison
-   * and a word tokenizer.
+   * This algorithm uses the Jaccard Similarity for pairwise filtering
+   * and sim measures Levenshtein and JaroWinkler for featurization.
+   *
+   * The algorithm also uses a word tokenizer.
    *
    * @param scc SampleClean Context
    * @param sampleName
@@ -247,7 +249,7 @@ object EntityResolution {
         algoPara.put("attr", attribute)
         algoPara.put("mergeStrategy", "mostFrequent")
 
-        val cols = List("affiliation")
+        val cols = List(attribute)
         val baseFeaturizer = new SimilarityFeaturizer(cols, 
                                                       scc.getTableContext(sampleName), 
                                                       List("Levenshtein", "JaroWinkler"))

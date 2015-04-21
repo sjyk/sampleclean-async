@@ -74,7 +74,7 @@ class SimilarityFeaturizer(colNames: List[String],
             case "EuclideanDistance" => new EuclideanDistance
         		case "Jaro" => new Jaro
         		case "JaroWinkler" => new JaroWinkler
-        		case "Levenshtein" => new Levenshtein
+        		//case "Levenshtein" => new Levenshtein
         		case "MatchingCoefficient" => new MatchingCoefficient
         		case "MongeElkan" => new MongeElkan
         		case "NeedlemanWunch" => new NeedlemanWunch
@@ -91,7 +91,7 @@ class SimilarityFeaturizer(colNames: List[String],
             case "DiceSimilarity" => new WeightedDiceSimilarity(List(), List(), null)
             case "CosineSimilarity" => new WeightedCosineSimilarity(List(), List(), null)
             case "OverlapSimilarity" => new WeightedOverlapSimilarity(List(), List(), null)
-            case "EditDistance" => new EditBlocking(List(), List(), null)
+            case "Levenshtein" => new EditFeaturizer(List(), List(), null)
 
         		case _ => throw new NoSuchElementException(measure + " measure not found")
       		}
