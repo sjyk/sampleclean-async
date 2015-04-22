@@ -11,7 +11,7 @@ import sampleclean.clean.featurize.Tokenizer.DelimiterTokenizer
 
 class JoinsSuite extends FunSuite with LocalSCContext {
 
-  test("broadcast self join accuracy") {
+  test("broadcast self join") {
     withSampleCleanContext { scc =>
       val sc = scc.getSparkContext()
       val context = List("record")
@@ -92,21 +92,12 @@ class JoinsSuite extends FunSuite with LocalSCContext {
       bJoin = new BroadcastJoin(sc, blocker, true)
       assert(bJoin.join(rowRDDLarge, rowRDDLarge).count() == 100)
 
-      // 100 duplicates with Edit (Levenshtein) similarity = 10
-      rowRDDLarge = sc.textFile(path + "/dirtyEdit100dups").map(Row(_))
-      blocker = new EditFeaturizer(colNames, context, tok, 9)
-      bJoin = new PassJoin(sc, blocker)
-      val p = bJoin.join(rowRDDLarge, rowRDDLarge)
-      assert(p.count() == 0)
-      blocker = new EditFeaturizer(colNames, context, tok, 10)
-      bJoin = new PassJoin(sc, blocker)
-      assert(bJoin.join(rowRDDLarge, rowRDDLarge).count() == 100)
     }
 
 
   }
 
-  test("broadcast sample join accuracy"){
+  test("broadcast sample join"){
     withSampleCleanContext { scc =>
       val sc = scc.getSparkContext()
       val context = List("record")
@@ -195,8 +186,34 @@ class JoinsSuite extends FunSuite with LocalSCContext {
       bJoin = new BroadcastJoin(sc, blocker, true)
       assert(bJoin.join(rowRDDSmall, rowRDDLarge).count() >= 40 * 2 + rowRDDSmall.count())
 
+
+    }
+
+  }
+
+  test("Pass Join"){
+    withSampleCleanContext { scc =>
+      val sc = scc.getSparkContext()
+      val context = List("record")
+      val colNames = List("record")
+      val tok = new DelimiterTokenizer(" ")
+      val path = "./src/test/resources"
+      var blocker: AnnotatedSimilarityFeaturizer = null
+      var bJoin: SimilarityJoin = null
+      var rowRDDLarge: RDD[Row] = null
+      var rowRDDSmall: RDD[Row] = null
+
       // 100 duplicates with Edit (Levenshtein) similarity = 10
       rowRDDLarge = sc.textFile(path + "/dirtyEdit100dups").map(Row(_))
+      blocker = new EditFeaturizer(colNames, context, tok, 9)
+      bJoin = new PassJoin(sc, blocker)
+      val p = bJoin.join(rowRDDLarge, rowRDDLarge)
+      assert(p.count() == 0)
+      blocker = new EditFeaturizer(colNames, context, tok, 10)
+      bJoin = new PassJoin(sc, blocker)
+      assert(bJoin.join(rowRDDLarge, rowRDDLarge).count() == 100)
+
+      // 100 duplicates with Edit (Levenshtein) similarity = 10
       rowRDDSmall = rowRDDLarge.sample(false, 0.5).cache()
       blocker = new EditFeaturizer(colNames, context, tok, 9)
       bJoin = new BroadcastJoin(sc, blocker, false)
@@ -205,54 +222,42 @@ class JoinsSuite extends FunSuite with LocalSCContext {
       bJoin = new BroadcastJoin(sc, blocker, false)
       assert(bJoin.join(rowRDDSmall, rowRDDLarge).count() >= 40 * 2 + rowRDDSmall.count())
     }
-
   }
 
-  test("broadcast join speed"){
-    /*val context = List("record")
-    val colNames = List("record")
-    val tok = new DelimiterTokenizer(" ")
-    val path = "/Users/juanmanuelsanchez/Documents/sampleCleanData"
-    var blocker: AnnotatedSimilarityFeaturizer = null
-    var bJoin: SimilarityJoin = null
-    var rowRDDLarge: RDD[Row] = sc.textFile(path + "/1000testData").map(Row(_)).cache()
-    //var rowRDDSmall: RDD[Row] = rowRDDLarge.sample(false,0.1).cache()
-    rowRDDLarge.count()
-    //rowRDDSmall.count()
+  test("similarity join"){
+    withSampleCleanContext{scc =>
+      val sc = scc.getSparkContext()
+      val context = List("record")
+      val colNames = List("record")
+      val tok = new DelimiterTokenizer(" ")
+      val path = "./src/test/resources"
+      var blocker: AnnotatedSimilarityFeaturizer = null
+      var simJoin: SimilarityJoin = null
+      var rowRDDLarge: RDD[Row] = null
+      var rowRDDSmall: RDD[Row] = null
 
-    def time[R](block: => R, name:String, iterations:Int): R = {
-      // 20 first iterations could be considered outliers
-      val times = (1 to iterations + 20).map {i =>
-        val t0 = System.nanoTime()
-        val result = block // call-by-name
-        val t1 = System.nanoTime()
-        t1 - t0
-      }
-      //println(times.map(_.toDouble /1000000000 ))
-      println("Elapsed time for " + name + ": " + (times.drop(20).sum.toDouble / times.drop(20).size) /1000000000 + "sec")
-      block
+      //self-join
+      rowRDDLarge = sc.textFile(path + "/dirtyEdit100dups").map(Row(_))
+      blocker = new EditFeaturizer(colNames, context, tok, 9)
+      simJoin = new SimilarityJoin(sc,blocker,false)
+
+      val rdd = simJoin.join(rowRDDLarge, rowRDDLarge)
+      assert(rdd.count() == 0)
+      blocker = new EditFeaturizer(colNames, context, tok, 10)
+      simJoin = new SimilarityJoin(sc,blocker,false)
+      assert(simJoin.join(rowRDDLarge, rowRDDLarge).count() == 100)
+
+      //sample join
+      rowRDDSmall = rowRDDLarge.sample(false, 0.5).cache()
+      blocker = new EditFeaturizer(colNames, context, tok, 9)
+      simJoin = new SimilarityJoin(sc,blocker,false)
+      assert(simJoin.join(rowRDDSmall, rowRDDLarge).count() == rowRDDSmall.count())
+      blocker = new EditFeaturizer(colNames, context, tok, 10)
+      simJoin = new SimilarityJoin(sc,blocker,false)
+      assert(simJoin.join(rowRDDSmall, rowRDDLarge).count() >= 40 * 2 + rowRDDSmall.count())
     }
-
-
-    blocker = new WeightedCosineSimilarity(colNames,context,tok,0.5)
-    bJoin = new BroadcastJoin(sc,blocker,false)
-    assert(time(bJoin.join(rowRDDLarge,rowRDDLarge).count(), "cosine join",10) > 0)
-
-    blocker = new WeightedOverlapSimilarity(colNames,context,tok,10)
-    bJoin = new BroadcastJoin(sc,blocker,false)
-    assert(time(bJoin.join(rowRDDLarge,rowRDDLarge).count(), "overlap join",10) > 0)
-
-    blocker = new WeightedDiceSimilarity(colNames,context,tok,0.8)
-    bJoin = new BroadcastJoin(sc,blocker,false)
-    assert(time(bJoin.join(rowRDDLarge,rowRDDLarge).count(), "dice join",10) > 0)
-
-    blocker = new WeightedJaccardSimilarity(colNames,context,tok,0.5)
-    bJoin = new BroadcastJoin(sc,blocker,false)
-    assert(time(bJoin.join(rowRDDLarge,rowRDDLarge).count(), "jaccard join",10) > 0)*/
-
-
-
   }
+
 
 
 

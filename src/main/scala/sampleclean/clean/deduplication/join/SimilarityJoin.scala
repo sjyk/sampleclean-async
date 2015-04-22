@@ -54,30 +54,50 @@ class SimilarityJoin(@transient sc: SparkContext,
 			 smallerA:Boolean = true, 
 			 containment:Boolean = true): RDD[(Row,Row)] = {
 
+    println("[SampleClean] Executing SimilarityJoin")
+
 		var tokenWeights = collection.immutable.Map[String,Double]()
 		var tokenCounts = collection.immutable.Map[String,Int]()
-		var tableSize = 1L
+
+
+    var largeTableSize = rddB.count()
+    var smallTableSize = rddA.count()
+
 
 		if(weighted){
 			if (smallerA && containment){
 				tokenCounts = computeTokenCount(rddB.map(simfeature.tokenizer.tokenize(_,simfeature.getCols())))
-				tableSize = rddB.count()
+
 			}
 			else if (containment){
 				tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_,simfeature.getCols(false))))
-				tableSize = rddA.count()
+        val n = smallTableSize
+        smallTableSize = largeTableSize
+        largeTableSize = n
+
 			}
-			else{
+			else {
 				tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_, simfeature.getCols())).
                                         union(rddB.map(simfeature.tokenizer.tokenize(_, simfeature.getCols(false)))))
-				tableSize = rddA.union(rddB).count()
+				largeTableSize = largeTableSize + smallTableSize
 			}
 
-			tokenWeights = tokenCounts.map(x => (x._1, math.log10(tableSize.toDouble / x._2)))
+			tokenWeights = tokenCounts.map(x => (x._1, math.log10(largeTableSize.toDouble / x._2)))
 		}
+    val selfJoin = (largeTableSize == smallTableSize) && containment
 
-		val featurized = rddA.cartesian(rddB).map(x => simfeature.featurize(Set(x._1,x._2),tokenWeights))
-		return featurized.filter(x => (x._2(0) == 1.0)).map(x => (x._1.head, x._1.last))
+    var featurized: RDD[(Set[Row], Array[Double])] = null
+    if (selfJoin) {
+      val aWithId: RDD[(Long, Row)] = rddA.zipWithUniqueId().map(x => (x._2,x._1))
+      val bWithId: RDD[(Long, Row)] = rddA.zipWithUniqueId().map(x => (x._2,x._1))
+      val filtered = aWithId.cartesian(bWithId).filter(x => x._1._1 < x._2._1).map(x => (x._1._2,x._2._2))
+      featurized = filtered.map(x => simfeature.featurize(Set(x._1,x._2),tokenWeights))
+    }
+    else{
+      featurized = rddA.cartesian(rddB).map(x => simfeature.featurize(Set(x._1,x._2),tokenWeights))
+    }
+
+		featurized.filter(x => x._2(0) == 1.0).map(x => (x._1.head, x._1.last))
 
 	}
 
