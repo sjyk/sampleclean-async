@@ -47,6 +47,9 @@ abstract class Matcher(scc: SampleCleanContext,
       context = newContext
   }
 
+  /**
+   * Function that takes some action based on new results.
+   */
   var onReceiveNewMatches: RDD[(Row,Row)] => Unit = null
 
 }

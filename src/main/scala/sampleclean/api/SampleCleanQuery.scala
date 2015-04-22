@@ -27,7 +27,7 @@ class SampleCleanQuery(scc:SampleCleanContext,
 	  				  group:String,
 	  				  rawSC:Boolean = true){
 
-  var vizServer = "localhost:8000"
+  private [sampleclean] var vizServer = "localhost:8000"
 
   /**
    * The execute method provides a straightforward way to execute the query.

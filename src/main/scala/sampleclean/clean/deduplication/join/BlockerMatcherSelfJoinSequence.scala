@@ -84,7 +84,7 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 		matchers = matchers.reverse  
 	}
 
-	private [sampleclean] def updateContext(newContext:List[String]) = {
+	def updateContext(newContext:List[String]) = {
 
 		if(blocker != null)
 			blocker.updateContext(newContext)
@@ -98,15 +98,19 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 		println("Context Updated to: " + newContext)
 	}
 
-
-	private [sampleclean] def setOnReceiveNewMatches(func: RDD[(Row,Row)] => Unit) ={
+  /**
+   * Set a function that takes some action based on new results. This
+   * needs to be done if there is an asynchronous matcher
+   * at the end of the sequence.
+   */
+	def setOnReceiveNewMatches(func: RDD[(Row,Row)] => Unit) ={
 		if(matchers.last.asynchronous)
 			matchers.last.onReceiveNewMatches = func
 		else
 			println("[SampleClean] Asychrony has no effect in this pipeline")
 	}
 
-	private [sampleclean] def printPipeline()={
+	def printPipeline()={
 			print("RDD[Row] --> ")
 			if (blocker != null)
 				print(blocker.getClass.getSimpleName + " --> ")

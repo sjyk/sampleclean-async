@@ -24,6 +24,8 @@ import sampleclean.util.TypeUtils._
  * will take into account the full dataset. If the data contains a large
  * or unknown amount of dirtiness, RawSC is recommended as it
  * will focus on the cleaned sample.
+ *
+ * These parameters can be set when building a [[SampleCleanQuery]]
  */
 @serializable
 class SampleCleanAQP() {

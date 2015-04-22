@@ -3,19 +3,18 @@ package sampleclean.parse
 import sampleclean.activeml._
 import sampleclean.api.{SampleCleanAQP, SampleCleanContext, SampleCleanQuery}
 import sampleclean.clean.algorithm.{AlgorithmParameters, SampleCleanAlgorithm, SampleCleanPipeline}
-import sampleclean.clean.deduplication.{ActiveLearningStrategy, CrowdsourcingStrategy, _}
-import sampleclean.crowd.{CrowdConfiguration, CrowdTaskConfiguration}
+import sampleclean.clean.deduplication.ActiveLearningStrategy
 import sampleclean.clean.featurize.SimilarityFeaturizer
 import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
 import sampleclean.clean.featurize.LearningSimilarityFeaturizer
 import sampleclean.clean.featurize.Tokenizer._
-//import sampleclean.clean.extraction.LearningSplitExtraction
 
 
-/** The SampleCleanParser is the class that handles parsing SampleClean commands
- *  this class triggers execution when a command is parsed successfully. Commands
- *  that are not understood are passed down to the HiveContext which executes them
- *  as HiveQL Commands.
+/**
+ * The SampleCleanParser is the class that handles parsing SampleClean commands.
+ * This class triggers execution when a command is parsed successfully. Commands
+ * that are not understood are passed down to the HiveContext which executes them
+ * as HiveQL Commands.
  *
  * @param scc SampleCleanContext is passed to the parser
  * @param saqp SampleCleanAQP is passed to the parser
@@ -387,9 +386,9 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     hiveContext.hql("DROP TABLE IF EXISTS paper_affiliation")
     hiveContext.hql("CREATE TABLE paper_affiliation as SELECT paperid, affiliation from paper_author where length(affiliation) > 1 and  (lower(affiliation) like '%berkeley%'  or lower(affiliation) like '%stanford%') group by paperid,affiliation")
   
-    scc.initializeConsistent("paper", "paper_sample", "id", 10)
-    scc.initializeConsistent("paper_affiliation", "paper_aff_sample", "paperid", 10)
-    scc.initializeConsistent("paper_author", "paper_auth_sample", "paperid", 10)
+    scc.initializeConsistent("paper", "paper_sample", "id", 0.1)
+    scc.initializeConsistent("paper_affiliation", "paper_aff_sample", "paperid", 0.1)
+    scc.initializeConsistent("paper_author", "paper_auth_sample", "paperid", 0.1)
 
     //parseAndExecute("democustom paper_aff_sample affiliation")
 
@@ -402,7 +401,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
       parseAndExecute("dedupattr paper_aff_sample affiliation wjaccard 0.6 mostfrequent")
   }
 
-  def demoDedupRec() = {
+  private [sampleclean] def demoDedupRec() = {
 
    /* val algoPara = new AlgorithmParameters()
 
@@ -431,7 +430,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     pp.exec("paper_sample")*/
   }
 
-  def demoTamr() = {
+  private [sampleclean] def demoTamr() = {
 
    /* println("Demo1: Tamr Extraction By Example")
 
@@ -449,7 +448,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     pp.exec()*/
   }
 
-  def demoCorleone() = {
+  private [sampleclean] def demoCorleone() = {
 
     println("Demo2: Corleone Blocking By Example")
 

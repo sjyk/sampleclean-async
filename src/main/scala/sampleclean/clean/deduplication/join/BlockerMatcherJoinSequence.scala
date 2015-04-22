@@ -16,15 +16,10 @@ import sampleclean.clean.deduplication.matcher.Matcher
  * 
  * @type {[type]}
  */
-class BlockerMatcherJoinSequence(scc: SampleCleanContext,
+private [sampleclean] class BlockerMatcherJoinSequence(scc: SampleCleanContext,
               		   sampleTableName:String,
               		   simjoin:SimilarityJoin,
 					   matchers: List[Matcher]) extends Serializable {
-
-	//def this(scc: SampleCleanContext,
-    //          		   sampleTableName:String,
-    //          		   simjoin: SimilarityJoin = null,
-	//				   matchers: List[Matcher] = List())
 
   /**
    * Execute the algorithm.
@@ -41,7 +36,8 @@ class BlockerMatcherJoinSequence(scc: SampleCleanContext,
 		return matchedData
 	}
 
-	private [sampleclean] def updateContext(newContext:List[String]) = {
+
+	def updateContext(newContext:List[String]) = {
 
 		if (simjoin != null)
 			simjoin.updateContext(newContext)

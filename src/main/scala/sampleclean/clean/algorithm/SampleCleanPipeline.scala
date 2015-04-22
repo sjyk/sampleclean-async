@@ -2,8 +2,6 @@ package sampleclean.clean.algorithm
 
 import sampleclean.api.SampleCleanAQP;
 import sampleclean.api.SampleCleanQuery;
-
-
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
@@ -24,7 +22,7 @@ class SampleCleanPipeline(saqp: SampleCleanAQP,
 	/**
    * This associates the current object with the pipeline algorithms
 	 */
-	def setPipelineOnQueries()={
+	private def setPipelineOnQueries()={
 		for (l <- execList)
 		{
 			l.pipeline = this
@@ -34,7 +32,7 @@ class SampleCleanPipeline(saqp: SampleCleanAQP,
 	/**
 	 * This notifies the pipeline of an update
 	 */
-	def notification()={
+	private [sampleclean] def notification()={
 		for(q <- queryList)
 			q.execute()
 	}
