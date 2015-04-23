@@ -128,7 +128,7 @@ class EntityResolutionSuite extends FunSuite with LocalSCContext {
 
       println("Exec() in algorithm lasted " + (t1 - t01).toDouble / 1000000000 + " seconds.")
       println("Whole cleaning algorithm lasted " + (t1 - t0).toDouble / 1000000000 + " seconds.")
-      println("Join lasted " + (t2 - t3).toDouble / 1000000000 + " seconds.")
+      println("Join lasted " + (t3 - t2).toDouble / 1000000000 + " seconds.")
     })
 
 
