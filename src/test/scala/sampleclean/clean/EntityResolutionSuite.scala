@@ -109,27 +109,26 @@ class EntityResolutionSuite extends FunSuite with LocalSCContext {
       //scc.resetSample(sampleTableName)
       val params = new AlgorithmParameters()
 
-      var t0 = System.nanoTime()
+      val t0 = System.nanoTime()
       params.put("attr", attr)
       params.put("mergeStrategy", "mostFrequent")
       val similarity = new WeightedJaccardSimilarity(colNames, scc.getTableContext(sampleTableName).drop(2), tok, 0.5)
       val ER = new EntityResolution(params, scc, sampleTableName, defaultBM(scc, similarity))
       val t01 = System.nanoTime()
       ER.exec()
-      var t1 = System.nanoTime()
-
-      println("Exec() in algorithm lasted " + (t1 - t01).toDouble / 1000000000 + " seconds.")
-      println("Whole cleaning algorithm lasted " + (t1 - t0).toDouble / 1000000000 + " seconds.")
+      val t1 = System.nanoTime()
 
       val rowRDDLarge = scc.getSparkContext().textFile("./src/test/resources/csvJaccard100dupsAttr").map(x => Row.fromSeq(x.split(",", -1).toSeq))
 
-      t0 = System.nanoTime()
+      val t2 = System.nanoTime()
       val blocker = new WeightedJaccardSimilarity(colNames, scc.getTableContext(sampleTableName).drop(2), tok, 0.5)
       val bJoin = new BroadcastJoin(scc.getSparkContext(), blocker, false)
       assert(bJoin.join(rowRDDLarge, rowRDDLarge).count() == 100)
-      t1 = System.nanoTime()
+      val t3 = System.nanoTime()
 
-      println("Join lasted " + (t1 - t0).toDouble / 1000000000 + " seconds.")
+      println("Exec() in algorithm lasted " + (t1 - t01).toDouble / 1000000000 + " seconds.")
+      println("Whole cleaning algorithm lasted " + (t1 - t0).toDouble / 1000000000 + " seconds.")
+      println("Join lasted " + (t2 - t3).toDouble / 1000000000 + " seconds.")
     })
 
 

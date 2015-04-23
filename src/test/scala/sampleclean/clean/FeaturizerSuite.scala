@@ -145,16 +145,6 @@ class FeaturizerSuite extends FunSuite with Serializable {
     assert((feat._1, feat._2.toSeq) == (Set(Row("a "),Row(" a")), Seq(1.0,1.0,1.0,1.0,0.0)))
 
 
-
-   /* //blocking featurizer
-    val thresh = 0.75
-    val wTok = Tokenizer.WordTokenizer()
-    val blockFeat = new WeightedJaccardSimilarity(List(""), List(), wTok,thresh)
-
-    val tRow1 = wTok.tokenize(row1,List(0,1,2,3))
-    val tRow2 = wTok.tokenize(row2,List(0,1,2))
-
-    assert(blockFeat.similar(tRow1, tRow2,thresh, collection.Map[String, Double]()))*/
   }
 
   test("featurizer"){

@@ -30,9 +30,8 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
       // Initialize algorithm
       val similarity = new WeightedJaccardSimilarity(colNames, scc.getTableContext(sampleTableName), tok, 0.5)
       val blockerMatcher = defaultBM(scc, similarity)
-      val params = new AlgorithmParameters()
 
-      val RD = new RecordDeduplication(params, scc, sampleTableName, blockerMatcher)
+      val RD = new RecordDeduplication(scc, sampleTableName, blockerMatcher)
       RD.setTableParameters(sampleTableName)
       assert(RD.hashCol == 0)
 
@@ -60,7 +59,7 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
       // Initialize algorithm
 
       var similarity = new WeightedJaccardSimilarity(colNames, scc.getTableContext(sampleTableName), tok, 0.5)
-      var RD = new RecordDeduplication(null, scc, sampleTableName, defaultBM(scc, similarity))
+      var RD = new RecordDeduplication(scc, sampleTableName, defaultBM(scc, similarity))
       RD.setTableParameters(sampleTableName)
       assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
       RD.exec()
@@ -68,7 +67,7 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
 
       scc.resetSample(sampleTableName)
       similarity = new WeightedJaccardSimilarity(colNames, scc.getTableContext(sampleTableName), tok, 0.51)
-      RD = new RecordDeduplication(null, scc, sampleTableName, defaultBM(scc, similarity))
+      RD = new RecordDeduplication(scc, sampleTableName, defaultBM(scc, similarity))
       RD.setTableParameters(sampleTableName)
       assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
       RD.exec()
@@ -100,10 +99,10 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
 
       val t0 = System.nanoTime()
       val similarity = new WeightedJaccardSimilarity(colNames, scc.getTableContext(sampleTableName), tok, 0.5)
-      val RD = new RecordDeduplication(params, scc, sampleTableName, defaultBM(scc, similarity))
+      val RD = new RecordDeduplication(scc, sampleTableName, defaultBM(scc, similarity))
       RD.setTableParameters(sampleTableName)
       val t1 = System.nanoTime()
-      RD.synchronousExecAndRead()
+      RD.exec()
       val t2 = System.nanoTime()
       assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 100)
       val t3 = System.nanoTime()

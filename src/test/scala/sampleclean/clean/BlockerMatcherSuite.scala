@@ -77,6 +77,18 @@ class BlockerMatcherSuite extends FunSuite with LocalSCContext {
 
       val blockMatch = new BlockerMatcherSelfJoinSequence(scc, sampleTableName, bJoin, List(matcher))
       assert(blockMatch.blockAndMatch(rdd).count() == 100)
+
+      val baseFeaturizer = new SimilarityFeaturizer(colNames, scc.getTableContext(sampleTableName),
+                                                    List("Levenshtein", "JaroWinkler"))
+      val alstrategy = ActiveLearningStrategy(colNames,baseFeaturizer)
+      blockMatch.addMatcher(new ActiveLearningMatcher(scc,sampleTableName,alstrategy))
+      blockMatch.setOnReceiveNewMatches(_ => println("do nothing"))
+
+      // TODO async run
+
+      blockMatch.updateContext(scc.getTableContext(sampleTableName).map(x => x + x))
+      assert(blocker.context == scc.getTableContext(sampleTableName).map(x => x + x))
+      assert(matcher.context == scc.getTableContext(sampleTableName).map(x => x + x))
     })
 
 }
