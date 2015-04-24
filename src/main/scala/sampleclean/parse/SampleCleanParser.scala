@@ -348,7 +348,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
         printQuery(queryParser(command, false).execute())
         return ("Complete", (System.nanoTime - now)/1000000)
       }
-     else if(firstToken.equals("initTest")){
+     else if(firstToken.equals("inittest")){
        initTest()
        return ("init test table", (System.nanoTime - now)/1000000)
      }
@@ -476,6 +476,9 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   }
 
   def initTest() = {
+    val context = List("id", "col0")
+    val contextString = context.mkString(" String,") + " String"
+
     val hiveContext = scc.getHiveContext()
     scc.closeHiveSession()
     hiveContext.hql("DROP TABLE IF EXISTS test")
