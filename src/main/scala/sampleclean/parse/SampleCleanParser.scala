@@ -8,6 +8,7 @@ import sampleclean.clean.featurize.SimilarityFeaturizer
 import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
 import sampleclean.clean.featurize.LearningSimilarityFeaturizer
 import sampleclean.clean.featurize.Tokenizer._
+import sys.process._
 
 
 /**
@@ -347,6 +348,10 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
         printQuery(queryParser(command, false).execute())
         return ("Complete", (System.nanoTime - now)/1000000)
       }
+     else if(firstToken.equals("initTest")){
+       initTest()
+       return ("init test table", (System.nanoTime - now)/1000000)
+     }
   	 else {//in the default case pass it to hive
   		  val hiveContext = scc.getHiveContext();
   		  hiveContext.hql(command.replace(";","")).collect().foreach(println)
@@ -468,6 +473,16 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     val initSample = data.sample(false, 0.01)
     val candidatePairs = initSample.cartesian(initSample)
     blocking.train(candidatePairs)
+  }
+
+  def initTest() = {
+    val hiveContext = scc.getHiveContext()
+    scc.closeHiveSession()
+    hiveContext.hql("DROP TABLE IF EXISTS test")
+    hiveContext.hql("CREATE TABLE IF NOT EXISTS test(%s) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'".format(contextString))
+    val master = ("cat /root/ephemeral-hdfs/conf/masters" !!).trim()
+    hiveContext.hql("LOAD DATA INPATH 'hdfs://%s:9000/csvJaccard100dupsAttr' OVERWRITE INTO TABLE test".format(master))
+    scc.initializeConsistent("test", "test_sample", "id", 1)
   }
 
 }
