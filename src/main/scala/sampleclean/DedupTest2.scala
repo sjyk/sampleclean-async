@@ -17,11 +17,11 @@ object DedupTest2 {
    */
   def main(args: Array[String]): Unit = {
 
-    val master = ("cat /root/ephemeral-hdfs/conf/masters" !!).trim()
+    //val master = ("cat /root/ephemeral-hdfs/conf/masters" !!).trim()
     val conf = new SparkConf()
-      .setAppName("test")
-    //conf.setMaster("local")
-    conf.setMaster(master)
+    conf.setAppName("test")
+    conf.setMaster("local")
+    //conf.setMaster("spark://" + master + ":7077")
     conf.set("spark.executor.memory", "4g")
 
     val sc = new SparkContext(conf)
@@ -37,8 +37,8 @@ object DedupTest2 {
     hiveContext.hql("DROP TABLE IF EXISTS test")
     hiveContext.hql("CREATE TABLE IF NOT EXISTS test(%s) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'".format(contextString))
     //val master = ("cat /root/ephemeral-hdfs/conf/masters" !!).trim()
-    hiveContext.hql("LOAD DATA INPATH 'hdfs://%s:9000/csvJaccard100dupsAttr' OVERWRITE INTO TABLE test".format(master))
-    //hiveContext.hql("LOAD DATA LOCAL INPATH './src/test/resources/csvJaccard100dupsAttr' OVERWRITE INTO TABLE test")
+    //hiveContext.hql("LOAD DATA INPATH 'hdfs://%s:9000/csvJaccard100dupsAttr' OVERWRITE INTO TABLE test".format(master))
+    hiveContext.hql("LOAD DATA LOCAL INPATH './src/test/resources/csvJaccard100dupsAttr' OVERWRITE INTO TABLE test")
     scc.initializeConsistent("test", sampleName, "id", 1)
 
     // query to get duplicates
