@@ -31,11 +31,21 @@ import scala.collection.Seq
 @serializable
 abstract class AnnotatedSimilarityFeaturizer(val colNames: List[String], 
                   context:List[String],
-								  val tokenizer:Tokenizer, 
+								  var tokenizer:Tokenizer, 
 								  var threshold:Double,
                   val minSize: Int,
                   val schemaMap: Map[Int,Int]= null)
 	extends Featurizer(colNames, context){
+
+    //copy constructor allows for quick switching of sim feature types
+    def this(copyConst:AnnotatedSimilarityFeaturizer){
+        this(copyConst.colNames,
+             copyConst.context, 
+             copyConst.tokenizer, 
+             copyConst.threshold,
+             copyConst.minSize,
+             copyConst.schemaMap)
+    }
 
 		val usesTokenPrefixFiltering: Boolean
     val usesStringPrefixFiltering: Boolean
@@ -237,6 +247,16 @@ object AnnotatedSimilarityFeaturizer{
                   minSize: Int = 0)
 	extends AnnotatedSimilarityFeaturizer(colNames, context, tokenizer, threshold, minSize) {
 
+
+     //copy constructor allows for quick switching of sim feature types
+    def this(copyConst:AnnotatedSimilarityFeaturizer){
+        this(copyConst.colNames,
+             copyConst.context, 
+             copyConst.tokenizer, 
+             copyConst.threshold,
+             copyConst.minSize)
+    }
+
   val usesTokenPrefixFiltering = true
   val usesStringPrefixFiltering = false
 
@@ -310,6 +330,15 @@ class WeightedOverlapSimilarity(colNames: List[String],
   val usesTokenPrefixFiltering = true
   val usesStringPrefixFiltering = false
 
+     //copy constructor allows for quick switching of sim feature types
+    def this(copyConst:AnnotatedSimilarityFeaturizer){
+        this(copyConst.colNames,
+             copyConst.context, 
+             copyConst.tokenizer, 
+             copyConst.threshold,
+             copyConst.minSize)
+    }
+
   def optimizedSimilarity(tokens1: Seq[String],
                 tokens2: Seq[String],
                 threshold: Double,
@@ -359,6 +388,15 @@ class WeightedDiceSimilarity(colNames: List[String],
 
   val usesTokenPrefixFiltering = true
   val usesStringPrefixFiltering = false
+
+       //copy constructor allows for quick switching of sim feature types
+    def this(copyConst:AnnotatedSimilarityFeaturizer){
+        this(copyConst.colNames,
+             copyConst.context, 
+             copyConst.tokenizer, 
+             copyConst.threshold,
+             copyConst.minSize)
+    }
 
   def optimizedSimilarity(tokens1: Seq[String],
                 tokens2: Seq[String],
@@ -430,6 +468,15 @@ class WeightedCosineSimilarity(colNames: List[String],
 
   val usesTokenPrefixFiltering = true
   val usesStringPrefixFiltering = false
+
+     //copy constructor allows for quick switching of sim feature types
+    def this(copyConst:AnnotatedSimilarityFeaturizer){
+        this(copyConst.colNames,
+             copyConst.context, 
+             copyConst.tokenizer, 
+             copyConst.threshold,
+             copyConst.minSize)
+    }
 
   def optimizedSimilarity(tokens1: Seq[String],
                 tokens2: Seq[String],
@@ -504,6 +551,13 @@ class WeightedCosineSimilarity(colNames: List[String],
     val usesTokenPrefixFiltering = false
     val usesStringPrefixFiltering = true
 
+       //copy constructor allows for quick switching of sim feature types
+    def this(copyConst:AnnotatedSimilarityFeaturizer){
+        this(copyConst.colNames,
+             copyConst.context, 
+             copyConst.tokenizer, 
+             copyConst.threshold)
+    }
 
     def optimizedSimilarity(tokens1: Seq[String],
                 tokens2: Seq[String],
@@ -572,7 +626,6 @@ class WeightedCosineSimilarity(colNames: List[String],
           d(i-1)(j-1) + cost   // substitution
         )
       }
-
       d(lenStr1)(lenStr2)
     }
 

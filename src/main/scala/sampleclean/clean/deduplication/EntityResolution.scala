@@ -44,7 +44,7 @@ class EntityResolution(params:AlgorithmParameters,
 
     //there are the read-only class variables that subclasses can use (validated at execution time)
     val attr = params.get("attr").asInstanceOf[String]
-    val mergeStrategy = params.get("mergeStrategy").asInstanceOf[String]
+    var mergeStrategy = params.get("mergeStrategy").asInstanceOf[String]
     
     //these are dynamic class variables
     private [sampleclean] var attrCol = 1
@@ -166,6 +166,13 @@ class EntityResolution(params:AlgorithmParameters,
 
   	}
 
+    /**
+     * Sets the canonicalization strategy
+     */
+    def setCanonicalizationStrategy(strategy:String) = {
+      mergeStrategy = strategy
+    }
+
 }
 
 object EntityResolution {
@@ -177,7 +184,7 @@ object EntityResolution {
    * parameters (such as setting a Similarity Featurizer and Tokenizer),
    * refer to the [[EntityResolution]] class.
    *
-   * This algorithm uses the Jaccard Similarity for pairwise comparisons
+   * This algorithm uses the Edit Distance Similarity for pairwise comparisons
    * and a word tokenizer.
    *
    * @param scc SampleClean Context
@@ -193,7 +200,51 @@ object EntityResolution {
    *                 pair comparisons and speed up the algorithm if there is
    *                 an abundance of common words in the dataset.
    */
-    def textAttributeAutomatic(scc:SampleCleanContext,
+    def shortAttributeCanonicalize(scc:SampleCleanContext,
+                               sampleName:String, 
+                               attribute: String, 
+                               threshold:Double=0.9,
+                               weighting:Boolean =true):EntityResolution = {
+
+        val algoPara = new AlgorithmParameters()
+        algoPara.put("attr", attribute)
+        algoPara.put("mergeStrategy", "mostFrequent")
+
+        val similarity = new EditFeaturizer(List(attribute), 
+                                                   scc.getTableContext(sampleName),
+                                                   WordTokenizer(), 
+                                                   threshold)
+
+        val join = new PassJoin(scc.getSparkContext(), similarity)
+        val matcher = new AllMatcher(scc, sampleName)
+        val blockerMatcher = new BlockerMatcherSelfJoinSequence(scc,sampleName, join, List(matcher))
+        return new EntityResolution(algoPara, scc, sampleName, blockerMatcher)
+    }
+
+      /**
+   * This method builds an Entity Resolution algorithm that will
+   * resolve automatically. It uses several default values and is designed
+   * for simple Entity Resolution tasks. For more flexibility in
+   * parameters (such as setting a Similarity Featurizer and Tokenizer),
+   * refer to the [[EntityResolution]] class.
+   *
+   * This algorithm uses the Weighted Jaccard Similarity for pairwise comparisons
+   * and a word tokenizer.
+   *
+   * @param scc SampleClean Context
+   * @param sampleName
+   * @param attribute name of attribute to resolve
+   * @param threshold threshold used in the algorithm. Must be
+   *                  between 0.0 and 1.0
+   * @param weighting If set to true, the algorithm will automatically calculate
+   *                 token weights. Default token weights are defined based on
+   *                 token idf values.
+   *
+   *                 Adding weights into the join might lead to more reliable
+   *                 pair comparisons and speed up the algorithm if there is
+   *                 an abundance of common words in the dataset.
+   */
+    def longAttributeCanonicalize(scc:SampleCleanContext,
                                sampleName:String, 
                                attribute: String, 
                                threshold:Double=0.9,

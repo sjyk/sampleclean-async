@@ -64,7 +64,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
    * @param samplingRatio sampling ratio between 0.0 and 1.0
    * @param persist set to true to persist RDD in HIVE (default = true)
    */
-	def initialize(baseTable:String, sampleTable:String, samplingRatio: Double, persist:Boolean=true): (SchemaRDD, SchemaRDD) = {
+	def initialize(baseTable:String, sampleTable:String, samplingRatio: Double=1.0, persist:Boolean=true): (SchemaRDD, SchemaRDD) = {
 
 		val hiveContext = new HiveContext(sc)
 		//creates the clean sample using table sampling procedure
@@ -116,7 +116,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
    * @param samplingRatio sampling ratio between 0.0 and 1.0
    * @param persist set to true to persist RDD in HIVE (default = true)
    */
-	def initializeConsistent(baseTable:String, sampleTable:String, onKey:String, samplingRatio: Double, persist:Boolean=true): (SchemaRDD, SchemaRDD) = {
+	def initializeConsistent(baseTable:String, sampleTable:String, onKey:String, samplingRatio: Double = 1.0, persist:Boolean=true): (SchemaRDD, SchemaRDD) = {
 
 		val hiveContext = new HiveContext(sc)
 		//creates the clean sample using a consistent hashing procedure

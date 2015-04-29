@@ -67,10 +67,10 @@ class BroadcastJoin( @transient sc: SparkContext,
 
       if (smallerA && containment) {
         // token counts calculated using full data
-        tokenCounts = computeTokenCount(rddB.map(featurizer.tokenizer.tokenize(_, featurizer.getCols())))
+        tokenCounts = computeTokenCount(rddB.map(simfeature.tokenizer.tokenize(_, simfeature.getCols())))
       }
       else if (containment) {
-        tokenCounts = computeTokenCount(rddA.map(featurizer.tokenizer.tokenize(_, featurizer.getCols(false))))
+        tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_, simfeature.getCols(false))))
         val n = smallTableSize
         smallTableSize = largeTableSize
         largeTableSize = n
@@ -78,8 +78,8 @@ class BroadcastJoin( @transient sc: SparkContext,
         largeTable = rddA
       }
       else {
-        tokenCounts = computeTokenCount(rddA.map(featurizer.tokenizer.tokenize(_, featurizer.getCols())).
-                                        union(rddB.map(featurizer.tokenizer.tokenize(_, featurizer.getCols(false)))))
+        tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_, simfeature.getCols())).
+                                        union(rddB.map(simfeature.tokenizer.tokenize(_, simfeature.getCols(false)))))
 
         largeTableSize = largeTableSize + smallTableSize
       }
@@ -91,7 +91,7 @@ class BroadcastJoin( @transient sc: SparkContext,
       println("[SampleClean] Calculated Token Weights: " + tokenWeights)
       //Add a record ID into sampleTable. Id is a unique id assigned to each row.
       val smallTableWithId: RDD[(Long, (Seq[String], Row))] = smallTable.zipWithUniqueId
-        .map(x => (x._2, (featurizer.tokenizer.tokenize(x._1, featurizer.getCols(false)), x._1))).cache()
+        .map(x => (x._2, (simfeature.tokenizer.tokenize(x._1, simfeature.getCols(false)), x._1))).cache()
 
 
       // Set a global order to all tokens based on their frequencies
@@ -124,7 +124,7 @@ class BroadcastJoin( @transient sc: SparkContext,
       val scanTable = {
         if (selfJoin) smallTableWithId
         else {
-          largeTable.map(row => (0L, (featurizer.tokenizer.tokenize(row,featurizer.getCols(false)), row)))
+          largeTable.map(row => (0L, (featurizer.tokenizer.tokenize(row,simfeature.getCols(false)), row)))
         }
       }
 
@@ -138,7 +138,7 @@ class BroadcastJoin( @transient sc: SparkContext,
             val broadcastIndexValue = broadcastIndex.value
 
             val sorted: Seq[String] = sortTokenSet(key1, broadcastRank.value)
-            val removedSize = featurizer.getRemovedSize(sorted, featurizer.threshold, weightsValue)
+            val removedSize = simfeature.getRemovedSize(sorted, simfeature.threshold, weightsValue)
             val filtered = sorted.dropRight(removedSize)
 
             filtered.foldLeft(List[Long]()) {
@@ -151,7 +151,7 @@ class BroadcastJoin( @transient sc: SparkContext,
                 else {
                   val (key2, row2) = broadcastDataValue(id2)
 
-                  val similar: Boolean = featurizer.optimizedSimilarity(key1, key2, featurizer.threshold, weightsValue)._1
+                  val similar: Boolean = simfeature.optimizedSimilarity(key1, key2, simfeature.threshold, weightsValue)._1
 
                   (key2, row2, similar)
                 }

@@ -23,8 +23,8 @@ class SampleCleanQuery(scc:SampleCleanContext,
 		          sampleName: String,
 	  				  attr: String,
 	  				  expr: String,
-	  				  pred:String,
-	  				  group:String,
+	  				  pred:String = "",
+	  				  group:String = "",
 	  				  rawSC:Boolean = true){
 
   private [sampleclean] var vizServer = "localhost:8000"

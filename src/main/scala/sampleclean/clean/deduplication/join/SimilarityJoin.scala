@@ -1,5 +1,6 @@
 package sampleclean.clean.deduplication.join
 import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer
+import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
 import org.apache.spark.SparkContext
@@ -30,7 +31,7 @@ import org.apache.spark.SparkContext._
  *                 an abundance of common tokens in the dataset.
  */
 class SimilarityJoin(@transient sc: SparkContext,
-					 val simfeature: AnnotatedSimilarityFeaturizer,  
+					 var simfeature: AnnotatedSimilarityFeaturizer,  
 					 weighted:Boolean = false) extends Serializable {
 
   /**
@@ -101,6 +102,21 @@ class SimilarityJoin(@transient sc: SparkContext,
 
 	}
 
+	  def setSimilarityFeaturizer(newSimilarity:String) = {
+
+	  	val curContext = simfeature.context
+      	newSimilarity match {
+              case "WeightedJaccard" => simfeature = new WeightedJaccardSimilarity(simfeature)
+              case "WeightedDice" => simfeature = new WeightedDiceSimilarity(simfeature)
+              case "WeightedOverlap"=> simfeature = new WeightedOverlapSimilarity(simfeature)
+              case "WeightedCosine"=> simfeature = new WeightedCosineSimilarity(simfeature)
+              //case "EditDistance"=> simfeature = new EditFeaturizer(simfeature)
+              case _ => throw new RuntimeException("Invalid Similarity: " + newSimilarity)
+      	}
+      	updateContext(curContext)
+
+    }
+
 	/**
    	* Counts the number of times that each token shows up in the data
    	* @param data  RDD with tokenized records.
@@ -118,5 +134,4 @@ class SimilarityJoin(@transient sc: SparkContext,
   	private [sampleclean] def updateContext(newContext:List[String]) ={
   		simfeature.setContext(newContext)
   	}
-
 }

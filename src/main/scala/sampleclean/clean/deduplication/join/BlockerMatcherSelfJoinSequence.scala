@@ -5,6 +5,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
 import sampleclean.clean.deduplication.matcher.Matcher
 import sampleclean.clean.deduplication.blocker.Blocker
+import sampleclean.clean.featurize.Tokenizer._
+import sampleclean.clean.featurize.Tokenizer
 
 /**
  * This class acts as a wrapper for blocker + matcher routines.
@@ -122,6 +124,28 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 
 			println(" RDD[(Row,Row)]")
 	}
+
+	/**
+	 * This function changes the similarity metric used in the Entity Resolution algorithm
+	 * @type {[type]}
+	 */
+	def changeSimilarity(newSimilarity: String) = {
+		if (newSimilarity == "EditDistance")
+			throw new RuntimeException("You should use shortAttributeCanonicalize() instead")
+		else if (join.isInstanceOf[PassJoin])
+			throw new RuntimeException("You should use longAttributeCanonicalize() instead")
+
+		join.setSimilarityFeaturizer(newSimilarity)
+	}
+
+	def changeTokenization(newTokenization: String) = {
+		newTokenization match {
+              case "WhiteSpace" => join.simfeature.tokenizer = new WhiteSpaceTokenizer()
+              case "WhiteSpaceAndPunc" => join.simfeature.tokenizer = new WhiteSpacePunctuationTokenizer()
+              case _ => throw new RuntimeException("Invalid Tokenizer: " + newTokenization)
+      	}
+	}
+
 
 }
 
