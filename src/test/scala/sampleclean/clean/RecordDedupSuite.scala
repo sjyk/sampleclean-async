@@ -5,7 +5,7 @@ import org.apache.spark.sql.catalyst.expressions.Row
 import org.scalatest.FunSuite
 import sampleclean.api.SampleCleanContext
 import sampleclean.clean.algorithm.AlgorithmParameters
-import sampleclean.clean.deduplication.RecordDeduplication
+import sampleclean.clean.deduplication.{EntityResolution, RecordDeduplication}
 import sampleclean.clean.deduplication.join.{BlockerMatcherJoinSequence, BroadcastJoin}
 import sampleclean.clean.deduplication.matcher.AllMatcher
 import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer
@@ -89,6 +89,36 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
       assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
       RD.exec()
       assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
+    })
+  }
+
+  test("variations in parameters"){
+    withSingleAttribute(1, {scc =>
+      var RD = RecordDeduplication.textAutomatic(scc,sampleTableName,colNames,1,false)
+      RD.exec()
+      scc.resetSample(sampleTableName)
+      RD = RecordDeduplication.textAutomatic(scc,sampleTableName,colNames,0,false)
+      RD.exec()
+      scc.resetSample(sampleTableName)
+      RD = RecordDeduplication.textAutomatic(scc,sampleTableName,colNames,0.0001,false)
+      RD.exec()
+      scc.resetSample(sampleTableName)
+      RD = RecordDeduplication.textAutomatic(scc,sampleTableName,colNames,0.9999,false)
+      RD.exec()
+
+      scc.resetSample(sampleTableName)
+      RD = RecordDeduplication.textAutomatic(scc,sampleTableName,colNames,1,true)
+      RD.exec()
+      scc.resetSample(sampleTableName)
+      RD = RecordDeduplication.textAutomatic(scc,sampleTableName,colNames,0,true)
+      RD.exec()
+      scc.resetSample(sampleTableName)
+      RD = RecordDeduplication.textAutomatic(scc,sampleTableName,colNames,0.0001,true)
+      RD.exec()
+      scc.resetSample(sampleTableName)
+      RD = RecordDeduplication.textAutomatic(scc,sampleTableName,colNames,0.9999,true)
+      RD.exec()
+      
     })
   }
 

@@ -104,6 +104,38 @@ class EntityResolutionSuite extends FunSuite with LocalSCContext {
     })
   }
 
+
+  test("variations in parameters"){
+    withSingleAttribute(1, {scc =>
+      var ER = EntityResolution.textAttributeAutomatic(scc,sampleTableName,attr,1,false)
+      ER.exec()
+      scc.resetSample(sampleTableName)
+      ER = EntityResolution.textAttributeAutomatic(scc,sampleTableName,attr,0,false)
+      ER.exec()
+      scc.resetSample(sampleTableName)
+      ER = EntityResolution.textAttributeAutomatic(scc,sampleTableName,attr,0.0001,false)
+      ER.exec()
+      scc.resetSample(sampleTableName)
+      ER = EntityResolution.textAttributeAutomatic(scc,sampleTableName,attr,0.9999,false)
+      ER.exec()
+
+      scc.resetSample(sampleTableName)
+      ER = EntityResolution.textAttributeAutomatic(scc,sampleTableName,attr,1,true)
+      ER.exec()
+      scc.resetSample(sampleTableName)
+      ER = EntityResolution.textAttributeAutomatic(scc,sampleTableName,attr,0,true)
+      ER.exec()
+      scc.resetSample(sampleTableName)
+      ER = EntityResolution.textAttributeAutomatic(scc,sampleTableName,attr,0.0001,true)
+      ER.exec()
+      scc.resetSample(sampleTableName)
+      ER = EntityResolution.textAttributeAutomatic(scc,sampleTableName,attr,0.9999,true)
+      ER.exec()
+
+
+    })
+  }
+
   test("overhead") {
     withSingleAttribute (1,{ scc =>
       //scc.resetSample(sampleTableName)
