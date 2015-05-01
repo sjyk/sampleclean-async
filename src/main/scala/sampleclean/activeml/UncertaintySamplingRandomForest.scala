@@ -8,7 +8,7 @@ import org.apache.spark.mllib.tree.RandomForest
 import org.apache.spark.mllib.tree.configuration.Algo
 import org.apache.spark.mllib.tree.configuration.Algo.Algo
 import org.apache.spark.rdd.RDD
-import org.apache.spark.mllib.tree.model.RandomForestModel
+import org.apache.spark.mllib.tree.model.{Node, DecisionTreeModel, RandomForestModel}
 import sampleclean.crowd.context.{GroupLabelingContext, PointLabelingContext}
 
 case class RandomForestParameters(numTrees: Int=100,
@@ -46,6 +46,21 @@ class UncertaintySamplingRandomForest[C <: PointLabelingContext, G <: GroupLabel
    */
   override def predict(model: RandomForestModel, point: Vector): Double = model.predict(point)
 
+  def extractPaths(model: RandomForestModel): Seq[TreePath] = {
+    model.trees flatMap { tree =>
+      enumerateLeaves(tree, first = true) map {leaf => new TreePath(tree.topNode, leaf)} filter { path =>
+        path.prediction == -1.0
+      }
+    }
+  }
+
+  def enumerateLeaves(tree: DecisionTreeModel, startNode: Node = null, first:Boolean = false): Seq[Node] = {
+    val curNode = if (first) tree.topNode else startNode
+    if (curNode == null) List[Node]()
+    if (curNode.isLeaf) List(curNode) else {
+      enumerateLeaves(tree, curNode.leftNode.getOrElse(null)) ++ enumerateLeaves(tree, curNode.rightNode.getOrElse(null))
+    }
+  }
 }
 
 /** Uses uncertainty sampling to select points closest to the SVM Margin. */
