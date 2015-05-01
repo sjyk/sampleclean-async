@@ -67,7 +67,7 @@ class BroadcastJoin( @transient sc: SparkContext,
 
       if (smallerA && containment) {
         // token counts calculated using full data
-        tokenCounts = computeTokenCount(rddB.map(simfeature.tokenizer.tokenize(_, simfeature.getCols())))
+        tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_, simfeature.getCols())))
       }
       else if (containment) {
         tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_, simfeature.getCols(false))))
@@ -78,8 +78,7 @@ class BroadcastJoin( @transient sc: SparkContext,
         largeTable = rddA
       }
       else {
-        tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_, simfeature.getCols())).
-                                        union(rddB.map(simfeature.tokenizer.tokenize(_, simfeature.getCols(false)))))
+        tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_, simfeature.getCols())))
 
         largeTableSize = largeTableSize + smallTableSize
       }

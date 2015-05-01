@@ -12,7 +12,7 @@ import org.apache.spark.mllib.regression.LabeledPoint
  */
 class ActiveLearningMatcher( scc: SampleCleanContext,
                             sampleTableName:String,
-                            alstrategy:ActiveLearningStrategy) extends
+                            val alstrategy:ActiveLearningStrategy) extends
 							              Matcher(scc, sampleTableName) {
 
   val asynchronous = true
