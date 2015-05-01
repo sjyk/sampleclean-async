@@ -62,7 +62,7 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 			blocks = blocker.block(data)
 		else
 			{ 
-			  matchedData = join.join(data,data,true,true)
+			  matchedData = join.join(data,data,false)
 			  println("Candidate Pairs Size: " + matchedData.count)
 			}	
 

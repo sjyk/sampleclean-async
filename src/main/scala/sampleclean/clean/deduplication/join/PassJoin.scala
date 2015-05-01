@@ -30,13 +30,12 @@ class PassJoin( @transient sc: SparkContext,
   @Override
   override def join(rddA: RDD[Row],
                     rddB: RDD[Row],
-                    smallerA:Boolean = true,
-                    containment:Boolean = true): RDD[(Row,Row)] = {
+                    sampleA:Boolean = false): RDD[(Row,Row)] = {
 
     println("Starting Broadcast Pass Join")
 
     if (!featurizer.usesStringPrefixFiltering) {
-      super.join(rddA, rddB, smallerA, containment)
+      super.join(rddA, rddB, sampleA)
     }
 
     else {
@@ -49,7 +48,7 @@ class PassJoin( @transient sc: SparkContext,
       var largeTable = rddB
 
 
-      if (!smallerA && containment) {
+      /*if (!smallerA && containment) {
         val n = smallTableSize
         smallTableSize = largeTableSize
         largeTableSize = n
@@ -58,9 +57,9 @@ class PassJoin( @transient sc: SparkContext,
       }
       else if (!containment) {
         largeTableSize = largeTableSize + smallTableSize
-      }
+      }*/
 
-      val isSelfJoin = largeTableSize == smallTableSize && containment
+      val isSelfJoin = !sampleA
 
       //Add a record ID into smallTable. Id is a unique id assigned to each row.
       val smallTableWithId: RDD[(Long, (Seq[String], String, Row))] = smallTable.zipWithUniqueId()

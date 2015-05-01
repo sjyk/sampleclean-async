@@ -26,7 +26,7 @@ private [sampleclean] class BlockerMatcherJoinSequence(scc: SampleCleanContext,
    */
 	def blockAndMatch(data1:RDD[Row], data2:RDD[Row]):RDD[(Row,Row)] = {
 
-		var matchedData = simjoin.join(data1,data2,true,true)
+		var matchedData = simjoin.join(data1,data2,true)
 
 		for (m <- matchers)
 		{

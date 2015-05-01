@@ -52,8 +52,7 @@ class SimilarityJoin(@transient sc: SparkContext,
    */
 	def join(rddA: RDD[Row], 
 			 rddB: RDD[Row], 
-			 smallerA:Boolean = true, 
-			 containment:Boolean = true): RDD[(Row,Row)] = {
+			 sampleA:Boolean = false): RDD[(Row,Row)] = {
 
     println("[SampleClean] Executing SimilarityJoin")
 
@@ -66,25 +65,10 @@ class SimilarityJoin(@transient sc: SparkContext,
 
 
 		if(weighted){
-			if (smallerA && containment){
-				tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_,simfeature.getCols())))
-
-			}
-			else if (containment){
-				tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_,simfeature.getCols(false))))
-        val n = smallTableSize
-        smallTableSize = largeTableSize
-        largeTableSize = n
-
-			}
-			else {
-				tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_, simfeature.getCols())))
-				largeTableSize = largeTableSize + smallTableSize
-			}
-
+			tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_, simfeature.getCols())))
 			tokenWeights = tokenCounts.map(x => (x._1, math.log10(largeTableSize.toDouble / x._2)))
 		}
-    val selfJoin = (largeTableSize == smallTableSize) && containment
+    val selfJoin = !sampleA
 
     var featurized: RDD[(Set[Row], Array[Double])] = null
     if (selfJoin) {

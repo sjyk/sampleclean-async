@@ -47,13 +47,12 @@ class BroadcastJoin( @transient sc: SparkContext,
   @Override
 	override def join(rddA: RDD[Row],
 			 rddB:RDD[Row], 
-			 smallerA:Boolean = true, 
-			 containment:Boolean = true): RDD[(Row,Row)] = {
+			 sampleA:Boolean = false): RDD[(Row,Row)] = {
 
     println("[SampleClean] Executing BroadcastJoin")
 
     if (!featurizer.usesTokenPrefixFiltering) {
-      super.join(rddA, rddB, smallerA, containment)
+      super.join(rddA, rddB, sampleA)
     }
 
     else {
@@ -65,26 +64,10 @@ class BroadcastJoin( @transient sc: SparkContext,
       var smallTable = rddA
       var largeTable = rddB
 
-      if (smallerA && containment) {
-        // token counts calculated using full data
-        tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_, simfeature.getCols())))
-      }
-      else if (containment) {
-        tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_, simfeature.getCols(false))))
-        val n = smallTableSize
-        smallTableSize = largeTableSize
-        largeTableSize = n
-        smallTable = rddB
-        largeTable = rddA
-      }
-      else {
-        tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_, simfeature.getCols())))
-
-        largeTableSize = largeTableSize + smallTableSize
-      }
+      tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_, simfeature.getCols())))
 
       if (weighted) {
-        tokenWeights = tokenCounts.map(x => (x._1, math.log10(largeTableSize.toDouble / x._2)))
+        tokenWeights = tokenCounts.map(x => (x._1, math.log10(smallTableSize.toDouble / x._2)))
       }
 
       println("[SampleClean] Calculated Token Weights: " + tokenWeights)
@@ -118,7 +101,7 @@ class BroadcastJoin( @transient sc: SparkContext,
       val broadcastData = sc.broadcast(smallTableWithId.collectAsMap())
       val broadcastWeights = sc.broadcast(tokenWeights)
 
-      val selfJoin = (largeTableSize == smallTableSize) && containment
+      val selfJoin = !sampleA
 
       val scanTable = {
         if (selfJoin) smallTableWithId
