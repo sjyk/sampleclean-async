@@ -39,9 +39,7 @@ class BroadcastJoin( @transient sc: SparkContext,
    * Perform a Broadcast Join
    * @param rddA First RDD of rows
    * @param rddB Second RDD of rows
-   * @param smallerA True if rddA is smaller or equal to rddB
-   * @param containment True if one RDD is contained within
-   *                    the other (e.g. one is a sample)
+   * @param sampleA true if rddA is a sample of rddB
    * @return an RDD with pairs of similar rows.
    */
   @Override
