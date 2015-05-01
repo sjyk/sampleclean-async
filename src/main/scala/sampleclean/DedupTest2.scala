@@ -22,7 +22,14 @@ object DedupTest2 {
     conf.setAppName("test")
     conf.setMaster("local")
     //conf.setMaster("spark://" + master + ":7077")
-    conf.set("spark.executor.memory", "4g")
+    //conf.set("spark.executor.memory", "4g")
+
+    //GC settings to avoid key already cancelled ? error
+    /*conf.set("spark.rdd.compress","true")
+    conf.set("spark.storage.memoryFraction","1")
+    conf.set("spark.core.connection.ack.wait.timeout","6000")
+    conf.set("spark.akka.frameSize","100")
+    */
 
     val sc = new SparkContext(conf)
     val scc = new SampleCleanContext(sc)
@@ -30,6 +37,7 @@ object DedupTest2 {
     val sampleName = "test_sample"
 
     val context = List("id", "col0")
+    //val context = List("id") ++ (0 until 20).toList.map("col" + _.toString)
     val contextString = context.mkString(" String,") + " String"
 
     val hiveContext = scc.getHiveContext()
@@ -43,26 +51,29 @@ object DedupTest2 {
 
     // query to get duplicates
     val aqp = new SampleCleanAQP()
-    val query = new SampleCleanQuery(scc,aqp,sampleName,"*","COUNT","dup > 1","")
+    val query = new SampleCleanQuery(scc,aqp,sampleName,"*","COUNT","","")
 
     val algorithm1 = RecordDeduplication.textAutomatic(scc, sampleName, context.drop(1),0.5, false)
-    val algorithm2 = EntityResolution.textAttributeActiveLearning(scc, sampleName,"col0",0.3,false)
+    //val algorithm2 = EntityResolution.textAttributeActiveLearning(scc, sampleName,"col0",0.3,false)
 
     // automatic ER
-    query.execute()
-    println("0 duplicates initially")
+    val q1 = query.execute()
     algorithm1.exec()
-    query.execute()
-    println("100 duplicates after automatic deduplication")
+    val q2 = query.execute()
+    println("initial records: ")
+    println(q1)
+    println("records after dedup: ")
+    println(q2)
 
     // Active Learning ER
-    scc.resetSample(sampleName)
+    /*scc.resetSample(sampleName)
     query.execute()
     println("0 duplicates initially")
 
     val watchedQueries = Set(query)
     val pp = new SampleCleanPipeline(saqp, List(algorithm2), watchedQueries)
     pp.exec()
+    */
 
 
   }
