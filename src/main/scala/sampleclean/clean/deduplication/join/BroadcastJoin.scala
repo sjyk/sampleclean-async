@@ -70,9 +70,19 @@ class BroadcastJoin( @transient sc: SparkContext,
 
       println("[SampleClean] Calculated Token Weights: " + tokenWeights)
       //Add a record ID into sampleTable. Id is a unique id assigned to each row.
-      val smallTableWithId: RDD[(Long, (Seq[String], Row))] = smallTable.zipWithUniqueId
-        .map(x => (x._2, (simfeature.tokenizer.tokenize(x._1, simfeature.getCols(false)), x._1))).cache()
+      var smallTableWithId: RDD[(String, (Seq[String], Row))] = null
 
+      if(!sampleA)
+      {  
+        smallTableWithId = smallTable.zipWithUniqueId
+          .map(x => (x._2.toString, (simfeature.tokenizer.tokenize(x._1, 
+            simfeature.getCols(false)), x._1))).cache()
+      }
+      else
+      {
+        smallTableWithId = smallTable.map(x => (x(0).asInstanceOf[String], 
+          (simfeature.tokenizer.tokenize(x, simfeature.getCols(false)), x))).cache()
+      }
 
       // Set a global order to all tokens based on their frequencies
       val tokenRankMap: Map[String, Int] = tokenCounts //computeTokenCount(smallTableWithId.map(_._2._1)) TODO
@@ -83,7 +93,7 @@ class BroadcastJoin( @transient sc: SparkContext,
 
 
       // Build an inverted index for the prefixes of sample data
-      val invertedIndex: RDD[(String, Seq[Long])] = smallTableWithId.flatMap {
+      val invertedIndex: RDD[(String, Seq[String])] = smallTableWithId.flatMap {
         case (id, (tokens, value)) =>
           if (tokens.size < featurizer.minSize) Seq()
           else {
@@ -104,7 +114,7 @@ class BroadcastJoin( @transient sc: SparkContext,
       val scanTable = {
         if (selfJoin) smallTableWithId
         else {
-          largeTable.map(row => (0L, (featurizer.tokenizer.tokenize(row,simfeature.getCols(false)), row)))
+          largeTable.map(row => (row(0).asInstanceOf[String], (featurizer.tokenizer.tokenize(row,simfeature.getCols(false)), row)))
         }
       }
 
@@ -121,13 +131,15 @@ class BroadcastJoin( @transient sc: SparkContext,
             val removedSize = simfeature.getRemovedSize(sorted, simfeature.threshold, weightsValue)
             val filtered = sorted.dropRight(removedSize)
 
-            filtered.foldLeft(List[Long]()) {
+            filtered.foldLeft(List[String]()) {
               case (a, b) =>
                 a ++ broadcastIndexValue.getOrElse(b, List())
             }.distinct.map {
               case id2 =>
                 // Avoid double checking in self-join
-                if ((id2 >= id1) && selfJoin) (null, null, false)
+                println(id1 + " " + id2)
+                if ((id2.toString >= id1.toString) && selfJoin) (null, null, false)
+                else if ((id2.toString == id1.toString) && !selfJoin) (null, null, false)
                 else {
                   val (key2, row2) = broadcastDataValue(id2)
 

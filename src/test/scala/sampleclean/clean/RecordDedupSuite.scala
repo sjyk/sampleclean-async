@@ -44,10 +44,10 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
       assert(filteredPairs.count() == 100)
 
       val dupCounts = filteredPairs.map { case (fullRow, sampleRow) =>
-        (sampleRow(RD.hashCol).asInstanceOf[String], 1)
+        (sampleRow(RD.hashCol).asInstanceOf[String], 1.0)
       }
         .reduceByKey(_ + _)
-        .map(x => (x._1, x._2 + 1))
+        .map(x => (x._1, x._2 + 1.0))
 
       scc.updateTableDuplicateCounts(sampleTableName, dupCounts)
       assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 100)
@@ -79,13 +79,13 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
   test("object"){
     withFullRecords(1,{scc =>
 
-      var RD = RecordDeduplication.textAutomatic(scc, sampleTableName,colNames,0.5,false)
+      var RD = RecordDeduplication.deduplication(scc, sampleTableName,colNames,0.5,false)
       assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
       RD.exec()
       assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 100)
 
       scc.resetSample(sampleTableName)
-      RD = RecordDeduplication.textAutomatic(scc, sampleTableName,colNames,0.51,false)
+      RD = RecordDeduplication.deduplication(scc, sampleTableName,colNames,0.51,false)
       assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
       RD.exec()
       assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
@@ -94,29 +94,29 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
 
   test("variations in parameters"){
     withSingleAttribute(1, {scc =>
-      var RD = RecordDeduplication.textAutomatic(scc,sampleTableName,colNames,1,false)
+      var RD = RecordDeduplication.deduplication(scc,sampleTableName,colNames,1,false)
       RD.exec()
       scc.resetSample(sampleTableName)
-      RD = RecordDeduplication.textAutomatic(scc,sampleTableName,colNames,0,false)
+      RD = RecordDeduplication.deduplication(scc,sampleTableName,colNames,0,false)
       RD.exec()
       scc.resetSample(sampleTableName)
-      RD = RecordDeduplication.textAutomatic(scc,sampleTableName,colNames,0.0001,false)
+      RD = RecordDeduplication.deduplication(scc,sampleTableName,colNames,0.0001,false)
       RD.exec()
       scc.resetSample(sampleTableName)
-      RD = RecordDeduplication.textAutomatic(scc,sampleTableName,colNames,0.9999,false)
+      RD = RecordDeduplication.deduplication(scc,sampleTableName,colNames,0.9999,false)
       RD.exec()
 
       scc.resetSample(sampleTableName)
-      RD = RecordDeduplication.textAutomatic(scc,sampleTableName,colNames,1,true)
+      RD = RecordDeduplication.deduplication(scc,sampleTableName,colNames,1,true)
       RD.exec()
       scc.resetSample(sampleTableName)
-      RD = RecordDeduplication.textAutomatic(scc,sampleTableName,colNames,0,true)
+      RD = RecordDeduplication.deduplication(scc,sampleTableName,colNames,0,true)
       RD.exec()
       scc.resetSample(sampleTableName)
-      RD = RecordDeduplication.textAutomatic(scc,sampleTableName,colNames,0.0001,true)
+      RD = RecordDeduplication.deduplication(scc,sampleTableName,colNames,0.0001,true)
       RD.exec()
       scc.resetSample(sampleTableName)
-      RD = RecordDeduplication.textAutomatic(scc,sampleTableName,colNames,0.9999,true)
+      RD = RecordDeduplication.deduplication(scc,sampleTableName,colNames,0.9999,true)
       RD.exec()
       
     })

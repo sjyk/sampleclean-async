@@ -76,7 +76,8 @@ class SimilarityJoin(@transient sc: SparkContext,
       featurized = filtered.map(x => simfeature.featurize(Set(x._1,x._2),tokenWeights))
     }
     else{
-      featurized = rddA.cartesian(rddB).map(x => simfeature.featurize(Set(x._1,x._2),tokenWeights))
+      featurized = rddA.cartesian(rddB).filter(x => x._1(0).asInstanceOf[String] != x._2(0).asInstanceOf[String])
+                                       .map(x => simfeature.featurize(Set(x._1,x._2),tokenWeights))
     }
 
 		featurized.filter(x => x._2(0) == 1.0).map(x => (x._1.head, x._1.last))

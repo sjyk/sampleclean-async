@@ -21,7 +21,7 @@ import sampleclean.clean.featurize.Tokenizer.WordTokenizer
  */
 class RecordDeduplication(scc: SampleCleanContext,
 							sampleTableName: String,
-							components: BlockerMatcherJoinSequence) extends
+							val components: BlockerMatcherJoinSequence) extends
 							SampleCleanAlgorithm(null, scc, sampleTableName) {
 
 		//fix
@@ -46,9 +46,9 @@ class RecordDeduplication(scc: SampleCleanContext,
 
 		private [sampleclean] def apply(filteredPairs:RDD[(Row,Row)]) = {
 			 val dupCounts = filteredPairs.map{case (fullRow, sampleRow) =>
-        			(sampleRow(hashCol).asInstanceOf[String],1)} // SHOULD unify hash and idCol
+        			(sampleRow(hashCol).asInstanceOf[String],1.0)} // SHOULD unify hash and idCol
         			.reduceByKey(_ + _)
-        			.map(x => (x._1,x._2+1)) // Add back the pairs that are removed above
+        			.map(x => (x._1,x._2+1.0)) // Add back the pairs that are removed above
         	 scc.updateTableDuplicateCounts(sampleTableName, dupCounts)
 		}
 
@@ -79,7 +79,7 @@ object RecordDeduplication{
    *                 pair comparisons and speed up the algorithm if there is
    *                 an abundance of common words in the dataset.
    */
-  def textAutomatic(scc:SampleCleanContext,
+  def deduplication(scc:SampleCleanContext,
                              sampleName:String,
                              colNames: List[String],
                              threshold:Double=0.9,
