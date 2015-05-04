@@ -95,7 +95,7 @@ class EntityResolutionSuite extends FunSuite with LocalSCContext {
 
   test("Object"){
     withSingleAttribute(1, {scc =>
-      val ER = EntityResolution.textAttributeAutomatic(scc,sampleTableName,attr,0.5,false)
+      val ER = EntityResolution.longAttributeCanonicalize(scc,sampleTableName,attr,0.5,false)
 
       assert(scc.getCleanSampleAttr(sampleTableName, "col0").map(x => (x.getString(1), x.getString(0))).groupByKey().count() == 201)
       ER.exec()
@@ -107,29 +107,29 @@ class EntityResolutionSuite extends FunSuite with LocalSCContext {
 
   test("variations in parameters"){
     withSingleAttribute(1, {scc =>
-      var ER = EntityResolution.textAttributeAutomatic(scc,sampleTableName,attr,1,false)
+      var ER = EntityResolution.longAttributeCanonicalize(scc,sampleTableName,attr,1,false)
       ER.exec()
       scc.resetSample(sampleTableName)
-      ER = EntityResolution.textAttributeAutomatic(scc,sampleTableName,attr,0,false)
+      ER = EntityResolution.longAttributeCanonicalize(scc,sampleTableName,attr,0,false)
       ER.exec()
       scc.resetSample(sampleTableName)
-      ER = EntityResolution.textAttributeAutomatic(scc,sampleTableName,attr,0.0001,false)
+      ER = EntityResolution.longAttributeCanonicalize(scc,sampleTableName,attr,0.0001,false)
       ER.exec()
       scc.resetSample(sampleTableName)
-      ER = EntityResolution.textAttributeAutomatic(scc,sampleTableName,attr,0.9999,false)
+      ER = EntityResolution.longAttributeCanonicalize(scc,sampleTableName,attr,0.9999,false)
       ER.exec()
 
       scc.resetSample(sampleTableName)
-      ER = EntityResolution.textAttributeAutomatic(scc,sampleTableName,attr,1,true)
+      ER = EntityResolution.longAttributeCanonicalize(scc,sampleTableName,attr,1,true)
       ER.exec()
       scc.resetSample(sampleTableName)
-      ER = EntityResolution.textAttributeAutomatic(scc,sampleTableName,attr,0,true)
+      ER = EntityResolution.longAttributeCanonicalize(scc,sampleTableName,attr,0,true)
       ER.exec()
       scc.resetSample(sampleTableName)
-      ER = EntityResolution.textAttributeAutomatic(scc,sampleTableName,attr,0.0001,true)
+      ER = EntityResolution.longAttributeCanonicalize(scc,sampleTableName,attr,0.0001,true)
       ER.exec()
       scc.resetSample(sampleTableName)
-      ER = EntityResolution.textAttributeAutomatic(scc,sampleTableName,attr,0.9999,true)
+      ER = EntityResolution.longAttributeCanonicalize(scc,sampleTableName,attr,0.9999,true)
       ER.exec()
 
 
