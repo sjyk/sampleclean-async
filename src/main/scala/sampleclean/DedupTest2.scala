@@ -34,6 +34,7 @@ object DedupTest2 {
     val sc = new SparkContext(conf)
     val scc = new SampleCleanContext(sc)
     val saqp = new SampleCleanAQP()
+    //scc.getFullTable("test_sample").collect().foreach(println)
     val sampleName = "test_sample"
 
     val context = List("id", "col0")
@@ -48,20 +49,23 @@ object DedupTest2 {
     //hiveContext.hql("LOAD DATA INPATH 'hdfs://%s:9000/csvJaccard100dupsAttr' OVERWRITE INTO TABLE test".format(master))
     hiveContext.hql("LOAD DATA LOCAL INPATH './src/test/resources/csvJaccard100dupsAttr' OVERWRITE INTO TABLE test")
     scc.initializeConsistent("test", sampleName, "id", 1)
+    //scc.initialize("test", sampleName,0.5)
 
     // query to get duplicates
     val aqp = new SampleCleanAQP()
     val query = new SampleCleanQuery(scc,aqp,sampleName,"*","COUNT","","")
 
-    val algorithm1 = RecordDeduplication.textAutomatic(scc, sampleName, context.drop(1),0.5, false)
+    val algorithm1 = RecordDeduplication.deduplication(scc, sampleName, context.drop(1),0.5, false)
     //val algorithm2 = EntityResolution.textAttributeActiveLearning(scc, sampleName,"col0",0.3,false)
 
     // automatic ER
     val q1 = query.execute()
     algorithm1.exec()
-    val q2 = query.execute()
+
     println("initial records: ")
     println(q1)
+
+    val q2 = query.execute()
     println("records after dedup: ")
     println(q2)
 

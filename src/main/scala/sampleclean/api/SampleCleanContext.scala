@@ -70,17 +70,21 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		//creates the clean sample using table sampling procedure
 		//when databricks gives us a better implementation of sampling
 		//we can use that. 
+		//val selectionList = List("reflect(\"java.util.UUID\", \"randomUUID\") as hash",
+		//	                     "1 as dup", "*")
 		val selectionList = List("reflect(\"java.util.UUID\", \"randomUUID\") as hash",
 			                     "1 as dup", "*")
 
 		if(persist)
 		{
-			var query = qb.createTableAs(qb.getCleanSampleName(sampleTable)) +
-			qb.buildSelectQuery(selectionList,baseTable) +
-			qb.tableSample(samplingRatio)
-
 			var baseQuery = qb.createTableAs(qb.getBaseName(baseTable)) +
 			qb.buildSelectQuery(selectionList,baseTable)
+
+			hiveContext.hql(baseQuery)
+
+			var query = qb.createTableAs(qb.getCleanSampleName(sampleTable)) +
+			qb.buildSelectQuery(List("*"),qb.getBaseName(baseTable)) +
+			qb.tableSample(samplingRatio)
 
 			hiveContext.hql(query)
 
@@ -94,8 +98,6 @@ class SampleCleanContext(@transient sc: SparkContext) {
 			hiveContext.hql(query)
 
 			hiveContext.hql("cache table "+ qb.getDirtySampleName(sampleTable))
-
-			hiveContext.hql(baseQuery)
 		}
 		
 		return (hiveContext.hql(qb.buildSelectQuery(List("*"),
@@ -122,15 +124,19 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		//creates the clean sample using a consistent hashing procedure
 		val selectionList = List("reflect(\"java.util.UUID\", \"randomUUID\") as hash",
 			                     "1 as dup", "*")
+		//val selectionList = List("concat(*)",
+		//	                     "1 as dup", "*")
 
 		if(persist)
 		{
-			var query = qb.createTableAs(qb.getCleanSampleName(sampleTable)) +
-			qb.buildSelectQuery(selectionList,baseTable) +
-			qb.tableConsistentHash((1.0 / samplingRatio).toLong,onKey)
-
 			var baseQuery = qb.createTableAs(qb.getBaseName(baseTable)) +
 			qb.buildSelectQuery(selectionList,baseTable)
+
+			hiveContext.hql(baseQuery)
+
+			var query = qb.createTableAs(qb.getCleanSampleName(sampleTable)) +
+			qb.buildSelectQuery(List("*"),qb.getBaseName(baseTable)) +
+			qb.tableConsistentHash((1.0 / samplingRatio).toLong,onKey)
 
 			hiveContext.hql(query)
 
@@ -142,7 +148,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 
 			hiveContext.hql(query)
 
-			hiveContext.hql(baseQuery)
+			
 		}
 		
 		return (hiveContext.hql(qb.buildSelectQuery(List("*"),
@@ -172,8 +178,10 @@ class SampleCleanContext(@transient sc: SparkContext) {
 
 		val hiveContext = new HiveContext(sc)
 
+		//println(getParentTable(qb.getCleanSampleName(sampleName)))
+
 		return hiveContext.hql(qb.buildSelectQuery(List("*"),
-							  getParentTable(qb.getCleanSampleName(sampleName))))
+							   getParentTable(qb.getCleanSampleName(sampleName))))
 	}
   
   /**
@@ -278,7 +286,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 	/**This function takes a sample and a rdd of (Hash, Dup) and updates those records in the RDD.
 	 * it returns a new updated SchemaRDD, and there is a persist flag to write these results to HIVE.
 	 */
-  private [sampleclean] def updateTableDuplicateCounts(tableName: String, rdd:RDD[(String, Int)], persist:Boolean = true): SchemaRDD= {
+  private [sampleclean] def updateTableDuplicateCounts(tableName: String, rdd:RDD[(String, Double)], persist:Boolean = true): SchemaRDD= {
 		val hiveContext = new HiveContext(sc)
 		val sqlContext = new SQLContext(sc)
 		val tableNameClean = qb.getCleanSampleName(tableName)
@@ -600,7 +608,7 @@ private [sampleclean] object SampleCleanContext {
 		return rdd.map( x => FilterTuple(x.asInstanceOf[String]))
 	}
 
-	def enforceDupSchema(rdd:RDD[(String, Int)]): RDD[DupTuple] = {
+	def enforceDupSchema(rdd:RDD[(String, Double)]): RDD[DupTuple] = {
 		return rdd.map( x => DupTuple(x._1.asInstanceOf[String],x._2.asInstanceOf[Int]))
 	}
 

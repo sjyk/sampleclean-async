@@ -4,6 +4,8 @@ import sampleclean.api.SampleCleanContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
 import sampleclean.clean.deduplication.matcher.Matcher
+import sampleclean.clean.featurize.Tokenizer._
+import sampleclean.clean.featurize.Tokenizer
 
 /**
  * This class acts as a wrapper for blocker + matcher routines:
@@ -45,6 +47,27 @@ private [sampleclean] class BlockerMatcherJoinSequence(scc: SampleCleanContext,
 		for (m <- matchers)
 			m.updateContext(newContext)
 		
+	}
+
+	/**
+	 * This function changes the similarity metric used in the Entity Resolution algorithm
+	 * @type {[type]}
+	 */
+	def changeSimilarity(newSimilarity: String) = {
+		if (newSimilarity == "EditDistance")
+			throw new RuntimeException("You should use shortAttributeCanonicalize() instead")
+		else if (simjoin.isInstanceOf[PassJoin])
+			throw new RuntimeException("Error!")
+
+		simjoin.setSimilarityFeaturizer(newSimilarity)
+	}
+
+	def changeTokenization(newTokenization: String) = {
+		newTokenization match {
+              case "WhiteSpace" => simjoin.simfeature.tokenizer = new WhiteSpaceTokenizer()
+              case "WhiteSpaceAndPunc" => simjoin.simfeature.tokenizer = new WhiteSpacePunctuationTokenizer()
+              case _ => throw new RuntimeException("Invalid Tokenizer: " + newTokenization)
+      	}
 	}
 
 }
