@@ -139,8 +139,7 @@ class EntityResolution(params:AlgorithmParameters,
         }
         (winner, v1._2 ++ v2._2)
       }
-
-      println("In apply")
+       
 
       val connectedPairs = GraphXInterface.connectedComponents(graphXGraph, merge_vertices)
 
@@ -154,7 +153,7 @@ class EntityResolution(params:AlgorithmParameters,
       val joined = resultRDD.leftOuterJoin(newAttrs).mapValues(tuple => {
         tuple._2 match {
           case Some(newAttr) => {
-            if (tuple._1 != newAttr) println(tuple._1 + " => " + newAttr)
+            //TODO if (tuple._1 != newAttr) log println(tuple._1 + " => " + newAttr)
             newAttr
           }
           case None => tuple._1

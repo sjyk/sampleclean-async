@@ -47,7 +47,7 @@ private [sampleclean] object GraphXInterface {
   def connectedComponents[VD: ClassTag, ED: ClassTag](graph: Graph[VD, ED], reduceFunc: (VD, VD) => VD): VertexRDD[VD] = {
     def sendMessage(edge: EdgeTriplet[VD, ED]) = {
       val merged = reduceFunc(edge.srcAttr, edge.dstAttr)
-      println("GraphX message sent " + edge.srcId + " " + edge.dstId + " " + edge.dstAttr + " " +edge.srcAttr + "@@" +(edge.srcAttr == edge.dstAttr))
+      //TODO log println("GraphX message sent " + edge.srcId + " " + edge.dstId + " " + edge.dstAttr + " " +edge.srcAttr + "@@" +(edge.srcAttr == edge.dstAttr))
       if (edge.srcAttr == edge.dstAttr)
         Iterator.empty
       else

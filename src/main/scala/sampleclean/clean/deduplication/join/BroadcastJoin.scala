@@ -5,8 +5,6 @@ import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.sql._
 
-//TODO fix smallerA bug
-
 /**
  * A Broadcast join is an implementation of a Similarity Join that uses
  * an optimization called Prefix Filtering. In a distributed environment,
@@ -62,13 +60,13 @@ class BroadcastJoin( @transient sc: SparkContext,
       var smallTable = rddA
       var largeTable = rddB
 
-      tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_, simfeature.getCols())))
+      tokenCounts = computeTokenCount(rddA.map(simfeature.tokenizer.tokenize(_: Row, simfeature.getCols())))
 
       if (weighted) {
         tokenWeights = tokenCounts.map(x => (x._1, math.log10(smallTableSize.toDouble / x._2)))
+        println("[SampleClean] Calculated Token Weights")
       }
 
-      println("[SampleClean] Calculated Token Weights: " + tokenWeights)
       //Add a record ID into sampleTable. Id is a unique id assigned to each row.
       var smallTableWithId: RDD[(String, (Seq[String], Row))] = null
 
@@ -85,7 +83,7 @@ class BroadcastJoin( @transient sc: SparkContext,
       }
 
       // Set a global order to all tokens based on their frequencies
-      val tokenRankMap: Map[String, Int] = tokenCounts //computeTokenCount(smallTableWithId.map(_._2._1)) TODO
+      val tokenRankMap: Map[String, Int] = tokenCounts
         .toSeq.sortBy(_._2).map(_._1).zipWithIndex.toMap
 
       // Broadcast rank map to all nodes
@@ -118,7 +116,6 @@ class BroadcastJoin( @transient sc: SparkContext,
         }
       }
 
-
       //Generate the candidates whose prefixes have overlap, and then verify their overlap similarity
       scanTable.flatMap({
         case (id1, (key1, row1)) =>
@@ -137,8 +134,8 @@ class BroadcastJoin( @transient sc: SparkContext,
             }.distinct.map {
               case id2 =>
                 // Avoid double checking in self-join
-                println(id1 + " " + id2)
                 if ((id2.toString >= id1.toString) && selfJoin) (null, null, false)
+                  // doesn't return diagonal in sample join
                 else if ((id2.toString == id1.toString) && !selfJoin) (null, null, false)
                 else {
                   val (key2, row2) = broadcastDataValue(id2)
