@@ -98,12 +98,12 @@ class BlockerMatcherSuite extends FunSuite with LocalSCContext {
 
       val blocker = new WeightedJaccardSimilarity(colNames, scc.getTableContext(sampleTableName), tok, 0.465)
       val bJoin = new BroadcastJoin(scc.getSparkContext(), blocker, false)
-      val rdd1 = scc.getFullTable(sampleTableName)
-      val rdd2 = scc.getCleanSample(sampleTableName)
+      val full = scc.getFullTable(sampleTableName)
+      val sample = scc.getCleanSample(sampleTableName)
       val matcher = new AllMatcher(scc, sampleTableName)
 
       val blockMatch = new BlockerMatcherJoinSequence(scc, sampleTableName, bJoin, List(matcher))
-      assert(blockMatch.blockAndMatch(rdd2, rdd1).count() >= 40 * 2 + rdd2.count())
+      assert(blockMatch.blockAndMatch(sample, full).count() >= 40 * 2)
       blockMatch.updateContext(scc.getTableContext(sampleTableName).map(x => x + x))
       assert(blocker.context == scc.getTableContext(sampleTableName).map(x => x + x))
     })

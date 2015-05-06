@@ -11,7 +11,7 @@ import sampleclean.clean.featurize.Tokenizer.DelimiterTokenizer
 
 class JoinsSuite extends FunSuite with LocalSCContext {
 
-  /*test("broadcast self join un-weighted") {
+  test("broadcast self join un-weighted") {
     withSampleCleanContext { scc =>
       val sc = scc.getSparkContext()
       val context = List("record")
@@ -64,9 +64,9 @@ class JoinsSuite extends FunSuite with LocalSCContext {
 
     }
 
-  }*/
+  }
 
-  /*test("broadcast self join weighted"){
+  test("broadcast self join weighted"){
     withSampleCleanContext { scc =>
       val sc = scc.getSparkContext()
       val context = List("record")
@@ -116,9 +116,9 @@ class JoinsSuite extends FunSuite with LocalSCContext {
 
     }
 
-  }*/
+  }
 
-  /*test("broadcast sample join un-weighted"){
+  test("broadcast sample join un-weighted"){
     withSampleCleanContext { scc =>
       val sc = scc.getSparkContext()
       val context = List("record")
@@ -136,12 +136,13 @@ class JoinsSuite extends FunSuite with LocalSCContext {
       rowRDDSmall = rowRDDLarge.sample(false, 0.5).cache()
       blocker = new WeightedJaccardSimilarity(colNames, context, tok, 0.51)
       bJoin = new BroadcastJoin(sc, blocker, false)
-      // returns 0 dups + original pairs
-      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() == rowRDDSmall.count())
+      // returns 0 dups
+      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() == 0)
       blocker = new WeightedJaccardSimilarity(colNames, context, tok, 0.5)
       bJoin = new BroadcastJoin(sc, blocker, false)
-      // returns ~50 dups * 2 + original pairs
-      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() >= 40 * 2 + rowRDDSmall.count())
+      // returns ~50 dups * 2
+      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() >= 40 * 2)
+      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() <= 60 * 2)
 
 
       // 100 duplicates with Overlap similarity = 5
@@ -149,21 +150,23 @@ class JoinsSuite extends FunSuite with LocalSCContext {
       rowRDDSmall = rowRDDLarge.sample(false, 0.5).cache()
       blocker = new WeightedOverlapSimilarity(colNames, context, tok, 6)
       bJoin = new BroadcastJoin(sc, blocker, false)
-      // about half of self-pairs won't be considered duplicates
-      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() >= (rowRDDSmall.count() / 2 - 8))
+      // 0 dups
+      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() == 0)
       blocker = new WeightedOverlapSimilarity(colNames, context, tok, 5)
       bJoin = new BroadcastJoin(sc, blocker, false)
-      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() >= 40 * 2 + rowRDDSmall.count() / 2)
+      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() >= 40 * 2)
+      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() <= 60 * 2)
 
       // 100 duplicates with Dice similarity = 0.8
       rowRDDLarge = sc.textFile(path + "/dirtyDice100dups").map(Row(_))
       rowRDDSmall = rowRDDLarge.sample(false, 0.5).cache()
       blocker = new WeightedDiceSimilarity(colNames, context, tok, 0.81)
       bJoin = new BroadcastJoin(sc, blocker, false)
-      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() == rowRDDSmall.count())
+      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() == 0)
       blocker = new WeightedDiceSimilarity(colNames, context, tok, 0.8)
       bJoin = new BroadcastJoin(sc, blocker, false)
-      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() >= 40 * 2 + rowRDDSmall.count())
+      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() >= 40 * 2 )
+      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() <= 60 * 2)
 
 
       // 100 duplicates with Cosine similarity = 0.5
@@ -171,16 +174,17 @@ class JoinsSuite extends FunSuite with LocalSCContext {
       rowRDDSmall = rowRDDLarge.sample(false, 0.5).cache()
       blocker = new WeightedCosineSimilarity(colNames, context, tok, 0.51)
       bJoin = new BroadcastJoin(sc, blocker, false)
-      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() == rowRDDSmall.count())
+      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() == 0)
       blocker = new WeightedCosineSimilarity(colNames, context, tok, 0.5)
       bJoin = new BroadcastJoin(sc, blocker, false)
-      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() >= 40 * 2 + rowRDDSmall.count())
+      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() >= 40 * 2)
+      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() <= 60 * 2)
 
     }
 
-  }*/
+  }
 
-  test("broadcast sample join weighted"){
+  /*test("broadcast sample join weighted"){
     withSampleCleanContext { scc =>
       val sc = scc.getSparkContext()
       val context = List("record")
@@ -233,9 +237,9 @@ class JoinsSuite extends FunSuite with LocalSCContext {
       assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() >= 40 * 2 + rowRDDSmall.count())
 
     }
-  }
+  }*/
 
-  /*test("Pass Join (self and sample)"){
+  test("Pass Join (self and sample)"){
     withSampleCleanContext { scc =>
       val sc = scc.getSparkContext()
       val context = List("record")
@@ -262,11 +266,12 @@ class JoinsSuite extends FunSuite with LocalSCContext {
       // 100 duplicates with Edit (Levenshtein) similarity = 10
       rowRDDSmall = rowRDDLarge.sample(false, 0.5).cache()
       blocker = new EditFeaturizer(colNames, context, tok, 9)
-      bJoin = new BroadcastJoin(sc, blocker, false)
-      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() == rowRDDSmall.count())
+      bJoin = new PassJoin(sc, blocker)
+      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() == 0)
       blocker = new EditFeaturizer(colNames, context, tok, 10)
-      bJoin = new BroadcastJoin(sc, blocker, false)
-      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() >= 40 * 2 + rowRDDSmall.count())
+      bJoin = new PassJoin(sc, blocker)
+      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() >= 40 * 2)
+      assert(bJoin.join(rowRDDSmall, rowRDDLarge, true).count() <= 60 * 2)
 
     }
   }
@@ -298,12 +303,13 @@ class JoinsSuite extends FunSuite with LocalSCContext {
       rowRDDSmall = rowRDDLarge.sample(false, 0.5).cache()
       blocker = new EditFeaturizer(colNames, context, tok, 9)
       simJoin = new SimilarityJoin(sc,blocker,false)
-      assert(simJoin.join(rowRDDSmall, rowRDDLarge, true).count() == rowRDDSmall.count())
+      assert(simJoin.join(rowRDDSmall, rowRDDLarge, true).count() == 0)
       blocker = new EditFeaturizer(colNames, context, tok, 10)
       simJoin = new SimilarityJoin(sc,blocker,false)
-      assert(simJoin.join(rowRDDSmall, rowRDDLarge, true).count() >= 40 * 2 + rowRDDSmall.count())
+      assert(simJoin.join(rowRDDSmall, rowRDDLarge, true).count() >= 40 * 2)
+      assert(simJoin.join(rowRDDSmall, rowRDDLarge, true).count() <= 60 * 2)
     }
-  }*/
+  }
 
 
 

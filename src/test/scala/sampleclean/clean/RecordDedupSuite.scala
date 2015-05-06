@@ -41,8 +41,7 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
       assert(sampleTableRDD.count() == 201 && fullTableRDD.count() == 201)
 
       val filteredPairs = blockerMatcher.blockAndMatch(sampleTableRDD, fullTableRDD)
-      assert(filteredPairs.count() == 100)
-
+      assert(filteredPairs.count() == 200)
       val dupCounts = filteredPairs.map { case (fullRow, sampleRow) =>
         (sampleRow(RD.hashCol).asInstanceOf[String], 1.0)
       }
@@ -50,7 +49,7 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
         .map(x => (x._1, x._2 + 1.0))
 
       scc.updateTableDuplicateCounts(sampleTableName, dupCounts)
-      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 100)
+      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 200)
     })
   }
 
@@ -63,7 +62,7 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
       RD.setTableParameters(sampleTableName)
       assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
       RD.exec()
-      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 100)
+      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 200)
 
       scc.resetSample(sampleTableName)
       similarity = new WeightedJaccardSimilarity(colNames, scc.getTableContext(sampleTableName), tok, 0.51)
@@ -82,7 +81,7 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
       var RD = RecordDeduplication.deduplication(scc, sampleTableName,colNames,0.5,false)
       assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
       RD.exec()
-      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 100)
+      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 200)
 
       scc.resetSample(sampleTableName)
       RD = RecordDeduplication.deduplication(scc, sampleTableName,colNames,0.51,false)
@@ -94,29 +93,29 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
 
   test("variations in parameters"){
     withSingleAttribute(1, {scc =>
-      var RD = RecordDeduplication.deduplication(scc,sampleTableName,colNames,1,false)
+      var RD = RecordDeduplication.deduplication(scc,sampleTableName,List("col0"),1,false)
       RD.exec()
       scc.resetSample(sampleTableName)
-      RD = RecordDeduplication.deduplication(scc,sampleTableName,colNames,0,false)
+      RD = RecordDeduplication.deduplication(scc,sampleTableName,List("col0"),0,false)
       RD.exec()
       scc.resetSample(sampleTableName)
-      RD = RecordDeduplication.deduplication(scc,sampleTableName,colNames,0.0001,false)
+      RD = RecordDeduplication.deduplication(scc,sampleTableName,List("col0"),0.0001,false)
       RD.exec()
       scc.resetSample(sampleTableName)
-      RD = RecordDeduplication.deduplication(scc,sampleTableName,colNames,0.9999,false)
+      RD = RecordDeduplication.deduplication(scc,sampleTableName,List("col0"),0.9999,false)
       RD.exec()
 
       scc.resetSample(sampleTableName)
-      RD = RecordDeduplication.deduplication(scc,sampleTableName,colNames,1,true)
+      RD = RecordDeduplication.deduplication(scc,sampleTableName,List("col0"),1,true)
       RD.exec()
       scc.resetSample(sampleTableName)
-      RD = RecordDeduplication.deduplication(scc,sampleTableName,colNames,0,true)
+      RD = RecordDeduplication.deduplication(scc,sampleTableName,List("col0"),0,true)
       RD.exec()
       scc.resetSample(sampleTableName)
-      RD = RecordDeduplication.deduplication(scc,sampleTableName,colNames,0.0001,true)
+      RD = RecordDeduplication.deduplication(scc,sampleTableName,List("col0"),0.0001,true)
       RD.exec()
       scc.resetSample(sampleTableName)
-      RD = RecordDeduplication.deduplication(scc,sampleTableName,colNames,0.9999,true)
+      RD = RecordDeduplication.deduplication(scc,sampleTableName,List("col0"),0.9999,true)
       RD.exec()
       
     })
@@ -134,7 +133,7 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
       val t1 = System.nanoTime()
       RD.exec()
       val t2 = System.nanoTime()
-      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 100)
+      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 200)
       val t3 = System.nanoTime()
 
       val rowRDDLarge = scc.getSparkContext().textFile("./src/test/resources/csvJaccard100dups").map(x => Row.fromSeq(x.split(",", -1).toSeq))
