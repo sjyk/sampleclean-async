@@ -32,7 +32,7 @@ class PassJoin( @transient sc: SparkContext,
                     rddB: RDD[Row],
                     sampleA:Boolean = false): RDD[(Row,Row)] = {
 
-    println("Starting Broadcast Pass Join")
+    println("[SampleClean] Starting Broadcast Pass Join")
 
     if (!featurizer.usesStringPrefixFiltering) {
       super.join(rddA, rddB, sampleA)
@@ -47,26 +47,26 @@ class PassJoin( @transient sc: SparkContext,
       var smallTable = rddA
       var largeTable = rddB
 
-
-      /*if (!smallerA && containment) {
-        val n = smallTableSize
-        smallTableSize = largeTableSize
-        largeTableSize = n
-        smallTable = rddB
-        largeTable = rddA
-      }
-      else if (!containment) {
-        largeTableSize = largeTableSize + smallTableSize
-      }*/
-
       val isSelfJoin = !sampleA
 
+      var smallTableWithId: RDD[(String, (Seq[String], String, Row))] = null
+
       //Add a record ID into smallTable. Id is a unique id assigned to each row.
-      val smallTableWithId: RDD[(Long, (Seq[String], String, Row))] = smallTable.zipWithUniqueId()
-        .map(x => {
-        val block = featurizer.tokenizer.tokenize(x._1, featurizer.getCols(false))
-        (x._2, (block, block.mkString(" "), x._1))
-      }).cache()
+      if(!sampleA)
+      {
+        smallTableWithId = smallTable.zipWithUniqueId()
+          .map(x => {
+          val block = featurizer.tokenizer.tokenize(x._1, featurizer.getCols(false))
+          (x._2.toString, (block, block.mkString(" "), x._1))
+        }).cache()
+      }
+      else
+      {
+        smallTableWithId = smallTable.map(x => {
+          val block = featurizer.tokenizer.tokenize(x, featurizer.getCols(false))
+          (x(0).asInstanceOf[String], (block, block.mkString(" "), x))
+        }).cache()
+      }
 
 
       //find max string length in sample
@@ -94,16 +94,16 @@ class PassJoin( @transient sc: SparkContext,
 
 
       //Broadcast sample data to all nodes
-      val broadcastIndex: Broadcast[collection.Map[(Int, String, Int), Seq[Long]]] = sc.broadcast(invertedIndex.collectAsMap())
-      val broadcastData: Broadcast[collection.Map[Long, (Seq[String], String, Row)]] = sc.broadcast(smallTableWithId.collectAsMap())
+      val broadcastIndex: Broadcast[collection.Map[(Int, String, Int), Seq[String]]] = sc.broadcast(invertedIndex.collectAsMap())
+      val broadcastData: Broadcast[collection.Map[String, (Seq[String], String, Row)]] = sc.broadcast(smallTableWithId.collectAsMap())
       val broadcastSubMap = sc.broadcast(subMap)
 
-      val scanTable: RDD[(Long, (Seq[String], String, Row))] = {
+      val scanTable: RDD[(String, (Seq[String], String, Row))] = {
         if (isSelfJoin) smallTableWithId
         else {
           largeTable.map(row => {
             val key = featurizer.tokenizer.tokenize(row,featurizer.getCols(false))
-            (0L, (key,key.mkString(" "), row))
+            (row(0).asInstanceOf[String], (key,key.mkString(" "), row))
           })
         }
       }
@@ -121,19 +121,20 @@ class PassJoin( @transient sc: SparkContext,
               case (pid, stPos, len, segLen) => (pid, string1.substring(stPos, stPos + len), segLen)
             }
 
-            substrings.foldLeft(Seq[Long]()) {
+            substrings.foldLeft(Seq[String]()) {
               case (ids, (pid: Int, string: String, segLen: Int)) =>
                 ids ++ broadcastIndexValue.getOrElse((pid, string, segLen), List()).distinct
             }.map {
               case id2 =>
                 val (key2, string2, row2) = broadcastDataValue(id2)
                 if (string1.length < string2.length && isSelfJoin) (null, null, false)
-                else if (string1.length == string2.length && id2 >= id1 && isSelfJoin) {
+                else if (string1.length == string2.length && id2.toString >= id1.toString && isSelfJoin) {
+                  (null, null, false)
+                }
+                else if (id2.toString == id1.toString) {
                   (null, null, false)
                 }
                 else {
-                  if(id1 == id2) {
-                  }
                   val similar = {
                     featurizer.optimizedSimilarity(key1, key2, intThreshold, Map[String, Double]())._1
                   }
