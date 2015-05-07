@@ -2,37 +2,57 @@ package sampleclean.api
 
 import org.apache.spark.sql.SchemaRDD
 import org.apache.spark.sql.hive.HiveContext
-import org.apache.spark.SparkContext
-import org.apache.spark.sql.Row
 import scala.util.Random
 
 import sampleclean.util.TypeUtils._
 
 
-
-/* This class provides the approximate query processing 
-* for SampleClean. Currently, it supports SUM, COUNT, AVG
-* and returns confidence intervals in the form of CLT variance
-* estimates.
-*/
+/**
+ * This class provides the approximate query processing
+ * for SampleClean. Currently, it supports SUM, COUNT, AVG
+ * and returns confidence intervals in the form of CLT variance
+ * estimates.
+ *
+ * SampleClean supports two types of queries:
+ *
+ * RawSC: Estimates the query result based on the cleaned sample only
+ *
+ * NormalizedSC: Estimates the query result based
+ * on the full dataset, the dirty sample and the cleaned sample.
+ *
+ * NormalizedSC is recommended if the data is mostly clean as it
+ * will take into account the full dataset. If the data contains a large
+ * or unknown amount of dirtiness, RawSC is recommended as it
+ * will focus on the cleaned sample.
+ *
+ * These parameters can be set when building a [[SampleCleanQuery]]
+ */
 @serializable
 class SampleCleanAQP() {
 
-	  /**Internal method to calculate the normalization for the AVG query
-	  */
+	  /**
+     * Internal method to calculate the normalization for the AVG query
+	   */
 	  private def duplicationRate(rdd:SchemaRDD):Double=
 	  {
 	  	  return rdd.count()/rdd.map( x => 1.0/x(1).asInstanceOf[Int]).reduce(_ + _)
 	  }
 
-	  /*This query executes rawSC with a group given an attribute to aggregate, 
-	  * expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
-	  * It returns a tuple of the estimate, and the variance of the estimate (EST, VAR_EST)
-
-	  *Args (SampleCleanContext, Name of Sample to Query, 
-	  *Attr to Query, Agg Function to Use, Predicate, Sampling Ratio)
-	  */
-	 def rawSCQueryGroup(scc:SampleCleanContext, sampleName: String, 
+  // TODO: preserveTableName
+  /**
+   * This query executes rawSC with a group given an attribute to aggregate,
+   * expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
+   * It returns a tuple of the estimate, and the variance of the estimate (EST, VAR_EST)
+   * @param attr attribute to query
+   * @param expr aggregate function to use {SUM, COUNT, AVG}
+   * @param pred predicate
+   * @param group group by this attribute
+   * @param sampleRatio sampling ratio
+   * @param preserveTableName
+   * @return a tuple containing the query time in nanoseconds and
+   *         the query result as (group (estimate, variance))
+   */
+	 private [sampleclean] def rawSCQueryGroup(scc:SampleCleanContext, sampleName: String,
 	  				  attr: String, expr: String, 
 	  				  pred:String,
 	  				  group: String, 
@@ -68,6 +88,8 @@ class SampleCleanAQP() {
 	  	  	 	                 gattr + " as group"),
 	  	  	 	              hiveTableName)
 
+	  	  	 println(buildQuery)
+
 	  	  	 hc.registerRDDAsTable(hc.hql(buildQuery),tmpTableName)
 
 	  	  	 val aggQuery = scc.qb.buildSelectQuery(List( "group",
@@ -90,7 +112,6 @@ class SampleCleanAQP() {
 	  	  	 	                 gattr + " as group"),
 	  	  	 	              hiveTableName)
 
-	  	  	 println(buildQuery)
 	  	  	 hc.registerRDDAsTable(hc.hql(buildQuery),tmpTableName)
 
 	  	  	 val aggQuery = scc.qb.buildSelectQuery(List( "group",
@@ -130,7 +151,7 @@ class SampleCleanAQP() {
 	  		//return (System.nanoTime, List(("test",(0.0,0.0))))
 	  }
 
-	 def materializeJoinResult(scc:SampleCleanContext, 
+	 private [sampleclean] def materializeJoinResult(scc:SampleCleanContext,
 	 						    sampleName1: String,
 	 						    sampleName2: String, 
 	 						    key1:String, 
@@ -158,15 +179,26 @@ class SampleCleanAQP() {
 	 	return (query1, query2)
 	 }
 
-	 def materializeJoinResult(scc:SampleCleanContext, expr:String,tableName:String):(SchemaRDD,SchemaRDD)= {
+	 private [sampleclean] def materializeJoinResult(scc:SampleCleanContext, expr:String,tableName:String):(SchemaRDD,SchemaRDD)= {
 	 	val params = scc.qb.joinExpr(expr)
 	 	return materializeJoinResult(scc,params._1,params._2,params._3,params._4,tableName)
 	 }
 
-	  /*Args (SampleCleanContext, Name of Sample to Query, 
-	  *Attr to Query, Agg Function to Use, Predicate, Sampling Ratio)
-	  */
-	 def normalizedSCQueryGroup(scc:SampleCleanContext, sampleName: String, 
+  /**
+   * This query executes rawSC with a group given an attribute to aggregate,
+   * expr {SUM, COUNT, AVG}, a predicate, and the sampling ratio.
+   * It returns a tuple of the estimate, and the variance of the estimate (EST, VAR_EST)
+   * @param scc SampleClean Context
+   * @param sampleName
+   * @param attr attribute to query
+   * @param expr aggregate function to use {SUM, COUNT, AVG}
+   * @param pred predicate
+   * @param group group by this attribute
+   * @param sampleRatio sampling ratio
+   * @return a tuple containing the query time in nanoseconds and
+   *         the query result as (group (estimate, variance))
+   */
+	 private [sampleclean] def normalizedSCQueryGroup(scc:SampleCleanContext, sampleName: String,
 	  				  attr: String, expr: String, 
 	  				  pred:String,
 	  				  group: String, 
@@ -289,13 +321,13 @@ class SampleCleanAQP() {
 	  		return (System.nanoTime, List(("1",(0.0,0.0))))
 	  }
 
-	def deltaCountToVariance(c:Double,k:Double,sampleRatio:Double):Double={
+	private [sampleclean] def deltaCountToVariance(c:Double,k:Double,sampleRatio:Double):Double={
 		val n = k/sampleRatio
 		return n*Math.sqrt((1-c/n)*c/n)/Math.sqrt(k)
 	}
 
 
-	def compareQueryResults(qr1:(Long, List[(String, (Double, Double))]),
+	private [sampleclean] def compareQueryResults(qr1:(Long, List[(String, (Double, Double))]),
 							qr2:(Long, List[(String, (Double, Double))])): (Long, List[(String, Double)]) = {
 
 		val timeStamp = Math.max(qr1._1,qr2._1)

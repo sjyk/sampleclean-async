@@ -5,7 +5,7 @@ import org.apache.spark.rdd.RDD
 
 import scala.reflect.ClassTag
 
-object GraphXInterface {
+private [sampleclean] object GraphXInterface {
 
   /**
    * Builds a graph from an RDD of vertex data and an RDD of edge data.
@@ -47,6 +47,7 @@ object GraphXInterface {
   def connectedComponents[VD: ClassTag, ED: ClassTag](graph: Graph[VD, ED], reduceFunc: (VD, VD) => VD): VertexRDD[VD] = {
     def sendMessage(edge: EdgeTriplet[VD, ED]) = {
       val merged = reduceFunc(edge.srcAttr, edge.dstAttr)
+      //TODO log println("GraphX message sent " + edge.srcId + " " + edge.dstId + " " + edge.dstAttr + " " +edge.srcAttr + "@@" +(edge.srcAttr == edge.dstAttr))
       if (edge.srcAttr == edge.dstAttr)
         Iterator.empty
       else

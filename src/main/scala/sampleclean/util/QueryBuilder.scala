@@ -1,54 +1,55 @@
 package sampleclean.util
 
-import sampleclean.api.SampleCleanContext;
+import sampleclean.api.SampleCleanContext
 
-/** The QueryBuilder Class provides a set 
-* of methods to manipulate HIVEQL queries.
-*/
+/**
+ * The QueryBuilder Class provides a set
+ * of methods to manipulate HIVEQL queries.
+ */
 @serializable
-class QueryBuilder(scc: SampleCleanContext) {
+private [sampleclean] class QueryBuilder(scc: SampleCleanContext) {
 
 	//some common templates
-	val CTAS_TEMPLATE = "CREATE TABLE %s AS "
-	val CTASC_TEMPLATE = "CREATE TABLE %s COMMENT '%b' AS "
-	val HASH_COL_NAME = "hash"
-	val DUP_COL_NAME = "dup"
-	val HASH_DUP_INIT = " REFLECT(\"java.util.UUID\", \"randomUUID\") AS %h, 1 AS %d, "
-	val SAMPLE_TEMPLATE = " TABLESAMPLE( %r PERCENT)"
+	private [sampleclean] val CTAS_TEMPLATE = "CREATE TABLE %s AS "
+  private [sampleclean] val CTASC_TEMPLATE = "CREATE TABLE %s COMMENT '%b' AS "
+  private [sampleclean] val HASH_COL_NAME = "hash"
+  private [sampleclean] val DUP_COL_NAME = "dup"
+  private [sampleclean] val HASH_DUP_INIT = " REFLECT(\"java.util.UUID\", \"randomUUID\") AS %h, 1 AS %d, "
+  private [sampleclean] val SAMPLE_TEMPLATE = " TABLESAMPLE( %r PERCENT)"
 
 	/** Returns the string corresponding to the 
 	* CTAS query
 	*/
-	def createTableAs(tableName:String): String ={
+  private [sampleclean] def createTableAs(tableName:String): String ={
 		return CTAS_TEMPLATE.replace("%s",tableName)
 	}
 
-	def setTableParent(tableName:String,baseTable:String): String = {
+  private [sampleclean] def setTableParent(tableName:String,baseTable:String): String = {
 		return "ALTER TABLE "+tableName + " SET TBLPROPERTIES ('comment' = '"+baseTable+"')"
 	}
 
 	/** Returns the string corresponding to the 
 	* Insert Overwrite query
 	*/
-	def overwriteTable(tableName:String): String ={
+  private [sampleclean] def overwriteTable(tableName:String): String ={
 		return "INSERT OVERWRITE TABLE "+ tableName + " "
 	}
 
 	/** Returns the syntax for table sampling
 	*/
-	def tableSample(sampleRatio:Double):String ={
+  private [sampleclean] def tableSample(sampleRatio:Double):String ={
 		return SAMPLE_TEMPLATE.replace("%r",sampleRatio+"")
 	}
 
 	/** Returns the syntax for table sampling
 	*/
-	def tableConsistentHash(sampleFrac:Long, onKey:String):String ={
-		return " where hash(" +onKey +") % " + sampleFrac + " = 1" 
+  private [sampleclean] def tableConsistentHash(sampleFrac:Long, onKey:String):String ={
+		return " where hash(" +onKey +") % " + sampleFrac + " = 0" 
 	}
 
 	/** Takes a list of attributes and formats them into a selection string
 	*/
-	def attrsToSelectionList(attrs:List[String]): String = {
+  private [sampleclean] def attrsToSelectionList(attrs:List[String]): String = {
 		var selectionString = ""
 		for (attr <- attrs)
 		{
@@ -109,7 +110,7 @@ class QueryBuilder(scc: SampleCleanContext) {
 		return query  
 	}
 
-	def formatJoinKey(joinKey:String, table:String, dirty:Boolean):String = {
+  private [sampleclean] def formatJoinKey(joinKey:String, table:String, dirty:Boolean):String = {
 		if(joinKey.indexOf(".") < 0){
 			return table+"." + joinKey
 		}
@@ -122,7 +123,7 @@ class QueryBuilder(scc: SampleCleanContext) {
 		}
 	}
 
-	def forceMapJoin(table1:String, table2:String):String = {
+  private [sampleclean] def forceMapJoin(table1:String, table2:String):String = {
 		return "/*+ MAPJOIN("+table1+"), MAPJOIN("+table2+") */"
 	}
 
@@ -149,15 +150,27 @@ class QueryBuilder(scc: SampleCleanContext) {
 
 	/** Often we have to convert predicates into case statement
 	*/
-	def predicateToCase(pred:String):String = {
+  private [sampleclean] def predicateToCase(pred:String):String = {
 		return "if((" + pred + "),1.0,0.0)"
 	}
 
 	/** Often we have to convert predicates into case statements,
 	* and multiply by an attribute
 	*/
-	def predicateToCaseMult(pred:String, attr:String):String = {
+  private [sampleclean] def predicateToCaseMult(pred:String, attr:String):String = {
 		return attr+"*"+predicateToCase(pred)
+	}
+
+  private [sampleclean] def addColsToTable(cols:List[String], tableName:String):String ={
+		var alterTables = "ALTER TABLE "+ tableName +  " ADD COLUMNS ("
+		for(col <- cols)
+			alterTables += col + " string, "
+
+		alterTables = alterTables.substring(0,alterTables.length - 2)
+			
+		alterTables += ")"
+
+		return alterTables
 	}
 
 	/** Returns the "clean" sample name
@@ -187,7 +200,34 @@ class QueryBuilder(scc: SampleCleanContext) {
 		return resultString
 	}
 
-	def getCleanFactSampleName(sampleName:String,dirty:Boolean = false):String = {
+	/** Returns the "clean" sample name
+	*/
+	def getBaseName(sampleName:String):String = {
+		val sampleExprSplit = sampleName.replaceAll("=", " = ")
+		val splitComponents = sampleExprSplit.split("\\s+")
+		val reservedWords = List("on", "join", "left", "right", "outer", "semi", "=")
+		var resultString = ""
+		for(comp <- splitComponents){
+			if(reservedWords contains comp){
+				resultString = resultString + " "+ comp
+			}
+			else{
+				
+				if(comp.indexOf(".") >= 0){
+					resultString = resultString + " "+ 
+					                            comp.substring(0, comp.indexOf("."))+
+												"_base" +
+												comp.substring(comp.indexOf("."))
+				}
+				else{
+					resultString = resultString + " "+ comp+"_base"
+				}
+			}
+		}
+		return resultString
+	}
+
+  private [sampleclean] def getCleanFactSampleName(sampleName:String,dirty:Boolean = false):String = {
 		var suffix = "_clean"
 
 		if(dirty)
@@ -197,7 +237,7 @@ class QueryBuilder(scc: SampleCleanContext) {
 		return splitComponents(0)+suffix
 	}
 
-	def getFactSampleName(sampleName:String):String = {
+  private [sampleclean] def getFactSampleName(sampleName:String):String = {
 		val splitComponents = sampleName.split("\\s+")
 		return splitComponents(0)
 	}
@@ -208,18 +248,18 @@ class QueryBuilder(scc: SampleCleanContext) {
 		return(splitComponents(0),splitComponents(2),splitComponents(4),splitComponents(6))
 	}
 
-	def getTableJoinSchemaList(table1:String,table2:String):List[String] ={
+  private [sampleclean] def getTableJoinSchemaList(table1:String,table2:String):List[String] ={
 		val schema1 = scc.getHiveTableSchema(table1).map(concatTableName(_,table1))
 		var schema2 = scc.getHiveTableSchema(table2).map(concatTableName(_,table2))
 		schema2 = schema2.slice(2,schema2.size)
 		return schema1 ::: schema2
 	}
 
-	def concatTableName(attr:String,tableName:String):String ={
+  private [sampleclean] def concatTableName(attr:String,tableName:String):String ={
 		return tableName + "." + attr
 	}
 
-	def getCleanDimSampleName(sampleName:String,dirty:Boolean = false):String = {
+  private [sampleclean] def getCleanDimSampleName(sampleName:String,dirty:Boolean = false):String = {
 		var suffix = "_clean"
 
 		if(dirty)
@@ -229,12 +269,12 @@ class QueryBuilder(scc: SampleCleanContext) {
 		return splitComponents(2)+suffix
 	}
 
-	def getDimSampleName(sampleName:String):String = {
+  private [sampleclean] def getDimSampleName(sampleName:String):String = {
 		val splitComponents = sampleName.split("\\s+")
 		return splitComponents(2)
 	}
 
-	def transformExplicitExpr(expr:String, sampleName:String, dirty:Boolean=false):String = {
+  private [sampleclean] def transformExplicitExpr(expr:String, sampleName:String, dirty:Boolean=false):String = {
 		val splitComponents = sampleName.split("\\s+")
 		var result = expr
 		if(splitComponents.length > 1){
@@ -253,12 +293,12 @@ class QueryBuilder(scc: SampleCleanContext) {
 		return result
 	}
 
-	def isJoinQuery(sampleName:String):Boolean = {
+  private [sampleclean] def isJoinQuery(sampleName:String):Boolean = {
 		val splitComponents = sampleName.split("\\s+")
 		return (splitComponents.length > 1)
 	}
 
-	def exprToDupString(sampleName:String):String = {
+  private [sampleclean] def exprToDupString(sampleName:String):String = {
 		val splitComponents = sampleName.split("\\s+")
 		if(splitComponents.length > 1){
 			return getCleanFactSampleName(sampleName) + ".dup"	//+ 
@@ -269,7 +309,7 @@ class QueryBuilder(scc: SampleCleanContext) {
 		}
 	}
 
-	def countSumVarianceSQL(k: Double, attr: String, sampleRatio: Double):String = {
+  private [sampleclean] def countSumVarianceSQL(k: Double, attr: String, sampleRatio: Double):String = {
 		val realCount = "sum("+predicateToCase("agg != 0")+")" //todo fix
 
 		val n = "("+k/sampleRatio+")"
@@ -316,13 +356,13 @@ class QueryBuilder(scc: SampleCleanContext) {
 
 	/** Divide two attributes
 	*/
-	def divide(a:String, b:String):String = {
+  private [sampleclean] def divide(a:String, b:String):String = {
 		return a + "/" + b
 	}
 
 	/** Multiply two attributes
 	*/
-	def subtract(a:String, b:String):String = {
+  private [sampleclean] def subtract(a:String, b:String):String = {
 		return a + " - " + b
 	}
 
@@ -330,7 +370,7 @@ class QueryBuilder(scc: SampleCleanContext) {
 	* punctutation. This allows us to parse the
 	*expression more easily.
 	*/
-	def punctuationParseString(expr:String):String = {
+  private [sampleclean] def punctuationParseString(expr:String):String = {
 		var resultString = " "
 		for (i <- 0 until expr.length)
 		{
@@ -346,7 +386,7 @@ class QueryBuilder(scc: SampleCleanContext) {
 	/** This makes the experssion also contain the table name
 	* in the form table.attr rather than just attr.
 	*/
-	def makeExpressionExplicit(expr:String, 
+  private [sampleclean] def makeExpressionExplicit(expr:String,
 		                       sampleExpName:String):String = {
 
 		var resultExpr = " "+punctuationParseString(expr.toLowerCase)
@@ -360,15 +400,15 @@ class QueryBuilder(scc: SampleCleanContext) {
 
 	/** puts the expression in parens
 	*/
-	def parenthesize(expr:String):String = {
+  private [sampleclean] def parenthesize(expr:String):String = {
 		return "(" + expr + ")"
 	}
 
-	def appendToPredicate(pred:String, expr:String): String = {
+  private [sampleclean] def appendToPredicate(pred:String, expr:String): String = {
 		return parenthesize(pred) + " AND " + parenthesize(expr)
 	}
 
-	def attrEquals(attr:String, value:String):String = {
+  private [sampleclean] def attrEquals(attr:String, value:String):String = {
 		return attr + " = '" + value+"'"
 	}
 

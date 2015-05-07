@@ -22,7 +22,7 @@ import sampleclean.clean.featurize.Featurizer
 /**
  * This class is used to create an Active Learning strategy that will
  * asynchronously run an Active Learning algorithm ultimately used
- * fot deduplication. It uses given starting
+ * for deduplication. It uses given starting
  * labels and Amazon Mechanical Turk for training new models.
  * @param displayedColNames column names of the main data set (i.e. that are visible to the user).
  */
@@ -33,6 +33,7 @@ case class ActiveLearningStrategy(displayedColNames: List[String], featurizer:Fe
   var frameworkParameters = ActiveLearningParameters()
   var crowdParameters = CrowdConfiguration() // Use defaults
   var taskParameters = CrowdTaskConfiguration() // Use defaults
+  var currentModel:SVMModel = null
   
   /*
    * Used to set new SVM parameters that will be used for training.
@@ -107,7 +108,8 @@ case class ActiveLearningStrategy(displayedColNames: List[String], featurizer:Fe
                candidatePairs: RDD[(Row, Row)],
                colMapper1: List[String] => List[Int],
                colMapper2: List[String] => List[Int],
-               onUpdateDupCounts: RDD[(Row, Row)] => Unit) = {
+               onUpdateDupCounts: RDD[(Row, Row)] => Unit,
+               passthrough:Boolean = false) = {
 
     // Assign a unique id for each candidate pair
     val candidatePairsWithId = candidatePairs.map((utils.randomUUID(), _)).cache()
@@ -129,6 +131,8 @@ case class ActiveLearningStrategy(displayedColNames: List[String], featurizer:Fe
 
       DeduplicationPointLabelingContext(List(displayedRow1, displayedRow2))
     }
+
+    println(displayedColNames.toList)
 
     val unlabeledInput = candidatePairsWithId.map(p =>
       (p._1, Vectors.dense(featurizer.featurize(Set(p._2._1, p._2._2))._2), toPointLabelingContext(p._2._1, p._2._2)))
@@ -161,21 +165,32 @@ case class ActiveLearningStrategy(displayedColNames: List[String], featurizer:Fe
     def processNewModel(model:SVMModel, modelN: Long) {
       val modelLabeledData: RDD[(String, Double)] = unlabeledInput.map(p => (p._1, model.predict(p._2)))
       var mergedLabeledData: RDD[(String, Double)] = modelLabeledData
+      
+      currentModel = model
 
       val crowdLabeledData = trainingFuture.getLabeledData
-      crowdLabeledData match {
+      if(!passthrough){
+        crowdLabeledData match {
         case None => // do nothing
         case Some(crowdData) =>
           mergedLabeledData = modelLabeledData.leftOuterJoin(crowdData).map{
             case (pid, (modelLabel, None)) => (pid, modelLabel)
             case (pid, (modelLabel, Some(crowdLabel))) => (pid, crowdLabel)
         }
+        }
+      }
+      else{
+        crowdLabeledData match {
+        case None => // do nothing
+        case Some(crowdData) =>
+          mergedLabeledData = crowdData
+        }
       }
 
       assert(mergedLabeledData.count() == modelLabeledData.count())
       assert(mergedLabeledData.count() == candidatePairsWithId.count())
 
-      val duplicatePairs = mergedLabeledData.filter(_._2 > 0.5).join(candidatePairsWithId).map(_._2._2) // 1: duplicate; 0: non-duplicate
+      var duplicatePairs = mergedLabeledData.filter(_._2 > 0.5).join(candidatePairsWithId).map(_._2._2) // 1: duplicate; 0: non-duplicate
       onUpdateDupCounts(duplicatePairs)
     }
 
@@ -183,6 +198,11 @@ case class ActiveLearningStrategy(displayedColNames: List[String], featurizer:Fe
 
     // wait for training to complete
     Await.ready(trainingFuture, Duration.Inf)
+  }
+
+
+  def updateContext(context: List[String]) ={
+      featurizer.setContext(context)
   }
 
 

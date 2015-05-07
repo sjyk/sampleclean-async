@@ -1,16 +1,17 @@
 package sampleclean.clean.deduplication
 
-import org.apache.spark.rdd.RDD
+import org.apache.spark.rdd._
 import sampleclean.crowd._
 import sampleclean.crowd.context.{DeduplicationGroupLabelingContext, DeduplicationPointLabelingContext}
-
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import sampleclean.clean.featurize.Featurizer
+
 
 /**
  * This class is used to request crowd participation
  */
-case class CrowdsourcingStrategy() {
+case class CrowdsourcingStrategy(displayedColNames: List[String], featurizer:Featurizer) {
   var crowdParameters = CrowdConfiguration() // Use defaults
   var taskParameters = CrowdTaskConfiguration() // Use defaults
   private val crowdTask = new DeduplicationTask()
@@ -34,12 +35,6 @@ case class CrowdsourcingStrategy() {
     this.taskParameters
   }
 
-  def run(points:RDD[(String, DeduplicationPointLabelingContext)],
-          groupContext: DeduplicationGroupLabelingContext): RDD[(String, Double)] = {
-
-    crowdTask.processBlocking(points, groupContext, getTaskParameters)
-  }
-
   def asyncRun(points:RDD[(String, DeduplicationPointLabelingContext)],
                groupContext: DeduplicationGroupLabelingContext,
                onNewCrowdResult: Seq[(String, Double)] => Unit) = {
@@ -51,5 +46,6 @@ case class CrowdsourcingStrategy() {
     // wait until all future results are completed
     Await.ready(resultFuture, Duration.Inf)
   }
+
 }
 

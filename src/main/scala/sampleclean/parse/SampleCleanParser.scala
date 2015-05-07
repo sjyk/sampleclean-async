@@ -3,14 +3,19 @@ package sampleclean.parse
 import sampleclean.activeml._
 import sampleclean.api.{SampleCleanAQP, SampleCleanContext, SampleCleanQuery}
 import sampleclean.clean.algorithm.{AlgorithmParameters, SampleCleanAlgorithm, SampleCleanPipeline}
-import sampleclean.clean.deduplication.{ActiveLearningStrategy, BlockingStrategy, CrowdsourcingStrategy, _}
-import sampleclean.crowd.{CrowdConfiguration, CrowdTaskConfiguration}
+import sampleclean.clean.deduplication.ActiveLearningStrategy
 import sampleclean.clean.featurize.SimilarityFeaturizer
+import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
+import sampleclean.clean.featurize.LearningSimilarityFeaturizer
+import sampleclean.clean.featurize.Tokenizer._
+import sys.process._
 
-/** The SampleCleanParser is the class that handles parsing SampleClean commands
- *  this class triggers execution when a command is parsed successfully. Commands
- *  that are not understood are passed down to the HiveContext which executes them
- *  as HiveQL Commands.
+
+/**
+ * The SampleCleanParser is the class that handles parsing SampleClean commands.
+ * This class triggers execution when a command is parsed successfully. Commands
+ * that are not understood are passed down to the HiveContext which executes them
+ * as HiveQL Commands.
  *
  * @param scc SampleCleanContext is passed to the parser
  * @param saqp SampleCleanAQP is passed to the parser
@@ -24,16 +29,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
   val RESERVED_STRING_CHAR = "\""
 
   //function registry--use the function registry if the system accepts string parameters
-  val functionRegistry = Map("merge" -> ("sampleclean.clean.misc.MergeKey",
-                                         List("attr","src","target")),
-                             "lowercase" -> ("sampleclean.clean.misc.LowerCaseTrimKey",
-                                         List("attr")),
-                             "democustom" -> ("sampleclean.clean.misc.CustomTransform",
-                                         List("attr")),
-                             "cut" -> ("sampleclean.clean.misc.CutTransform",
-                                         List("attr","delimiter","position")),
-                             "filter" -> ("sampleclean.clean.misc.RuleFilter",
-                                         List("attr", "rule")))
+  val functionRegistry:Map[String,(String, List[String])] = Map()
 
   var watchedQueries = Set[SampleCleanQuery]()
   var activePipelines = Set[SampleCleanPipeline]()
@@ -144,8 +140,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
    									parsedExpr._1,
    									pred,
    									group,
-                    rawSC,
-                    command)
+                    rawSC)
    		
    }
 
@@ -232,7 +227,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
       d.name = classData._1
       val pp = new SampleCleanPipeline(saqp,List(d), watchedQueries)
       activePipelines += pp
-      pp.exec(name)
+      pp.exec()
    }
 
    /* Handles attribute deduplication
@@ -252,25 +247,27 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
     val algoPara = new AlgorithmParameters()
     algoPara.put("attr", "affiliation")
-
-    if(algorithm.toLowerCase.equals("minhash") || 
-      algorithm.toLowerCase.equals("sortmerge")){
-
-      algoPara.put("iterations", primaryArg.toInt)
-      algoPara.put("similarityParameters", SimilarityParameters(simFunc=algorithm))
-    }
-    else{
-        algoPara.put("similarityParameters", SimilarityParameters(simFunc=algorithm, threshold=primaryArg.toDouble))
-    } 
-
     algoPara.put("mergeStrategy", strategy)
 
-    val d = new AttributeDeduplication(algoPara, scc)
-    d.blocking = true
-    d.name = algorithm + " Attribute Deduplication"
-    val pp = new SampleCleanPipeline(saqp, List(d), watchedQueries)
-    activePipelines += pp
-    pp.exec(samplename)
+    val AnnotatedSimilarityFeaturizer = new WeightedJaccardSimilarity(List("affiliation"), 
+                                                     scc.getTableContext(samplename),
+                                                     WordTokenizer(), 
+                                                     primaryArg.toDouble)
+
+    algoPara.put("AnnotatedSimilarityFeaturizer", AnnotatedSimilarityFeaturizer)
+
+    val displayedCols = List("attr","count")
+    algoPara.put("activeLearningStrategy",
+      ActiveLearningStrategy(displayedCols, new SimilarityFeaturizer(List("affiliation"),scc.getTableContext(samplename), List("Levenshtein", "JaroWinkler")))
+        .setActiveLearningParameters(ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10)))
+
+    //val d = new MachineRecordDeduplication(algoPara, scc, samplename)
+    //d.blocking = true
+    //d.name = algorithm + " Record Deduplication"
+
+    //val pp = new SampleCleanPipeline(saqp, List(d), watchedQueries)
+    //activePipelines += pp
+    //pp.exec()
 
     }
 
@@ -278,7 +275,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
       val splitComponents = command.split("\\s+") //split on whitespace
       val exprClean = splitComponents.drop(1).mkString(" ") //remove 'select*'
       val scQuery = queryParser(exprClean, exprClean.toLowerCase.contains("rawsc"))
-      scQuery.execute(true)
+      scQuery.execute()
       watchedQueries = watchedQueries + scQuery
       activePipelines foreach { _.registerQuery(scQuery) }
     }
@@ -335,18 +332,26 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
        playDemoDedup()
        return ("Dedup", (System.nanoTime - now)/1000000)
      }
-     else if(firstToken.equals("crowddedupattr")){
-       demoDedupAttr()
+     else if(firstToken.equals("tamr")){
+       demoTamr()
+       return ("Dedup", (System.nanoTime - now)/1000000)
+     }
+     else if(firstToken.equals("corleone")){
+       demoCorleone()
        return ("Dedup", (System.nanoTime - now)/1000000)
      }
   	 else if(firstToken.equals("selectrawsc")){
-  		  printQuery(queryParser(command).execute(false))
+  		  printQuery(queryParser(command).execute())
   		  return ("Complete", (System.nanoTime - now)/1000000)
   	  }
       else if(firstToken.equals("selectnsc")){
         printQuery(queryParser(command, false).execute())
         return ("Complete", (System.nanoTime - now)/1000000)
       }
+     else if(firstToken.equals("inittest")){
+       initTest()
+       return ("init test table", (System.nanoTime - now)/1000000)
+     }
   	 else {//in the default case pass it to hive
   		  val hiveContext = scc.getHiveContext();
   		  hiveContext.hql(command.replace(";","")).collect().foreach(println)
@@ -386,11 +391,11 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     hiveContext.hql("DROP TABLE IF EXISTS paper_affiliation")
     hiveContext.hql("CREATE TABLE paper_affiliation as SELECT paperid, affiliation from paper_author where length(affiliation) > 1 and  (lower(affiliation) like '%berkeley%'  or lower(affiliation) like '%stanford%') group by paperid,affiliation")
   
-    scc.initializeConsistent("paper", "paper_sample", "id", 10)
-    scc.initializeConsistent("paper_affiliation", "paper_aff_sample", "paperid", 10)
-    scc.initializeConsistent("paper_author", "paper_auth_sample", "paperid", 10)
+    scc.initializeConsistent("paper", "paper_sample", "id", 0.1)
+    scc.initializeConsistent("paper_affiliation", "paper_aff_sample", "paperid", 0.1)
+    scc.initializeConsistent("paper_author", "paper_auth_sample", "paperid", 0.1)
 
-    parseAndExecute("democustom paper_aff_sample affiliation")
+    //parseAndExecute("democustom paper_aff_sample affiliation")
 
   }
 
@@ -401,9 +406,9 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
       parseAndExecute("dedupattr paper_aff_sample affiliation wjaccard 0.6 mostfrequent")
   }
 
-  def demoDedupRec() = {
+  private [sampleclean] def demoDedupRec() = {
 
-    val algoPara = new AlgorithmParameters()
+   /* val algoPara = new AlgorithmParameters()
 
     algoPara.put("id","id")
 
@@ -427,30 +432,60 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
     val pp = new SampleCleanPipeline(saqp, List(d))
     activePipelines += pp
-    pp.exec("paper_sample")
+    pp.exec("paper_sample")*/
   }
 
-  def demoDedupAttr() = {
-    val algoPara3 = new AlgorithmParameters()
-    algoPara3.put("attr", "affiliation")
-    algoPara3.put("similarityParameters", SimilarityParameters(simFunc="WJaccard", threshold=0.30))
-    algoPara3.put("mergeStrategy", "MostFrequent")
+  private [sampleclean] def demoTamr() = {
 
-    val displayedCols = List("attr","count")
-    var featureList = List[Feature](Feature(List("attr"), List("Levenshtein", "JaroWinkler")))
-    //algoPara3.put("activeLearningStrategy",
-    //  ActiveLearningStrategy(displayedCols)
-    //    .setFeatureList(featureList)
-    //    .setActiveLearningParameters(ActiveLearningParameters(budget = 60, batchSize = 10, bootstrapSize = 10)))
-    val crowdParameters = CrowdConfiguration(crowdName="internal")
-    val taskParameters = CrowdTaskConfiguration(maxPointsPerTask = 5, votesPerPoint = 1)
-    algoPara3.put("crowdsourcingStrategy", CrowdsourcingStrategy().setCrowdParameters(crowdParameters).setTaskParameters(taskParameters))
-    val d3 = new AttributeDeduplication(algoPara3, scc)
-    d3.blocking = false
-    d3.name = "Crowd Attribute Deduplication"
-    val pp = new SampleCleanPipeline(saqp, List(d3), watchedQueries)
+   /* println("Demo1: Tamr Extraction By Example")
+
+    val algoPara2 = new AlgorithmParameters()
+    algoPara2.put("newSchema", List("aff1","aff2"))
+    algoPara2.put("attr", "affiliation")
+
+    val d = new LearningSplitExtraction(algoPara2, scc, "paper_aff_sample")
+    //d.addExample("University of California Berkeley|LBNL",List("University of California Berkeley", "LBNL"))
+    
+    println("Random Example: University of California Berkeley|Computer Science Division")
+
+    val pp = new SampleCleanPipeline(saqp, List(d))
     activePipelines += pp
-    pp.exec("paper_aff_sample")
+    pp.exec()*/
+  }
+
+  private [sampleclean] def demoCorleone() = {
+
+    println("Demo2: Corleone Blocking By Example")
+
+    val cols = List("affiliation")
+    val colNames = List("Affiliation")
+    val baseFeaturizer = new SimilarityFeaturizer(cols, scc.getTableContext("paper_aff_sample"), List("Levenshtein", "JaroWinkler"))
+    val alStrategy = new ActiveLearningStrategy(colNames, baseFeaturizer)
+
+    val blocking = new LearningSimilarityFeaturizer(cols, 
+                  colNames,
+                  baseFeaturizer,
+                  scc,
+                  alStrategy,
+                  0)
+
+    val data = scc.getCleanSample("paper_aff_sample")
+    val initSample = data.sample(false, 0.01)
+    val candidatePairs = initSample.cartesian(initSample)
+    blocking.train(candidatePairs)
+  }
+
+  def initTest() = {
+    val context = List("id", "col0")
+    val contextString = context.mkString(" String,") + " String"
+
+    val hiveContext = scc.getHiveContext()
+    scc.closeHiveSession()
+    hiveContext.hql("DROP TABLE IF EXISTS test")
+    hiveContext.hql("CREATE TABLE IF NOT EXISTS test(%s) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'".format(contextString))
+    val master = ("cat /root/ephemeral-hdfs/conf/masters" !!).trim()
+    hiveContext.hql("LOAD DATA INPATH 'hdfs://%s:9000/csvJaccard100dupsAttr' OVERWRITE INTO TABLE test".format(master))
+    scc.initializeConsistent("test", "test_sample", "id", 1)
   }
 
 }

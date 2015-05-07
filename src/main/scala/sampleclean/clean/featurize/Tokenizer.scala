@@ -1,23 +1,38 @@
 package sampleclean.clean.featurize
 import java.util.StringTokenizer
 import scala.collection.mutable.ArrayBuffer
-import org.apache.spark.sql.{SchemaRDD, Row}
+import org.apache.spark.sql.Row
 
 /**
  * This is a tokenizer super-class.
  */
 abstract class Tokenizer{
-  
-  def tokenize(row: Row, cols:List[Int]): List[String] = {
+
+  /**
+   * This function takes specified row columns and
+   * produces a list of tokens. Each token could be
+   * a combination of multiple rows, depending on
+   * the current [[tokenSet()]] function.
+   * @param row
+   * @param cols column indices used for tokenization
+   */
+  def tokenize(row: Row, cols:List[Int]): Seq[String] = {
 
       var stringA = ""
+      var tokSeq: Seq[String] = Seq()
       for (col <- cols){
-        stringA = stringA + " " + row(col).asInstanceOf[String]
+        tokSeq = tokSeq ++ tokenSet(row(col).toString)
+        //stringA = stringA + " " + row(col)
       }
-      return tokenSet(stringA)
+      //return tokenSet(stringA.trim)
+      tokSeq
     }
-  
-  def tokenSet(text: String): List[String]
+
+  /**
+   * This function converts a string into a list of tokens.
+   * It also filters out empty tokens.
+   */
+  def tokenSet(text: String): Seq[String]
 }
 
 object Tokenizer {
@@ -45,10 +60,17 @@ case class WordTokenizer() extends Tokenizer {
 }
 
 /**
+ * This class returns the entire string as a token.
+ */
+case class NullTokenizer() extends Tokenizer {
+  def tokenSet(str: String) = List(str).toSeq.filter(_!="")
+}
+
+/**
  * This class tokenizes a string based on white spaces.
  */
 case class WhiteSpaceTokenizer() extends Tokenizer {
-  def tokenSet(str: String) = str.split("\\s+").toList.filter(_!="")
+  def tokenSet(str: String) = str.split("\\s+").toSeq.filter(_!="")
 }
 
 /**
@@ -56,13 +78,13 @@ case class WhiteSpaceTokenizer() extends Tokenizer {
  * @param gramSize size of gram.
  */
 case class GramTokenizer(gramSize: Int) extends Tokenizer {
-  def tokenSet(str: String) =  str.sliding(gramSize).toList
+  def tokenSet(str: String) =  str.sliding(gramSize).toSeq.filter(_!="")
 }
 
 /**
  * This class tokenizes a string based on white space punctuation.
  */
 case class WhiteSpacePunctuationTokenizer() extends Tokenizer {
-  def tokenSet(str: String) =  str.trim.split("([.,!?:;'\"-]|\\s)+").toList
+  def tokenSet(str: String) =  str.trim.split("([.,!?:;'\"-]|\\s)+").toSeq.filter(_!="")
 }
 }
