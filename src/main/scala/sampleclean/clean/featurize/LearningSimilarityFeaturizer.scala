@@ -14,7 +14,7 @@ import scala.collection.Seq
 /* This class implements the similarity based featurizer used in Deduplication
  */
 @serializable
-class LearningSimilarityFeaturizer(colNames: List[String],
+private [sampleclean] class LearningSimilarityFeaturizer(colNames: List[String],
                   context: List[String],
                   val baseFeaturizer: SimilarityFeaturizer,
                   scc: SampleCleanContext,
@@ -24,12 +24,12 @@ class LearningSimilarityFeaturizer(colNames: List[String],
                   schemaMap: Map[Int,Int]= null)
 	extends AnnotatedSimilarityFeaturizer(colNames, context, new NullTokenizer(), threshold, minSize,schemaMap){
 
-    val canPrefixFilter = false
-    val canPassJoin = false
+    val usesTokenPrefixFiltering = false
+    val usesStringPrefixFiltering = false
 
     val colMapper = (colSubSet: List[String]) => colSubSet.map(x => cols(colNames.indexOf(x)))
 
-    def similarity(tokens1:Seq[String],
+    def optimizedSimilarity(tokens1:Seq[String],
                    tokens2:Seq[String], 
                    thresh:Double,
                    tokenWeights: collection.Map[String, Double]): (Boolean,Double) =
@@ -40,7 +40,7 @@ class LearningSimilarityFeaturizer(colNames: List[String],
     }
 
     // TODO
-    def getSimilarity(tokens1: Seq[String], tokens2: Seq[String],
+    def similarity(tokens1: Seq[String], tokens2: Seq[String],
                     tokenWeights: collection.Map[String, Double]): Double = {
       val featureVector = baseFeaturizer.getSimilarities(tokens1(0),tokens2(0))
       return activeLearningStrategy.currentModel.predict(Vectors.dense(featureVector.toArray))

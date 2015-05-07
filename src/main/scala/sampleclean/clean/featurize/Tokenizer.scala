@@ -1,13 +1,21 @@
 package sampleclean.clean.featurize
 import java.util.StringTokenizer
 import scala.collection.mutable.ArrayBuffer
-import org.apache.spark.sql.{SchemaRDD, Row}
+import org.apache.spark.sql.Row
 
 /**
  * This is a tokenizer super-class.
  */
 abstract class Tokenizer{
-  
+
+  /**
+   * This function takes specified row columns and
+   * produces a list of tokens. Each token could be
+   * a combination of multiple rows, depending on
+   * the current [[tokenSet()]] function.
+   * @param row
+   * @param cols column indices used for tokenization
+   */
   def tokenize(row: Row, cols:List[Int]): Seq[String] = {
 
       var stringA = ""
@@ -19,7 +27,11 @@ abstract class Tokenizer{
       //return tokenSet(stringA.trim)
       tokSeq
     }
-  
+
+  /**
+   * This function converts a string into a list of tokens.
+   * It also filters out empty tokens.
+   */
   def tokenSet(text: String): Seq[String]
 }
 
@@ -48,7 +60,7 @@ case class WordTokenizer() extends Tokenizer {
 }
 
 /**
- * 
+ * This class returns the entire string as a token.
  */
 case class NullTokenizer() extends Tokenizer {
   def tokenSet(str: String) = List(str).toSeq.filter(_!="")
@@ -66,7 +78,7 @@ case class WhiteSpaceTokenizer() extends Tokenizer {
  * @param gramSize size of gram.
  */
 case class GramTokenizer(gramSize: Int) extends Tokenizer {
-  def tokenSet(str: String) =  str.sliding(gramSize).toSeq
+  def tokenSet(str: String) =  str.sliding(gramSize).toSeq.filter(_!="")
 }
 
 /**

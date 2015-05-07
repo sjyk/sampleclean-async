@@ -22,7 +22,7 @@ import sampleclean.clean.featurize.Featurizer
 /**
  * This class is used to create an Active Learning strategy that will
  * asynchronously run an Active Learning algorithm ultimately used
- * fot deduplication. It uses given starting
+ * for deduplication. It uses given starting
  * labels and Amazon Mechanical Turk for training new models.
  * @param displayedColNames column names of the main data set (i.e. that are visible to the user).
  */

@@ -1,18 +1,16 @@
 package sampleclean.clean.algorithm
 
-import sampleclean.api.SampleCleanContext
 import sampleclean.api.SampleCleanAQP;
 import sampleclean.api.SampleCleanQuery;
-
-
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
-/**This class defines a "pipeline". A pipeline is a set of SampleCleanAlgorithms 
-* to execute. The pipeline determines how the execute the algorithms and whether to
-* optimize their executions
-*/
+/**
+ * This class defines a "pipeline". A pipeline is a set of SampleCleanAlgorithms
+ * to execute. The pipeline determines how to execute the algorithms and whether to
+ * optimize their executions
+ */
 @serializable
 class SampleCleanPipeline(saqp: SampleCleanAQP,
 						  var execList:List[SampleCleanAlgorithm]=List[SampleCleanAlgorithm](),
@@ -21,9 +19,10 @@ class SampleCleanPipeline(saqp: SampleCleanAQP,
 	//execute this on construction
 	setPipelineOnQueries()
 
-	/**This associates the current object with the pipeline algorithms
-	*/
-	def setPipelineOnQueries()={
+	/**
+   * This associates the current object with the pipeline algorithms
+	 */
+	private def setPipelineOnQueries()={
 		for (l <- execList)
 		{
 			l.pipeline = this
@@ -33,9 +32,9 @@ class SampleCleanPipeline(saqp: SampleCleanAQP,
 	/**
 	 * This notifies the pipeline of an update
 	 */
-	def notification()={
+	private [sampleclean] def notification()={
 		for(q <- queryList)
-			q.execute(true)
+			q.execute()
 	}
 
   /**
@@ -43,8 +42,9 @@ class SampleCleanPipeline(saqp: SampleCleanAQP,
    */
   def registerQuery(q: SampleCleanQuery) = {queryList += q}
 
-	/**Executes the algorithms in the pipeline
-	*/
+	/**
+   * Executes the algorithms in the pipeline
+	 */
 	def exec()={
 		for(l <- execList)
 		{

@@ -3,19 +3,19 @@ package sampleclean.parse
 import sampleclean.activeml._
 import sampleclean.api.{SampleCleanAQP, SampleCleanContext, SampleCleanQuery}
 import sampleclean.clean.algorithm.{AlgorithmParameters, SampleCleanAlgorithm, SampleCleanPipeline}
-import sampleclean.clean.deduplication.{ActiveLearningStrategy, CrowdsourcingStrategy, _}
-import sampleclean.crowd.{CrowdConfiguration, CrowdTaskConfiguration}
+import sampleclean.clean.deduplication.ActiveLearningStrategy
 import sampleclean.clean.featurize.SimilarityFeaturizer
 import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
 import sampleclean.clean.featurize.LearningSimilarityFeaturizer
 import sampleclean.clean.featurize.Tokenizer._
-import sampleclean.clean.extraction.LearningSplitExtraction
+import sys.process._
 
 
-/** The SampleCleanParser is the class that handles parsing SampleClean commands
- *  this class triggers execution when a command is parsed successfully. Commands
- *  that are not understood are passed down to the HiveContext which executes them
- *  as HiveQL Commands.
+/**
+ * The SampleCleanParser is the class that handles parsing SampleClean commands.
+ * This class triggers execution when a command is parsed successfully. Commands
+ * that are not understood are passed down to the HiveContext which executes them
+ * as HiveQL Commands.
  *
  * @param scc SampleCleanContext is passed to the parser
  * @param saqp SampleCleanAQP is passed to the parser
@@ -140,8 +140,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
    									parsedExpr._1,
    									pred,
    									group,
-                    rawSC,
-                    command)
+                    rawSC)
    		
    }
 
@@ -276,7 +275,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
       val splitComponents = command.split("\\s+") //split on whitespace
       val exprClean = splitComponents.drop(1).mkString(" ") //remove 'select*'
       val scQuery = queryParser(exprClean, exprClean.toLowerCase.contains("rawsc"))
-      scQuery.execute(true)
+      scQuery.execute()
       watchedQueries = watchedQueries + scQuery
       activePipelines foreach { _.registerQuery(scQuery) }
     }
@@ -342,13 +341,17 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
        return ("Dedup", (System.nanoTime - now)/1000000)
      }
   	 else if(firstToken.equals("selectrawsc")){
-  		  printQuery(queryParser(command).execute(false))
+  		  printQuery(queryParser(command).execute())
   		  return ("Complete", (System.nanoTime - now)/1000000)
   	  }
       else if(firstToken.equals("selectnsc")){
         printQuery(queryParser(command, false).execute())
         return ("Complete", (System.nanoTime - now)/1000000)
       }
+     else if(firstToken.equals("inittest")){
+       initTest()
+       return ("init test table", (System.nanoTime - now)/1000000)
+     }
   	 else {//in the default case pass it to hive
   		  val hiveContext = scc.getHiveContext();
   		  hiveContext.hql(command.replace(";","")).collect().foreach(println)
@@ -388,9 +391,9 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     hiveContext.hql("DROP TABLE IF EXISTS paper_affiliation")
     hiveContext.hql("CREATE TABLE paper_affiliation as SELECT paperid, affiliation from paper_author where length(affiliation) > 1 and  (lower(affiliation) like '%berkeley%'  or lower(affiliation) like '%stanford%') group by paperid,affiliation")
   
-    scc.initializeConsistent("paper", "paper_sample", "id", 10)
-    scc.initializeConsistent("paper_affiliation", "paper_aff_sample", "paperid", 10)
-    scc.initializeConsistent("paper_author", "paper_auth_sample", "paperid", 10)
+    scc.initializeConsistent("paper", "paper_sample", "id", 0.1)
+    scc.initializeConsistent("paper_affiliation", "paper_aff_sample", "paperid", 0.1)
+    scc.initializeConsistent("paper_author", "paper_auth_sample", "paperid", 0.1)
 
     //parseAndExecute("democustom paper_aff_sample affiliation")
 
@@ -403,7 +406,7 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
       parseAndExecute("dedupattr paper_aff_sample affiliation wjaccard 0.6 mostfrequent")
   }
 
-  def demoDedupRec() = {
+  private [sampleclean] def demoDedupRec() = {
 
    /* val algoPara = new AlgorithmParameters()
 
@@ -432,9 +435,9 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     pp.exec("paper_sample")*/
   }
 
-  def demoTamr() = {
+  private [sampleclean] def demoTamr() = {
 
-    println("Demo1: Tamr Extraction By Example")
+   /* println("Demo1: Tamr Extraction By Example")
 
     val algoPara2 = new AlgorithmParameters()
     algoPara2.put("newSchema", List("aff1","aff2"))
@@ -447,10 +450,10 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
     val pp = new SampleCleanPipeline(saqp, List(d))
     activePipelines += pp
-    pp.exec()
+    pp.exec()*/
   }
 
-  def demoCorleone() = {
+  private [sampleclean] def demoCorleone() = {
 
     println("Demo2: Corleone Blocking By Example")
 
@@ -470,6 +473,19 @@ class SampleCleanParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
     val initSample = data.sample(false, 0.01)
     val candidatePairs = initSample.cartesian(initSample)
     blocking.train(candidatePairs)
+  }
+
+  def initTest() = {
+    val context = List("id", "col0")
+    val contextString = context.mkString(" String,") + " String"
+
+    val hiveContext = scc.getHiveContext()
+    scc.closeHiveSession()
+    hiveContext.hql("DROP TABLE IF EXISTS test")
+    hiveContext.hql("CREATE TABLE IF NOT EXISTS test(%s) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'".format(contextString))
+    val master = ("cat /root/ephemeral-hdfs/conf/masters" !!).trim()
+    hiveContext.hql("LOAD DATA INPATH 'hdfs://%s:9000/csvJaccard100dupsAttr' OVERWRITE INTO TABLE test".format(master))
+    scc.initializeConsistent("test", "test_sample", "id", 1)
   }
 
 }

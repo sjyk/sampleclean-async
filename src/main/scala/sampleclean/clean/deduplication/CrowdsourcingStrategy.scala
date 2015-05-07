@@ -1,21 +1,10 @@
 package sampleclean.clean.deduplication
 
-import org.apache.spark.SparkContext._
-import org.apache.spark.mllib.classification.SVMModel
-import org.apache.spark.mllib.linalg.Vectors
-import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd._
-import org.apache.spark.sql._
-import sampleclean.activeml.{ActiveLearningParameters, SVMParameters, _}
 import sampleclean.crowd._
 import sampleclean.crowd.context.{DeduplicationGroupLabelingContext, DeduplicationPointLabelingContext}
-
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-import sampleclean.activeml.SVMParameters
-import scala.Some
-import sampleclean.activeml.ActiveLearningParameters
-import org.apache.spark.mllib.regression.LabeledPoint
 import sampleclean.clean.featurize.Featurizer
 
 

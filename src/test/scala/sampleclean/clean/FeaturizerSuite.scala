@@ -1,14 +1,13 @@
-package dedupTesting
+package sampleclean.clean
 
 import org.apache.spark.sql.Row
-import org.apache.spark.{SparkContext, SparkConf}
 import org.scalatest.FunSuite
 import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
-import sampleclean.clean.featurize._
 import sampleclean.clean.featurize.Tokenizer._
+import sampleclean.clean.featurize._
 
 
-class featurizerTest extends FunSuite with Serializable {
+class FeaturizerSuite extends FunSuite with Serializable {
 
   test("Tokenizer"){
     val str = """ a`b~c!d@e#f$g%h^i&j*k(l)m_n-o+p=q[r}s\tñu|v;w:x"y'z/aa?bb>cc<dd,ee.ff gg """
@@ -70,7 +69,7 @@ class featurizerTest extends FunSuite with Serializable {
 
   test("similarity featurizer"){
     // Test SampleClean similarity implementations
-    val metrics = List("JaccardSimilarity","DiceSimilarity","CosineSimilarity","OverlapSimilarity","EditDistance")
+    val metrics = List("JaccardSimilarity","DiceSimilarity","CosineSimilarity","OverlapSimilarity","Levenshtein")
 
 
     def distances(seq1: Seq[String],seq2: Seq[String]): Seq[Double] = {
@@ -146,16 +145,6 @@ class featurizerTest extends FunSuite with Serializable {
     assert((feat._1, feat._2.toSeq) == (Set(Row("a "),Row(" a")), Seq(1.0,1.0,1.0,1.0,0.0)))
 
 
-
-   /* //blocking featurizer
-    val thresh = 0.75
-    val wTok = Tokenizer.WordTokenizer()
-    val blockFeat = new WeightedJaccardSimilarity(List(""), List(), wTok,thresh)
-
-    val tRow1 = wTok.tokenize(row1,List(0,1,2,3))
-    val tRow2 = wTok.tokenize(row2,List(0,1,2))
-
-    assert(blockFeat.similar(tRow1, tRow2,thresh, collection.Map[String, Double]()))*/
   }
 
   test("featurizer"){
@@ -209,41 +198,41 @@ class featurizerTest extends FunSuite with Serializable {
     thresh = 3.0 / 7
     sim = new WeightedJaccardSimilarity(colNames,context,tok,thresh)
 
-    assert(sim.similarity(seq1,seq2,thresh,Map[String,Double]())._1)
-    assert(sim.getSimilarity(seq1,seq2,Map[String,Double]()) == thresh)
-    assert(sim.getSimilarity(seq1,seq2,weights) == 2.0 / 7)
+    assert(sim.optimizedSimilarity(seq1,seq2,thresh,Map[String,Double]())._1)
+    assert(sim.similarity(seq1,seq2,Map[String,Double]()) == thresh)
+    assert(sim.similarity(seq1,seq2,weights) == 2.0 / 7)
 
     // Weighted Overlap
     thresh = 3.0
     sim = new WeightedOverlapSimilarity(colNames,context,tok,thresh)
 
-    assert(sim.similarity(seq1,seq2,thresh,Map[String,Double]())._1)
-    assert(sim.getSimilarity(seq1,seq2,Map[String,Double]()) == thresh)
-    assert(sim.getSimilarity(seq1,seq2,weights) == 4.0)
+    assert(sim.optimizedSimilarity(seq1,seq2,thresh,Map[String,Double]())._1)
+    assert(sim.similarity(seq1,seq2,Map[String,Double]()) == thresh)
+    assert(sim.similarity(seq1,seq2,weights) == 4.0)
 
     // Weighted Dice
     thresh = 0.6
     sim = new WeightedDiceSimilarity(colNames,context,tok,thresh)
 
-    assert(sim.similarity(seq1,seq2,thresh,Map[String,Double]())._1)
-    assert(sim.getSimilarity(seq1,seq2,Map[String,Double]()) == thresh)
-    assert(sim.getSimilarity(seq1,seq2,weights) == 4.0 / 9)
+    assert(sim.optimizedSimilarity(seq1,seq2,thresh,Map[String,Double]())._1)
+    assert(sim.similarity(seq1,seq2,Map[String,Double]()) == thresh)
+    assert(sim.similarity(seq1,seq2,weights) == 4.0 / 9)
 
     // Weighted Cosine
     thresh = 0.6
     sim = new WeightedCosineSimilarity(colNames,context,tok,thresh)
 
-    assert(sim.similarity(seq1,seq2,thresh,Map[String,Double]())._1)
-    assert(sim.getSimilarity(seq1,seq2,Map[String,Double]()) == thresh)
-    assert(sim.getSimilarity(seq1,seq2,weights) == 1.0 / math.sqrt(5))
+    assert(sim.optimizedSimilarity(seq1,seq2,thresh,Map[String,Double]())._1)
+    assert(sim.similarity(seq1,seq2,Map[String,Double]()) == thresh)
+    assert(sim.similarity(seq1,seq2,weights) == 1.0 / math.sqrt(5))
 
     // Edit
     thresh = 2.0
-    sim = new EditBlocking(colNames,context,tok,thresh)
+    sim = new EditFeaturizer(colNames,context,tok,thresh)
 
-    assert(sim.similarity(seq1,seq2,thresh,Map[String,Double]())._1)
-    assert(sim.getSimilarity(seq1,seq2,Map[String,Double]()) == thresh)
-    assert(sim.getSimilarity(seq1,seq2,weights) == 2.0)
+    assert(sim.optimizedSimilarity(seq1,seq2,thresh,Map[String,Double]())._1)
+    assert(sim.similarity(seq1,seq2,Map[String,Double]()) == thresh)
+    assert(sim.similarity(seq1,seq2,weights) == 2.0)
 
 
     // featurize

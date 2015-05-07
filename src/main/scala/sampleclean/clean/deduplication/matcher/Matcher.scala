@@ -1,11 +1,8 @@
 package sampleclean.clean.deduplication.matcher
 
 import sampleclean.api.SampleCleanContext
-import org.apache.spark.SparkContext._
-import org.apache.spark.sql.SQLContext
-import sampleclean.clean.algorithm.AlgorithmParameters
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SchemaRDD, Row}
+import org.apache.spark.sql.Row
 
 /**
  * A matcher provides methods to process two types of inputs
@@ -29,13 +26,19 @@ abstract class Matcher(scc: SampleCleanContext,
 
   val asynchronous:Boolean
 
+  /**
+   * For Set(a,b), a == b, it does not return (a,a) or (b,b)
+   * and returns only (a,b) not (b,a)
+   */
   def selfCartesianProduct(rowSet: Set[Row]):List[(Row,Row)] = {
 
     var crossProduct:List[(Row,Row)] = List()
-    for (r <- rowSet)
-      for (s <- rowSet)
-        if (r != s)
-          crossProduct = (r,s) :: crossProduct
+    var tempSet:Set[Row] = rowSet
+    for (r <- rowSet) {
+      tempSet = tempSet.drop(1)
+      for (s <- tempSet)
+        crossProduct = crossProduct :+ (r, s)
+    }
     return crossProduct
 
   }
@@ -44,6 +47,9 @@ abstract class Matcher(scc: SampleCleanContext,
       context = newContext
   }
 
+  /**
+   * Function that takes some action based on new results.
+   */
   var onReceiveNewMatches: RDD[(Row,Row)] => Unit = null
 
 }

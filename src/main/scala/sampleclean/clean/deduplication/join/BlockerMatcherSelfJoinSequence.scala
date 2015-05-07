@@ -1,32 +1,47 @@
 package sampleclean.clean.deduplication.join
 
 import sampleclean.api.SampleCleanContext
-import org.apache.spark.SparkContext._
-import org.apache.spark.sql.SQLContext
-import sampleclean.clean.algorithm.AlgorithmParameters
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SchemaRDD, Row}
+import org.apache.spark.sql.Row
 import sampleclean.clean.deduplication.matcher.Matcher
 import sampleclean.clean.deduplication.blocker.Blocker
+import sampleclean.clean.featurize.Tokenizer._
+import sampleclean.clean.featurize.Tokenizer
 
 /**
- * This class acts as a wrapper for blocker+matcher routines.
- * This class has two constructors, blocker+List[matchers]
- * or simjoin + List[Matchers]. We treat a similarity join
+ * This class acts as a wrapper for blocker + matcher routines.
+ * This class has two constructors, requiring a blocker + List[matchers]
+ * or a similarity join + List[Matchers]. We treat a similarity join
  * as a combination blocking and matching sequence.
  *
  * We call this the "BlockerMatcherSelfJoinSequence" because
  * in this class we apply the operation to the same sample.
- * 
- * @type {[type]}
+ *
+ * @param scc SampleClean Context
+ * @param sampleTableName
+ * @param blocker
+ * @param matchers
  */
 class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
               		   sampleTableName:String,
               		   blocker: Blocker,
 					   var matchers: List[Matcher]) extends Serializable {
 	
-	var join:SimilarityJoin = null
+	private [sampleclean] var join:SimilarityJoin = null
 
+  /**
+   * Create a BlockerMatcherSelfJoinSequence based on a similarity join
+   * and a list of matchers.
+   * @param scc SampleClean Context
+   * @param sampleTableName
+   * @param simjoin Similarity Join
+   * @param matchers Because the Similarity Join should contain a matching
+   *                 step, this parameter commonly refers to a matcher that
+   *                 matches all pairs such as:
+   *                 [[sampleclean.clean.deduplication.matcher.AllMatcher]]
+   *                 or to an asynchronous matcher such as
+   *                 [[sampleclean.clean.deduplication.matcher.ActiveLearningMatcher]]
+   */
 	def this(scc: SampleCleanContext,
               		   sampleTableName:String,
               		   simjoin: SimilarityJoin,
@@ -35,6 +50,9 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 		join = simjoin
 	}
 
+  /**
+   * Executes the algorithm.
+   */
 	def blockAndMatch(data:RDD[Row]):RDD[(Row,Row)] = {
 
 		var blocks:RDD[Set[Row]] = null
@@ -44,7 +62,7 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 			blocks = blocker.block(data)
 		else
 			{ 
-			  matchedData = join.join(data,data,true,true)
+			  matchedData = join.join(data,data,false)
 			  println("Candidate Pairs Size: " + matchedData.count)
 			}	
 
@@ -59,6 +77,10 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 		return matchedData
 	}
 
+  /**
+   * Adds a new matcher to the matcher list
+   * @param matcher
+   */
 	def addMatcher(matcher: Matcher) = {
 		matchers = matcher :: matchers
 		matchers = matchers.reverse  
@@ -78,7 +100,11 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 		println("Context Updated to: " + newContext)
 	}
 
-
+  /**
+   * Set a function that takes some action based on new results. This
+   * needs to be done if there is an asynchronous matcher
+   * at the end of the sequence.
+   */
 	def setOnReceiveNewMatches(func: RDD[(Row,Row)] => Unit) ={
 		if(matchers.last.asynchronous)
 			matchers.last.onReceiveNewMatches = func
@@ -98,6 +124,28 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 
 			println(" RDD[(Row,Row)]")
 	}
+
+	/**
+	 * This function changes the similarity metric used in the Entity Resolution algorithm
+	 * @type {[type]}
+	 */
+	def changeSimilarity(newSimilarity: String) = {
+		if (newSimilarity == "EditDistance")
+			throw new RuntimeException("You should use shortAttributeCanonicalize() instead")
+		else if (join.isInstanceOf[PassJoin])
+			throw new RuntimeException("You should use longAttributeCanonicalize() instead")
+
+		join.setSimilarityFeaturizer(newSimilarity)
+	}
+
+	def changeTokenization(newTokenization: String) = {
+		newTokenization match {
+              case "WhiteSpace" => join.simfeature.tokenizer = new WhiteSpaceTokenizer()
+              case "WhiteSpaceAndPunc" => join.simfeature.tokenizer = new WhiteSpacePunctuationTokenizer()
+              case _ => throw new RuntimeException("Invalid Tokenizer: " + newTokenization)
+      	}
+	}
+
 
 }
 

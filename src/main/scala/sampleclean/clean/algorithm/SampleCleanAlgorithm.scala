@@ -16,15 +16,15 @@ abstract class SampleCleanAlgorithm(params:AlgorithmParameters,
 
 	/**Defines the pipeline with which this algorithm is associated
 	 */
-	var pipeline:SampleCleanPipeline = null
+	private [sampleclean] var pipeline:SampleCleanPipeline = null
 
 	/**Gives a logical name to this algorithms
 	*/
-	var name:String = null
+  private [sampleclean] var name:String = null
 
 	/**Execute this algorithm synchronously or asychronously
 	*/
-	var blocking:Boolean = true
+  private [sampleclean] var blocking:Boolean = true
 
 	/**The execution function of this algorithm
 	*/
@@ -41,7 +41,7 @@ abstract class SampleCleanAlgorithm(params:AlgorithmParameters,
 
 	}
 
-	def setSampleName(newSampleName:String) = {
+  private [sampleclean] def setSampleName(newSampleName:String) = {
 		sampleTableName = newSampleName
 	}
 

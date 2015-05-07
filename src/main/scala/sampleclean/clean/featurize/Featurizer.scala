@@ -1,19 +1,23 @@
 package sampleclean.clean.featurize
-import org.apache.spark.sql.{SchemaRDD, Row}
+import org.apache.spark.sql.Row
 
-/* The featurizer Abstract Class takes a set of records
+/**
+ * The featurizer Abstract Class takes a set of records
  * and returns a list of numbers in R^d
  *
  * We define featurization to be symmetric where the features of
  * {a, b} == {b, a}
  *
- * Note: one challenge is that the internal schema of an algorithm,
+ * '''Note:''' one challenge is that the internal schema of an algorithm,
  * namely, the schema of intermediate states may not be visible to
  * the user. That is why the featurizer class contains a "context"
  * variable which is a list of strings that represent the column
- * names. Internally, algorithms can set the current context to 
+ * names. Internally, algorithms can set the current context to
  * allow for seamless use.
+ * @param colNames names of columns that will be used for featurization
+ * @param contextIn names of all columns for the existing dataset
  */
+//TODO ??
 @serializable
 abstract class Featurizer(colNames: List[String],
 						  //a context is a list of strings of the column names
@@ -37,7 +41,7 @@ abstract class Featurizer(colNames: List[String],
 	def featurize[K,V](rows: Set[Row], params: collection.immutable.Map[K,V]=null): (Set[Row], Array[Double])
 
 
-	def setContext(contextUp:List[String]) = {
+	private [sampleclean] def setContext(contextUp:List[String]) = {
 
 		context = contextUp
 		var newCols:List[Int] = List()
