@@ -1,4 +1,9 @@
 package sampleclean.api
+import org.apache.spark.SparkContext
+import org.apache.spark.sql.SchemaRDD
+import org.apache.spark.sql.Row
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.SQLContext
 
 
 /**
@@ -27,13 +32,13 @@ class SampleCleanQuery(scc:SampleCleanContext,
 	  				  group:String = "",
 	  				  rawSC:Boolean = true){
 
-  private [sampleclean] var vizServer = "localhost:8000"
+  case class ResultSchemaRDD(val group: String, val agg: Double, val se: Double) extends Throwable
 
   /**
    * The execute method provides a straightforward way to execute the query.
    * @return (current time, List(aggregate, (estimate, +/- confidence value)))
    */
-	def execute():(Long, List[(String, (Double, Double))])= {
+	def execute():SchemaRDD= {
 
 		var sampleRatio = scc.getSamplingRatio(scc.qb.getCleanFactSampleName(sampleName))
 		println(sampleRatio)
@@ -63,19 +68,12 @@ class SampleCleanQuery(scc:SampleCleanContext,
 									sampleRatio)
 		}
 
-
-		return query
+		val sc = scc.getSparkContext()
+		val sqlContext = new SQLContext(sc)
+		val rddRes = sc.parallelize(query._2)
+		val castRDD = rddRes.map(x => ResultSchemaRDD(x._1,x._2._1, x._2._2))
+		return sqlContext.createSchemaRDD(castRDD)
 
 	}
-
-	private [sampleclean] def query2Map(query:(Long, List[(String, (Double, Double))])):Map[String,Double] ={
-      var listOfResults = query._2
-      var result:Map[String,Double] = Map()
-      listOfResults = listOfResults.sortBy(-_._2._1)
-      for(r <- listOfResults.slice(0,Math.min(10, listOfResults.length)))
-        result = result + (r._1 -> r._2._1)
-      return result
-  }
-
 
 }

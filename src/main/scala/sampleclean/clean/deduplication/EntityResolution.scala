@@ -102,7 +102,8 @@ class EntityResolution(params:AlgorithmParameters,
      */
 	  private [sampleclean] def apply(candidatePairs: RDD[(Row, Row)]):Unit = {
        val sampleTableRDD = scc.getCleanSample(sampleTableName).repartition(scc.getSparkContext().defaultParallelism)
-    	 apply(candidatePairs, sampleTableRDD)
+       //candidatePairs.collect().foreach(println)
+       apply(candidatePairs, sampleTableRDD)
 	  }
 
      /* TODO fix!

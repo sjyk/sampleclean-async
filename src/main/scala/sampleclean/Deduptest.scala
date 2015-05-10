@@ -5,7 +5,6 @@ import org.apache.spark.SparkContext._
 import org.apache.spark.SparkConf
 import sampleclean.api.SampleCleanContext;
 import sampleclean.api.SampleCleanAQP;
-import sampleclean.parse.SampleCleanParser;
 import org.apache.spark.sql.hive.HiveContext
 
 import sampleclean.clean.deduplication.join._
@@ -90,15 +89,29 @@ private [sampleclean] object Deduptest {
 
     scc.closeHiveSession()
     val hiveContext = scc.getHiveContext();
-    hiveContext.hql("DROP TABLE IF EXISTS restaurant")
-    hiveContext.hql("CREATE TABLE IF NOT EXISTS restaurant(id String, entity String,name String,city String,category String) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
-    hiveContext.hql("LOAD DATA LOCAL INPATH 'restaurant.csv' OVERWRITE INTO TABLE restaurant")
+    scc.hql("DROP TABLE IF EXISTS restaurant")
+    scc.hql("CREATE TABLE IF NOT EXISTS restaurant(id String, entity String,name String,category String,city String) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
+    scc.hql("LOAD DATA LOCAL INPATH 'restaurant.csv' OVERWRITE INTO TABLE restaurant")
     //scc.initializeConsistent("restaurant", "restaurant_data", "id", 1)
-    scc.initializeConsistent("restaurant", "restaurant_sample", "entity")
+    
+    scc.initialize("restaurant","restaurant_sample")
 
-    var algorithm1 = EntityResolution.longAttributeCanonicalize(scc, "restaurant_sample", "name", 0.9)
-    algorithm1.components.changeSimilarity("EditDistance")
+    scc.hql("select count(distinct name) from restaurant").collect().foreach(println)
+    
+    var algorithm1 = EntityResolution.longAttributeCanonicalize(scc, "restaurant_sample", "name", 0.7)
+    //algorithm1.components.changeSimilarity("EditDistance")
     algorithm1.exec()
+    
+    scc.writeToParent("restaurant_sample")
+    
+     //scc.hql("select count(name) from restaurant").collect().foreach(println)
+     scc.hql("select count(distinct name) from restaurant").collect().foreach(println)
+
+    //var algorithm1 = EntityResolution.longAttributeCanonicalize(scc, "restaurant_sample", "name", 0.9)
+    //algorithm1.components.changeSimilarity("EditDistance")
+    //algorithm1.exec()
+
+
 
     //val e2 = new Evaluator(scc, List(algorithm2))
 

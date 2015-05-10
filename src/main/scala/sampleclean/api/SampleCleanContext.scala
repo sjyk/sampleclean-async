@@ -17,6 +17,7 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import SampleCleanContext._
 import sampleclean.util.TypeUtils._
 import sampleclean.util.QueryBuilder
+import sampleclean.parse.SampleCleanQueryParser
 
 import scala.concurrent._
 
@@ -172,6 +173,21 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		}
 	}
 
+	/**
+	 * This function executes a hiveql query (potentially re-writing it to sampleclean)
+	 * @type {Object} result
+	 */
+	def hql(query:String):SchemaRDD = {
+		val parser = new SampleCleanQueryParser(this, new SampleCleanAQP())
+		val hiveContext = getHiveContext()
+		val result = parser.parse(query)
+		
+		if(result._1)
+			return result._2
+		else
+			return hiveContext.hql(query)
+	}
+
 	/* Returns an RDD which points to a full table
 	*/
   private [sampleclean] def getFullTable(sampleName: String):SchemaRDD = {
@@ -225,6 +241,26 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		val tableNameDirty = qb.getDirtySampleName(tableName)
 		hiveContext.hql(qb.overwriteTable(tableNameDirty) +
 						qb.buildSelectQuery(List("*"),
+   		    					            tableNameClean))
+	}
+
+  	/**
+     * Given a working set this function applies the changes back
+     * to the parent table.
+	 */
+   def writeToParent(sampleName: String) = {
+		val hiveContext = new HiveContext(sc)
+		val sqlContext = new SQLContext(sc)
+		var parent = getParentTable(qb.getCleanSampleName(sampleName))
+		parent = parent.substring(0,parent.length - 5)
+		val tableNameClean = qb.getCleanSampleName(sampleName)
+		val m = getSamplingRatio(tableNameClean)
+		
+		if (m < 1.0)
+			throw new RuntimeException("Writing back samples is not currently supported")
+
+		hiveContext.hql(qb.overwriteTable(parent) +
+						qb.buildSelectQuery(getHiveTableSchema(parent),
    		    					            tableNameClean))
 	}
 
