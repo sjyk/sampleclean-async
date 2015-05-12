@@ -619,7 +619,7 @@ def setup_cluster(conn, master_nodes, slave_nodes, opts, deploy_ssh_key):
     ssh(master, opts, "rm -rf spark-ec2 && git clone https://github.com/thisisdhaas/spark-ec2.git -b sampleclean")
 
     print "Deploying files to master..."
-    deploy_files(conn, "deploy.generic", opts, master_nodes, slave_nodes, modules)
+    deploy_files(conn, "deploy.generic", opts, master_nodes, slave_nodes, modules, master_domain)
     deploy_ssl_cert(opts, master_nodes)
     deploy_amt_creds(opts, master_nodes)
 
@@ -708,7 +708,7 @@ def get_num_disks(instance_type):
 # cluster (e.g. lists of masters and slaves). Files are only deployed to
 # the first master instance in the cluster, and we expect the setup
 # script to be run on that instance to copy them to other nodes.
-def deploy_files(conn, root_dir, opts, master_nodes, slave_nodes, modules):
+def deploy_files(conn, root_dir, opts, master_nodes, slave_nodes, modules, master_domain):
     active_master = master_nodes[0].public_dns_name
 
     num_disks = get_num_disks(opts.instance_type)
@@ -746,7 +746,8 @@ def deploy_files(conn, root_dir, opts, master_nodes, slave_nodes, modules):
         "shark_version": shark_v,
         "hadoop_major_version": opts.hadoop_major_version,
         "spark_worker_instances": "%d" % opts.worker_instances,
-        "spark_master_opts": opts.master_opts
+        "spark_master_opts": opts.master_opts,
+        "master_domain": master_domain or active_master
     }
 
     # Create a temp directory in which we will place all the files to be
@@ -789,7 +790,7 @@ def stringify_command(parts):
 
 
 def ssh_args(opts):
-    parts = ['-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null']
+    parts = ['-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null' '-o' 'ConnectTimeout=60']
     if opts.identity_file is not None:
         parts += ['-i', opts.identity_file]
     return parts
