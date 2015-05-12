@@ -319,7 +319,7 @@ object EntityResolution {
 
     def createCrowdMatcher(scc:SampleCleanContext,
                            attr: String,
-                           sampleName: String):Matcher = {
+                           sampleName: String):ActiveLearningMatcher = {
 
         val baseFeaturizer = new SimilarityFeaturizer(List(attr), 
                                                       scc.getTableContext(sampleName), 
