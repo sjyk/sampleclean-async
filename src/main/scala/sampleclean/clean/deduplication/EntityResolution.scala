@@ -317,7 +317,7 @@ object EntityResolution {
         return new EntityResolution(algoPara, scc, sampleName, blockerMatcher)
     }
 
-    private [sampleclean] def createCrowdMatcher(scc:SampleCleanContext,
+    def createCrowdMatcher(scc:SampleCleanContext,
                            attr: String,
                            sampleName: String):Matcher = {
 
