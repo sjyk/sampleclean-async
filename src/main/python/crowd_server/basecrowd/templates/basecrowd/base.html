@@ -13,6 +13,14 @@
                     return $(".label_container :input");
                 }
             {% endblock get_answer_inputs_func %}
+            
+            {% block get_task_divs_func %}
+                function get_task_divs()
+                {
+                    return $(".panel.panel-default");
+                }
+            {% endblock get_task_divs_func%}
+
             {% block validate_func %}
                 function validate_answers()
                 {
@@ -32,6 +40,14 @@
                     return answers;
                 }
             {% endblock build_answer_data_func %}
+            
+            //make metric dictionary
+            {% block build_metric_data_func %}
+                function build_metric_data()
+                {
+                    return {"time" : time};
+                }
+            {% endblock build_metric_data_func %}
 
             {% block get_submit_context_func %}
                 function get_submit_context(urlParamStrings)
@@ -47,12 +63,15 @@
                 {
                     // build the user's answers into the right format
                     var answers = build_answer_data();
-
+                    var metrics = build_metric_data();
+                    
                     // get additional context from the URL or page
                     var paramstr = window.location.search.substring(1);
                     var parampairs = paramstr.split("&");
                     var data = get_submit_context(parampairs);
                     data.answers = JSON.stringify(answers);
+                    data.metrics = JSON.stringify(metrics);
+                    
                     return data;
                 }
             {% endblock prepare_submit_data_func %}
@@ -86,6 +105,41 @@
                 }
             {% endblock handle_is_accepted_func %}
 
+            {% block initialize_metric_func %}
+                function initialize_metric()
+                {
+                    {% block create_global_variables %}                    
+
+                    // A map that maps task_id to the time the worker spent on it.
+                    time = {}             
+                    // The task_id of the task the mouse is currently on, empty if the mouse is outside any task.
+                    focus = "";
+                    // The update freqency of the setInterval function, in ms.
+                    delay = 10;
+
+                    {% endblock %}
+
+                    {% block Register_event_listeners %}                    
+
+                    // Register a mouseenter event listener for each task divs.
+                    get_task_divs().mouseenter(function(){
+                        focus = $(this).find(":radio:first").attr("id");
+                    });
+
+                    // Use setInterval to track timing 
+                    setInterval(function(){
+                        if (focus != "")
+                            if (focus in time)
+                                time[focus] += delay;
+                            else 
+                                time[focus] = delay;
+                        }, delay);
+
+                    {% endblock %}
+                    
+                }
+            {% endblock initialize_metric_func %}
+            
             {% block initialize_form_validation_func %}
                 function initialize_form_validation()
                 {
@@ -137,6 +191,9 @@
 
                     // Prepare form validation
                     initialize_form_validation();
+                    
+                    // Prepare metric collection
+                    initialize_metric();
                 });
             {% endblock ready_func %}
         </script>
@@ -179,15 +236,15 @@
                 <div class="panel-body">
                     {% block instruction %}
 
-			{% if group_context.instruction %}
-			    {{group_context.instruction | safe}}
-			{% else %}
-			    {% block default_instruction %}
-				Hey, I am an instruction!
+            {% if group_context.instruction %}
+                {{group_context.instruction | safe}}
+            {% else %}
+                {% block default_instruction %}
+                Hey, I am an instruction!
                             {% endblock %}
                         {% endif %}
 
-		    {% endblock %}
+            {% endblock %}
                 </div>
             </div>
         {% endblock instruction_panel %}

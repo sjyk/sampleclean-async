@@ -187,7 +187,7 @@ def post_response(request, crowd_name):
 
     # validate context
     interface.require_context(
-        context, ['assignment_id', 'task_id', 'worker_id', 'answers'],
+        context, ['assignment_id', 'task_id', 'worker_id', 'answers', 'metrics'],
         ValueError("Response context missing required keys."))
 
     # Check if this is a duplicate response
@@ -205,6 +205,7 @@ def post_response(request, crowd_name):
         task=current_task,
         worker=current_worker,
         content=context['answers'],
+        metrics=context['metrics'],
         assignment_id=context['assignment_id'])
     interface.response_pre_save(current_response)
     current_response.save()

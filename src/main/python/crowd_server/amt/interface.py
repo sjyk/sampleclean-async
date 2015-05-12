@@ -72,6 +72,7 @@ class AMTCrowdInterface(CrowdInterface):
     def get_response_context(request):
         # Extract data from the request
         return {'answers': request.POST.get('answers'),
+                'metrics': request.POST.get('metrics'),
                 'task_id': request.POST.get('HITId'),
                 'worker_id': request.POST.get('workerId'),
                 'assignment_id': request.POST.get('assignmentId')
