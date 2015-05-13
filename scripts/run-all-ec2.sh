@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# This file runs both the python and the scala code using reasonable defaults
+# This file runs the scala code using reasonable defaults
 # for production assuming a deployment on ec2 using the deploy scripts in the
 # repo.
 # Arguments:
-#   -s: Run the crowd server with ssl
+#   -s: Communicate with AMPCrowd over ssl
 
 # Enable SSL
 if [ "$1" == "-s" ]
@@ -13,16 +13,6 @@ then
 else
     export SSL=0
 fi
-
-# Activate the virtualenv
-source /root/.bash_profile
-workon sampleclean
-
-# Start the crowd server
-service nginx restart
-pushd src/main/python/crowd_server
-./run.sh $@
-popd
 
 # Build the scala code
 ./sbt/sbt assembly
