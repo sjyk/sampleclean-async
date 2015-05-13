@@ -7,11 +7,15 @@ class QuickStartTestSuite extends FunSuite with LocalSCContext{
 
     test("load tables") {
       withSampleCleanContext {scc =>
+        scc.hql("DROP TABLE IF EXISTS restaurant")
+
         scc.hql("CREATE TABLE restaurant(id String, entity String,name String,category String,city String) " +
           "ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
+
         assert(scc.hql("SHOW TABLES").collect()(0).contains("restaurant"))
 
         scc.hql("LOAD DATA LOCAL INPATH './src/test/resources/restaurant.csv' OVERWRITE INTO TABLE restaurant")
+        
         assert(scc.hql("SELECT COUNT(*) FROM restaurant").collect()(0).getLong(0) == 858L)
       }
     }
