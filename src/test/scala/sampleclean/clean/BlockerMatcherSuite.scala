@@ -108,4 +108,16 @@ class BlockerMatcherSuite extends FunSuite with LocalSCContext {
       assert(blocker.context == scc.getTableContext(sampleTableName).map(x => x + x))
     })
   }
+
+  test("clear tables"){
+    withSampleCleanContext { scc =>
+      // clear temp tables
+      scc.closeHiveSession()
+
+      // clear other tables
+      scc.hql("DROP TABLE test")
+      assert(scc.hql("SHOW TABLES").collect().forall(!_.getString(0).contains("test")))
+    }
+  }
+
 }

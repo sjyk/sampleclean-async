@@ -12,7 +12,7 @@ trait LocalSCContext extends Serializable{
   def withSampleCleanContext[T](f: SampleCleanContext => T): T = {
     val conf = new SparkConf()
       .set("spark.driver.allowMultipleContexts","true")
-    val sc = new SparkContext("local", "test", conf)
+    val sc = new SparkContext("local[*]", "test", conf)
     val scc = new SampleCleanContext(sc)
     try {
       f(scc)
@@ -24,7 +24,7 @@ trait LocalSCContext extends Serializable{
   def withSingleAttribute[T](sample:Int,f: SampleCleanContext => T): T = {
     val conf = new SparkConf()
       .set("spark.driver.allowMultipleContexts","true")
-    val sc = new SparkContext("local", "test", conf)
+    val sc = new SparkContext("local[*]", "test", conf)
     val scc = new SampleCleanContext(sc)
     val context = List("id", "col0")
     val contextString = context.mkString(" String,") + " String"
@@ -46,7 +46,7 @@ trait LocalSCContext extends Serializable{
   def withFullRecords[T](sample:Double, f: SampleCleanContext => T): T = {
     val conf = new SparkConf()
       .set("spark.driver.allowMultipleContexts","true")
-    val sc = new SparkContext("local", "test", conf)
+    val sc = new SparkContext("local[*]", "test", conf)
     val scc = new SampleCleanContext(sc)
     val context = List("id") ++ (0 until 20).toList.map("col" + _.toString)
 
@@ -68,7 +68,7 @@ trait LocalSCContext extends Serializable{
   def withFullRecordsLarge[T](sample:Double, f: SampleCleanContext => T): T = {
     val conf = new SparkConf()
       .set("spark.driver.allowMultipleContexts","true")
-    val sc = new SparkContext("local", "test", conf)
+    val sc = new SparkContext("local[*]", "test", conf)
     val scc = new SampleCleanContext(sc)
     val context = List("id") ++ (0 until 20).toList.map("col" + _.toString)
 

@@ -311,7 +311,4 @@ class JoinsSuite extends FunSuite with LocalSCContext {
     }
   }
 
-
-
-
 }
