@@ -2,6 +2,7 @@ package sampleclean.clean
 
 import org.scalatest.FunSuite
 import org.apache.spark.SparkContext._
+import org.apache.spark.sql.catalyst.expressions.Row
 
 class QuickStartTestSuite extends FunSuite with LocalSCContext{
 
@@ -12,7 +13,7 @@ class QuickStartTestSuite extends FunSuite with LocalSCContext{
         scc.hql("CREATE TABLE restaurant(id String, entity String,name String,category String,city String) " +
           "ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
 
-        assert(scc.hql("SHOW TABLES").collect()(0).contains("restaurant"))
+        assert(scc.hql("SHOW TABLES").collect().contains(Row("restaurant")))
 
         scc.hql("LOAD DATA LOCAL INPATH './src/test/resources/restaurant.csv' OVERWRITE INTO TABLE restaurant")
         
