@@ -33,3 +33,6 @@ metastore_db
 
 # OSX junk
 .DS_Store
+
+# Test Files
+*testmain.scala

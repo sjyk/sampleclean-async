@@ -10,8 +10,8 @@ import sampleclean.api.SampleCleanContext
 private [sampleclean] class QueryBuilder(scc: SampleCleanContext) {
 
 	//some common templates
-	private [sampleclean] val CTAS_TEMPLATE = "CREATE TABLE %s AS "
-  private [sampleclean] val CTASC_TEMPLATE = "CREATE TABLE %s COMMENT '%b' AS "
+	private [sampleclean] val CTAS_TEMPLATE = "CREATE TABLE IF NOT EXISTS %s AS "
+  private [sampleclean] val CTASC_TEMPLATE = "CREATE TABLE IF NOT EXISTS %s COMMENT '%b' AS "
   private [sampleclean] val HASH_COL_NAME = "hash"
   private [sampleclean] val DUP_COL_NAME = "dup"
   private [sampleclean] val HASH_DUP_INIT = " REFLECT(\"java.util.UUID\", \"randomUUID\") AS %h, 1 AS %d, "
