@@ -36,7 +36,7 @@ import sampleclean.clean.featurize._
 class EntityResolution(params:AlgorithmParameters, 
 							scc: SampleCleanContext,
               sampleTableName:String,
-              val components: BlockerMatcherSelfJoinSequence
+              private [sampleclean] val components: BlockerMatcherSelfJoinSequence
               ) extends SampleCleanAlgorithm(params, scc, sampleTableName) {
 
     //validate params before starting

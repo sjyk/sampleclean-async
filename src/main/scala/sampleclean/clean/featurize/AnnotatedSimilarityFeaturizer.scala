@@ -29,12 +29,12 @@ import scala.collection.Seq
  * @param schemaMap maps columns from one table to another. Will assume equal schema if null.
  */
 @serializable
-abstract class AnnotatedSimilarityFeaturizer(val colNames: List[String], 
+abstract class AnnotatedSimilarityFeaturizer(private [sampleclean] val colNames: List[String],
                   context:List[String],
 								  var tokenizer:Tokenizer, 
 								  var threshold:Double,
-                  val minSize: Int,
-                  val schemaMap: Map[Int,Int]= null)
+                  private [sampleclean] val minSize: Int,
+                  private [sampleclean] val schemaMap: Map[Int,Int]= null)
 	extends Featurizer(colNames, context){
 
     //copy constructor allows for quick switching of sim feature types
@@ -47,8 +47,8 @@ abstract class AnnotatedSimilarityFeaturizer(val colNames: List[String],
              copyConst.schemaMap)
     }
 
-		val usesTokenPrefixFiltering: Boolean
-    val usesStringPrefixFiltering: Boolean
+		private [sampleclean] val usesTokenPrefixFiltering: Boolean
+    private [sampleclean] val usesStringPrefixFiltering: Boolean
 
   /**
    * This function takes a set of rows, takes a token-to-weight map and

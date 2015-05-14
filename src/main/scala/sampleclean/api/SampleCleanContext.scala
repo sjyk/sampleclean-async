@@ -53,7 +53,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 	}
 
 	//a reference to the contexts Query Builder
-  val qb = new QueryBuilder(this)
+  private [sampleclean] val qb = new QueryBuilder(this)
 
   /**
    * This function initializes the clean and dirty samples as

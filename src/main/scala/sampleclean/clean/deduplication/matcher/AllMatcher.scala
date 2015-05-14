@@ -13,7 +13,7 @@ class AllMatcher(scc: SampleCleanContext,
 				 sampleTableName: String) extends
 				 Matcher(scc, sampleTableName) {
 
-  val asynchronous = false			   
+  val asynchronous = false
 
   def matchPairs(candidatePairs:RDD[(Row,Row)]): RDD[(Row,Row)] = {
       return candidatePairs

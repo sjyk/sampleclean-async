@@ -21,7 +21,7 @@ import sampleclean.clean.featurize.Tokenizer.WordTokenizer
  */
 class RecordDeduplication(scc: SampleCleanContext,
 							sampleTableName: String,
-							val components: BlockerMatcherJoinSequence) extends
+							private [sampleclean] val components: BlockerMatcherJoinSequence) extends
 							SampleCleanAlgorithm(null, scc, sampleTableName) {
 
 		//fix
