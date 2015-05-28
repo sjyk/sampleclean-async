@@ -55,7 +55,7 @@ private [sampleclean] class MonotonicSimilarityThresholdTuner(scc: SampleCleanCo
 	}
 
 	def tuneThreshold(sampleTableName: String):Double = {
-		val data = scc.getCleanSample(sampleTableName).filter(x => eval.binaryKeySet.contains(x(0).asInstanceOf[String]))
+		val data = scc.getCleanSample(sampleTableName).rdd.filter( (x:Row) => eval.binaryKeySet.contains(x(0).asInstanceOf[String]))
 		//todo add error handling clean up
 		var tokenWeights = collection.immutable.Map[String, Double]()
       	var tokenCounts = collection.immutable.Map[String, Int]()
@@ -88,7 +88,7 @@ private [sampleclean] class MonotonicSimilarityThresholdTuner(scc: SampleCleanCo
 
 	def getCandidatePairsCount(sampleTableName: String, thresh:Double):Long = {
 		val data = scc.getCleanSample(sampleTableName)
-		return data.cartesian(data).map(x => rowsToSimilarity(x.productIterator.toSet)).filter(x => x > thresh).count()
+		return data.rdd.cartesian(data.rdd).map(x => rowsToSimilarity(x.productIterator.toSet)).filter(x => x > thresh).count()
 	}
 
 	def computeTokenCount(data: RDD[(Seq[String])]): collection.immutable.Map[String, Int] = {

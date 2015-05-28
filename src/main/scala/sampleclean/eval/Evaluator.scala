@@ -95,7 +95,7 @@ private [sampleclean] class Evaluator(scc:SampleCleanContext,
 	    val data = scc.getCleanSample(sampleTableName)
       	//val activeLearningStrategy = params.get("activeLearningStrategy").asInstanceOf[ActiveLearningStrategy]
       	activeLearningStrategy.asyncRun(emptyLabeledRDD, 
-                                        data.cartesian(data), 
+                                        data.rdd.cartesian(data.rdd), 
                                         colMapper, 
                                         colMapper, 
                                         onReceiveNewMatches(_),
@@ -210,7 +210,7 @@ private [sampleclean] class Evaluator(scc:SampleCleanContext,
 	  	  	  val unaryResults = accTuples.reduce((x:(Int,Int),y:(Int,Int)) => (x._1+y._1,x._2+y._2))
 
 	  	  	  //calculate the binary accuracy
-			  val binarySet = result.filter(x => binaryKeySet.contains(x(0).asInstanceOf[String]))
+			  val binarySet = result.rdd.filter(x => binaryKeySet.contains(x(0).asInstanceOf[String]))
 			  val pairs = binarySet.cartesian(binarySet)
 			  val accBTuples:RDD[(Int,Int)] = pairs.map(x => compairPairs(x._1,x._2,schema.length, schemaMap, binaryConstraints))
 			  val binaryResults = accBTuples.reduce((x:(Int,Int),y:(Int,Int)) => (x._1+y._1,x._2+y._2))

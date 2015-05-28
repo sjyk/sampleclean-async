@@ -38,7 +38,7 @@ private [sampleclean] class QueryBuilder(scc: SampleCleanContext) {
 	/** Returns the syntax for table sampling
 	*/
   private [sampleclean] def tableSample(sampleRatio:Double):String ={
-		return SAMPLE_TEMPLATE.replace("%r",sampleRatio+"")
+		return SAMPLE_TEMPLATE.replace("%r",sampleRatio*100+"")
 	}
 
 	/** Returns the syntax for table sampling

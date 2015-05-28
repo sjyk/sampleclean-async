@@ -45,7 +45,7 @@ abstract class SampleCleanAlgorithm(params:AlgorithmParameters,
 		sampleTableName = newSampleName
 	}
 
-	def synchronousExecAndRead():RDD[Row] = {
+	def synchronousExecAndRead():SchemaRDD = {
 		exec()
 		return scc.getCleanSample(sampleTableName)
 	}

@@ -76,7 +76,7 @@ class SampleCleanAQP() {
 
 	  	  	val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
 
-	  	  	val k = hc.hql("SELECT 1 from " + hiveTableName).count()
+	  	  	val k = scc.hql("SELECT 1 from " + hiveTableName).count()
 
 	  	  	if(pred != "")
 	  	  		defaultPred = scc.qb.transformExplicitExpr(pred,sampleName)
@@ -90,7 +90,7 @@ class SampleCleanAQP() {
 
 	  	  	 println(buildQuery)
 
-	  	  	 hc.registerRDDAsTable(hc.hql(buildQuery),tmpTableName)
+	  	  	 scc.hql(buildQuery).saveAsTable(tmpTableName)
 
 	  	  	 val aggQuery = scc.qb.buildSelectQuery(List( "group",
 	  	  	 										      "avg(agg)",
@@ -99,7 +99,7 @@ class SampleCleanAQP() {
 	  	  	 				" group by group"
 
 	  	  	 println(aggQuery)
-	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
+	  	  	 val result = scc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
 	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double])))).collect()
 
@@ -112,7 +112,7 @@ class SampleCleanAQP() {
 	  	  	 	                 gattr + " as group"),
 	  	  	 	              hiveTableName)
 
-	  	  	 hc.registerRDDAsTable(hc.hql(buildQuery),tmpTableName)
+	  	  	 scc.hql(buildQuery).saveAsTable(tmpTableName)
 
 	  	  	 val aggQuery = scc.qb.buildSelectQuery(List( "group",
 	  	  	 										      "sum(agg)/"+sampleRatio,
@@ -121,7 +121,7 @@ class SampleCleanAQP() {
 	  	  	 				" group by group"
 
 	  	  	 println(aggQuery)
-	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
+	  	  	 val result = scc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
 	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double])))).collect()
 	  	  	 return (System.nanoTime, result.toList)
@@ -133,7 +133,7 @@ class SampleCleanAQP() {
 	  	  	 	                 gattr + " as group"),
 	  	  	 	              hiveTableName)
 
-	  	  	 hc.registerRDDAsTable(hc.hql(buildQuery),tmpTableName)
+	  	  	 scc.hql(buildQuery).saveAsTable(tmpTableName)
 
 	  	  	 val aggQuery = scc.qb.buildSelectQuery(List( "group",
 	  	  	 										      "sum(agg)/"+sampleRatio,
@@ -142,7 +142,7 @@ class SampleCleanAQP() {
 	  	  	 				" group by group"
 
 	  	  	 println(aggQuery)
-	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
+	  	  	 val result = scc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
 	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double])))).collect()
 	  	  	 return (System.nanoTime, result.toList)
@@ -168,11 +168,11 @@ class SampleCleanAQP() {
 	 						scc.qb.buildSelectQuery(scc.qb.getTableJoinSchemaList(cleanName1,cleanName2),
 	 												cleanName1,"true",cleanName2,key1,key2,false)
 
-	 	val query1 = hc.hql(scc.qb.createTableAs(scc.qb.getCleanSampleName(tableName))+
+	 	val query1 = scc.hql(scc.qb.createTableAs(scc.qb.getCleanSampleName(tableName))+
 	 						scc.qb.buildSelectQuery(scc.qb.getTableJoinSchemaList(cleanName1,cleanName2),
 	 												cleanName1,"true",cleanName2,key1,key2,false))
 
-	 	val query2 = hc.hql(scc.qb.createTableAs(scc.qb.getDirtySampleName(tableName))+
+	 	val query2 = scc.hql(scc.qb.createTableAs(scc.qb.getDirtySampleName(tableName))+
 	 						scc.qb.buildSelectQuery(scc.qb.getTableJoinSchemaList(dirtyName1,dirtyName2),
 	 											    dirtyName1,"true",dirtyName2,key1,key2,true))
 
@@ -227,7 +227,7 @@ class SampleCleanAQP() {
 
 	  	  var gattr = scc.qb.makeExpressionExplicit(group, scc.qb.getCleanSampleName(sampleName))
 
-	  	  val k = hc.hql("SELECT 1 from " + scc.qb.getCleanFactSampleName(sampleName,true)).count() + 0.0
+	  	  val k = scc.hql("SELECT 1 from " + scc.qb.getCleanFactSampleName(sampleName,true)).count() + 0.0
 	  	  	
 	  	  if(group == "")
 	  	  	 gattr = "'1'"
@@ -256,7 +256,7 @@ class SampleCleanAQP() {
 				                           baseTableDirty,
 				                           "hash")
 
-	  	  	 hc.registerRDDAsTable(hc.hql(buildQuery),tmpTableName)
+	  	  	 scc.hql(buildQuery).saveAsTable(tmpTableName)
 
 	  	  	 val aggQuery = scc.qb.buildSelectQuery(List( "group",
 	  	  	 										      "avg(agg)",
@@ -265,7 +265,7 @@ class SampleCleanAQP() {
 	  	  	 				" group by group"
 
 	  	  	 println(aggQuery)
-	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
+	  	  	 val result = scc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
 	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double])))).collect()
 	  	  	 return (System.nanoTime, result.toList)
@@ -277,7 +277,7 @@ class SampleCleanAQP() {
 				                           baseTableDirty,
 				                           "hash")
 
-	  	  	 hc.registerRDDAsTable(hc.hql(buildQuery),tmpTableName)
+	  	  	 scc.hql(buildQuery).saveAsTable(tmpTableName)
 
 	  	  	 val aggQuery = scc.qb.buildSelectQuery(List( "group",
 	  	  	 										      "sum(agg)/"+sampleRatio,
@@ -286,7 +286,7 @@ class SampleCleanAQP() {
 	  	  	 				" group by group"
 
 	  	  	 println(aggQuery)
-	  	  	 val result = hc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
+	  	  	 val result = scc.hql(aggQuery).map( row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
 	  	  	 					      Math.sqrt(row(2).asInstanceOf[Double])))).collect()
 	  	  	 return (System.nanoTime, result.toList)
@@ -303,7 +303,7 @@ class SampleCleanAQP() {
 				                           baseTableDirty,
 				                           "hash")
 			println(buildQuery)
-			hc.registerRDDAsTable(hc.hql(buildQuery),tmpTableName)
+			scc.hql(buildQuery).saveAsTable(tmpTableName)
 
 	  	  	 val aggQuery = scc.qb.buildSelectQuery(List( "group",
 	  	  	 										      "sum(agg)/"+sampleRatio,
@@ -312,7 +312,7 @@ class SampleCleanAQP() {
 	  	  	 				" group by group"
 
 	  	  	 println(aggQuery)
-	  	  	 val result = hc.hql(aggQuery).map(row => (row(0).asInstanceOf[String],
+	  	  	 val result = scc.hql(aggQuery).map(row => (row(0).asInstanceOf[String],
 	  	  	 					      (row(1).asInstanceOf[Double],
 	  	  	 					      row(2).asInstanceOf[Double]))).collect()*/
 	  	  	 return (System.nanoTime, comparedResult._2.map(x => (x._1,(x._2,deltaCountToVariance(x._2,k,sampleRatio)))))

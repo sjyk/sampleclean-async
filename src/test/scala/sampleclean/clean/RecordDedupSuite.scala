@@ -36,8 +36,8 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
       assert(RD.hashCol == 0)
 
       // Within exec() function
-      val sampleTableRDD = scc.getCleanSample(sampleTableName)
-      val fullTableRDD = scc.getFullTable(sampleTableName)
+      val sampleTableRDD = scc.getCleanSample(sampleTableName).rdd
+      val fullTableRDD = scc.getFullTable(sampleTableName).rdd
       assert(sampleTableRDD.count() == 201 && fullTableRDD.count() == 201)
 
       val filteredPairs = blockerMatcher.blockAndMatch(sampleTableRDD, fullTableRDD)
@@ -49,7 +49,7 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
         .map(x => (x._1, x._2 + 1.0))
 
       scc.updateTableDuplicateCounts(sampleTableName, dupCounts)
-      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 200)
+      assert(scc.getCleanSampleAttr(sampleTableName, "dup").rdd.filter(x => x.getInt(1) > 1).count() == 200)
     })
   }
 
@@ -60,17 +60,17 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
       var similarity = new WeightedJaccardSimilarity(colNames, scc.getTableContext(sampleTableName), tok, 0.5)
       var RD = new RecordDeduplication(scc, sampleTableName, defaultBM(scc, similarity))
       RD.setTableParameters(sampleTableName)
-      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
+      assert(scc.getCleanSampleAttr(sampleTableName, "dup").rdd.filter(x => x.getInt(1) > 1).count() == 0)
       RD.exec()
-      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 200)
+      assert(scc.getCleanSampleAttr(sampleTableName, "dup").rdd.filter(x => x.getInt(1) > 1).count() == 200)
 
       scc.resetSample(sampleTableName)
       similarity = new WeightedJaccardSimilarity(colNames, scc.getTableContext(sampleTableName), tok, 0.51)
       RD = new RecordDeduplication(scc, sampleTableName, defaultBM(scc, similarity))
       RD.setTableParameters(sampleTableName)
-      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
+      assert(scc.getCleanSampleAttr(sampleTableName, "dup").rdd.filter(x => x.getInt(1) > 1).count() == 0)
       RD.exec()
-      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
+      assert(scc.getCleanSampleAttr(sampleTableName, "dup").rdd.filter(x => x.getInt(1) > 1).count() == 0)
     })
 
   }
@@ -79,15 +79,15 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
     withFullRecords(1,{scc =>
 
       var RD = RecordDeduplication.deduplication(scc, sampleTableName,colNames,0.5,false)
-      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
+      assert(scc.getCleanSampleAttr(sampleTableName, "dup").rdd.filter(x => x.getInt(1) > 1).count() == 0)
       RD.exec()
-      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 200)
+      assert(scc.getCleanSampleAttr(sampleTableName, "dup").rdd.filter(x => x.getInt(1) > 1).count() == 200)
 
       scc.resetSample(sampleTableName)
       RD = RecordDeduplication.deduplication(scc, sampleTableName,colNames,0.51,false)
-      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
+      assert(scc.getCleanSampleAttr(sampleTableName, "dup").rdd.filter(x => x.getInt(1) > 1).count() == 0)
       RD.exec()
-      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 0)
+      assert(scc.getCleanSampleAttr(sampleTableName, "dup").rdd.filter(x => x.getInt(1) > 1).count() == 0)
     })
   }
 
@@ -133,7 +133,7 @@ class RecordDedupSuite extends FunSuite with LocalSCContext {
       val t1 = System.nanoTime()
       RD.exec()
       val t2 = System.nanoTime()
-      assert(scc.getCleanSampleAttr(sampleTableName, "dup").filter(x => x.getInt(1) > 1).count() == 200)
+      assert(scc.getCleanSampleAttr(sampleTableName, "dup").rdd.filter(x => x.getInt(1) > 1).count() == 200)
       val t3 = System.nanoTime()
 
       val rowRDDLarge = scc.getSparkContext().textFile("./src/test/resources/csvJaccard100dups").map(x => Row.fromSeq(x.split(",", -1).toSeq))

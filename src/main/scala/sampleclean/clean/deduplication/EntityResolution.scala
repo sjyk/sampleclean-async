@@ -103,7 +103,7 @@ class EntityResolution(params:AlgorithmParameters,
 	  private [sampleclean] def apply(candidatePairs: RDD[(Row, Row)]):Unit = {
        val sampleTableRDD = scc.getCleanSample(sampleTableName).repartition(scc.getSparkContext().defaultParallelism)
        //candidatePairs.collect().foreach(println)
-       apply(candidatePairs, sampleTableRDD)
+       apply(candidatePairs, sampleTableRDD.rdd)
 	  }
 
      /* TODO fix!
@@ -169,8 +169,19 @@ class EntityResolution(params:AlgorithmParameters,
     /**
      * Sets the canonicalization strategy
      */
-    def setCanonicalizationStrategy(strategy:String) = {
+    def setCanonicalizationStrategy(strategy:String):EntityResolution = {
       mergeStrategy = strategy
+      return this
+    }
+
+    def changeSimilarity(newSimilarity: String):EntityResolution = {
+      components.changeSimilarity(newSimilarity)
+      return this
+    }
+
+    def changeTokenization(newTokenization: String):EntityResolution = {
+      components.changeTokenization(newTokenization)
+      return this
     }
 
 }

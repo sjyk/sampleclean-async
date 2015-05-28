@@ -41,7 +41,7 @@ private [sampleclean] class CrowdMatcherChooser(scc: SampleCleanContext,
 						 featurizer:Featurizer,
 						 params: collection.immutable.Map[K,V]=null):(Double,Double) = {
 
-		val data = scc.getCleanSample(sampleTableName).filter(x => eval.binaryKeySet.contains(x(0).asInstanceOf[String]))
+		val data = scc.getCleanSample(sampleTableName).rdd.filter( (x:Row) => eval.binaryKeySet.contains(x(0).asInstanceOf[String]))
 		val edgeList = data.cartesian(data).map(x => pairToLabeledPoint(attr,x._1,x._2, featurizer, params))
 		val model = SVMWithSGD.train(edgeList, 100, 1, 1, 1)
 		return trainError(model, edgeList, edgeList.count)
