@@ -89,7 +89,8 @@ class SampleCleanContext(@transient sc: SparkContext) {
 
 			hiveContext.sql(query)
 
-			hiveContext.sql("cache table "+ qb.getCleanSampleName(sampleTable))
+			//hiveContext.sql("cache table "+ qb.getCleanSampleName(sampleTable))
+			hiveContext.cacheTable(qb.getCleanSampleName(sampleTable))
 
 			hiveContext.sql(qb.setTableParent(qb.getCleanSampleName(sampleTable),qb.getBaseName(baseTable) + " " + samplingRatio))
 
@@ -98,7 +99,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 
 			hiveContext.sql(query)
 
-			hiveContext.sql("cache table "+ qb.getDirtySampleName(sampleTable))
+			//hiveContext.sql("cache table "+ qb.getDirtySampleName(sampleTable))
 		}
 		
 		return (hiveContext.sql(qb.buildSelectQuery(List("*"),
@@ -140,6 +141,8 @@ class SampleCleanContext(@transient sc: SparkContext) {
 			qb.tableConsistentHash((1.0 / samplingRatio).toLong,onKey)
 
 			hiveContext.sql(query)
+
+			hiveContext.cacheTable(qb.getCleanSampleName(sampleTable))
 
 			hiveContext.sql(qb.setTableParent(qb.getCleanSampleName(sampleTable),qb.getBaseName(baseTable) + " " + samplingRatio))
 
@@ -289,6 +292,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
     // TODO spark issues in test
     // 
+    	hql("DROP TABLE tmp")
     	hiveContext.createDataFrame(enforceSSSchema(rdd)).saveAsTable("tmp")
 		//hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceSSSchema(rdd)),"tmp")
 		hiveContext.sql(qb.createTableAs(tmpTableName) +qb.buildSelectQuery(List("*"),"tmp"))
@@ -330,7 +334,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		val tableNameClean = qb.getCleanSampleName(tableName)
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
 		//hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceDupSchema(rdd)),"tmp")
-		//
+		hql("DROP TABLE tmp")
 		hiveContext.createDataFrame(enforceDupSchema(rdd)).saveAsTable("tmp")
 		hiveContext.sql(qb.createTableAs(tmpTableName) +qb.buildSelectQuery(List("*"),"tmp"))
 
@@ -372,6 +376,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
 		
 		//hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceFilterSchema(rdd)),"tmp")
+		hql("DROP TABLE tmp")
 		hiveContext.createDataFrame(enforceFilterSchema(rdd)).saveAsTable("tmp")
 
 		hiveContext.sql(qb.createTableAs(tmpTableName) + qb.buildSelectQuery(List("hash"),"tmp"))

@@ -72,7 +72,7 @@ class SampleCleanQuery(scc:SampleCleanContext,
 		val sqlContext = new SQLContext(sc)
 		val rddRes = sc.parallelize(query._2)
 		val castRDD = rddRes.map(x => ResultSchemaRDD(x._1,x._2._1, x._2._2))
-		return sqlContext.createDataFrame(castRDD)
+		return scc.getHiveContext.createDataFrame(castRDD)
 
 	}
 
