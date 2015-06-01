@@ -13,11 +13,12 @@ class QuickStartTestSuite extends FunSuite with LocalSCContext{
         scc.hql("CREATE TABLE restaurant(id String, entity String,name String,category String,city String) " +
           "ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'")
 
-        assert(scc.hql("SHOW TABLES").collect().contains(Row("restaurant")))
+        assert(scc.hql("SHOW TABLES").collect().contains(Row("restaurant",false)))
 
         scc.hql("LOAD DATA LOCAL INPATH './src/test/resources/restaurant.csv' OVERWRITE INTO TABLE restaurant")
-        
+
         assert(scc.hql("SELECT COUNT(*) FROM restaurant").collect()(0).getLong(0) == 858L)
+
       }
     }
 
