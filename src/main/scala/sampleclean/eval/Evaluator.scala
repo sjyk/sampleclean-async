@@ -46,7 +46,7 @@ import org.apache.spark.mllib.regression.LabeledPoint
  * @type {[type]}
  */
 private [sampleclean] class Evaluator(scc:SampleCleanContext,
-				algorithms:List[SampleCleanAlgorithm], 
+				var algorithms:List[SampleCleanAlgorithm]=List[SampleCleanAlgorithm](), 
 				val unaryConstraints:scala.collection.mutable.Map[(String,String),String] 
 									=  scala.collection.mutable.Map(),
 				val binaryConstraints:scala.collection.mutable.Map[(String,String,String), Boolean] 

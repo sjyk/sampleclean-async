@@ -14,6 +14,7 @@ import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
 import sampleclean.clean.featurize.Tokenizer._
 import sampleclean.clean.deduplication.matcher._
 import sampleclean.clean.featurize._
+import sampleclean.eval._
 
 /**
  * This is the base class for attribute deduplication.
@@ -181,6 +182,27 @@ class EntityResolution(params:AlgorithmParameters,
 
     def changeTokenization(newTokenization: String):EntityResolution = {
       components.changeTokenization(newTokenization)
+      return this
+    }
+
+    def changeThreshold(newThreshold:Double):EntityResolution = {
+      components.join.simfeature.threshold = newThreshold
+      return this
+    }
+
+    def tune(eval:Evaluator):EntityResolution = {
+      val m = new MonotonicSimilarityThresholdTuner(scc,eval,components.join.simfeature)
+      val tunedThreshold = m.tuneThreshold(sampleTableName);
+      changeThreshold(tunedThreshold)
+      println("Changing Threshold to " + tunedThreshold + " based on ground truth.")
+      return this
+    }
+
+    def auto(eval:Evaluator):EntityResolution = {
+      val m = new SimilarityMetricChooser(scc, eval)
+      val tunedMetric = m.tuneThresholdAndMetric(sampleTableName, List(attr))
+      components.join.simfeature = tunedMetric
+      println("Changing Metric to " + tunedMetric.getClass.getName)
       return this
     }
 

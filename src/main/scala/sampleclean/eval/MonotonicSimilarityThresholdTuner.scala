@@ -56,6 +56,7 @@ private [sampleclean] class MonotonicSimilarityThresholdTuner(scc: SampleCleanCo
 
 	def tuneThreshold(sampleTableName: String):Double = {
 		val data = scc.getCleanSample(sampleTableName).rdd.filter( (x:Row) => eval.binaryKeySet.contains(x(0).asInstanceOf[String]))
+		
 		//todo add error handling clean up
 		var tokenWeights = collection.immutable.Map[String, Double]()
       	var tokenCounts = collection.immutable.Map[String, Int]()

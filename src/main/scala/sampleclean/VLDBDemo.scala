@@ -49,7 +49,6 @@ private [sampleclean] object VLDBDemo {
             if (row1 != row2)
             {
               e.addBinaryConstraint(row1(0).toString(),row2(0).toString(), "name", true)
-              //println("test")
             }
           }
       }
@@ -92,20 +91,26 @@ private [sampleclean] object VLDBDemo {
     scc.closeHiveSession()
     val hiveContext = scc.getHiveContext();
     val loader = new CSVLoader(scc, List(("id","String"),("entity","String"),("name","String"),("address","String"),("city","String"),("category","String")),"restaurant.csv")
+    val data = loader.load()
 
-    loader.load()
-          .clean(SplitExtraction.stringSplitAtDelimiter(_,_,
-                                    "address", 
-                                    "between", 
-                                    List("streetaddress", "crossroad")))
+    //scc.hql("show tables").collect().foreach(println)
 
-          .clean(EntityResolution.longAttributeCanonicalize(_,_,"category", 0.6))
-
-          .query("SELECT COUNT(1) FROM $t")
-
-          .collect().foreach(println)
+    //setup evaluation
+    val e = new Evaluator(scc)
+    data.query("select * from $t").map( x => (x(3).toString(), x)).groupByKey().collect().foreach(x => addConstraintsForGroup(e, x._2))
 
 
+    data.clean(EntityResolution.longAttributeCanonicalize(_,_,"name", 0.6).tune(e))
+    //data.clean(EntityResolution.longAttributeCanonicalize(_,_,"name", 0.6).auto(e))
+
+        .clean(SplitExtraction.stringSplitAtDelimiter(_,_,
+                                  "address", 
+                                  "between", 
+                                  List("streetaddress", "crossroad")))
+
+        .query("SELECT COUNT(1) FROM $t")
+
+        .collect()
 
   }
   
