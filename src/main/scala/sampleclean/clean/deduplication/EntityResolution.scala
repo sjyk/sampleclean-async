@@ -200,7 +200,9 @@ class EntityResolution(params:AlgorithmParameters,
 
     def tunePersistent():EntityResolution = {
       val m = new PersistentHomologyThresholdTuner(scc,components.join.simfeature)
-      m.tuneThreshold(sampleTableName);
+      val tunedThreshold = m.tuneThreshold(sampleTableName)
+      changeThreshold(tunedThreshold)
+      println("Changing Threshold to " + tunedThreshold + " based on persistence.")
       return this
     }
 

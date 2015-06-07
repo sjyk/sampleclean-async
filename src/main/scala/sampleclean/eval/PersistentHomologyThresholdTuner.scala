@@ -53,7 +53,7 @@ private [sampleclean] class PersistentHomologyThresholdTuner(scc: SampleCleanCon
 				println(i.dimension+" " + i.toDouble().mkString(" "))
 			}
 
-		return 0.0
+		return 1.0 - intervals(0).toDouble()(1)
 	}
 
 	def getCandidatePairsCount(sampleTableName: String, thresh:Double):Long = {
