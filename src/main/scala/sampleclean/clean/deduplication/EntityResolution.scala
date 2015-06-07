@@ -198,6 +198,12 @@ class EntityResolution(params:AlgorithmParameters,
       return this
     }
 
+    def tunePersistent():EntityResolution = {
+      val m = new PersistentHomologyThresholdTuner(scc,components.join.simfeature)
+      m.tuneThreshold(sampleTableName);
+      return this
+    }
+
     def auto(eval:Evaluator):EntityResolution = {
       val m = new SimilarityMetricChooser(scc, eval)
       val tunedMetric = m.tuneThresholdAndMetric(sampleTableName, List(attr))
