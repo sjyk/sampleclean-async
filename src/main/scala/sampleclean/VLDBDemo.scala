@@ -90,6 +90,7 @@ private [sampleclean] object VLDBDemo {
 
     scc.closeHiveSession()
     val hiveContext = scc.getHiveContext();
+
     val loader = new CSVLoader(scc, List(("id","String"),("entity","String"),("name","String"),("address","String"),("city","String"),("category","String")),"restaurant.csv")
     val data = loader.load()
 
@@ -100,13 +101,13 @@ private [sampleclean] object VLDBDemo {
     data.query("select * from $t").map( x => (x(3).toString(), x)).groupByKey().collect().foreach(x => addConstraintsForGroup(e, x._2))
 
 
-    data.clean(EntityResolution.longAttributeCanonicalize(_,_,"name", 0.6).tune(e))
-    //data.clean(EntityResolution.longAttributeCanonicalize(_,_,"name", 0.6).auto(e))
+    //data.clean(EntityResolution.longAttributeCanonicalize(_,_,"name", 0.6).tune(e))
+    data.clean(EntityResolution.longAttributeCanonicalize(_,_,"name", 0.6).auto(e))
 
-        .clean(SplitExtraction.stringSplitAtDelimiter(_,_,
-                                  "address", 
-                                  "between", 
-                                  List("streetaddress", "crossroad")))
+        //.clean(SplitExtraction.stringSplitAtDelimiter(_,_,
+        //                          "address", 
+        //                          "between", 
+        //                          List("streetaddress", "crossroad")))
 
         .query("SELECT COUNT(1) FROM $t")
 

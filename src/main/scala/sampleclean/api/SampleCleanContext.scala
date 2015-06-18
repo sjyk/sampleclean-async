@@ -290,12 +290,13 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		val sqlContext = new SQLContext(sc)
 		val tableNameClean = qb.getCleanSampleName(tableName)
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
+
     // TODO spark issues in test
     // 
-    	hql("DROP TABLE tmp")
-    	hiveContext.createDataFrame(enforceSSSchema(rdd)).saveAsTable("tmp")
+    	//hql("DROP TABLE tmp")
+    	hiveContext.createDataFrame(enforceSSSchema(rdd)).saveAsTable(tmpTableName)
 		//hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceSSSchema(rdd)),"tmp")
-		hiveContext.sql(qb.createTableAs(tmpTableName) +qb.buildSelectQuery(List("*"),"tmp"))
+		//hiveContext.sql(qb.createTableAs(tmpTableName) +qb.buildSelectQuery(List("*"),"tmp"))
 
 		//Uses the hive API to get the schema of the table.
 		var selectionString = List[String]()
@@ -303,9 +304,9 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		for (field <- getHiveTableSchema(tableNameClean))
 		{
 			if (field.equals(attr))
-				selectionString = qb.makeExpressionExplicit("updateAttr",tmpTableName) :: selectionString // To Sanjay: It was tmpNameClean before. Since it failed to compile, I changed it to tableNameClean
+				selectionString = tmpTableName+"."+"updateAttr":: selectionString // To Sanjay: It was tmpNameClean before. Since it failed to compile, I changed it to tableNameClean
 			else
-				selectionString = qb.makeExpressionExplicit(field,tableNameClean) :: selectionString
+				selectionString = tableNameClean+"."+field :: selectionString
 		}
 
 		selectionString = selectionString.reverse
@@ -334,9 +335,9 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		val tableNameClean = qb.getCleanSampleName(tableName)
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
 		//hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceDupSchema(rdd)),"tmp")
-		hql("DROP TABLE tmp")
-		hiveContext.createDataFrame(enforceDupSchema(rdd)).saveAsTable("tmp")
-		hiveContext.sql(qb.createTableAs(tmpTableName) +qb.buildSelectQuery(List("*"),"tmp"))
+		//hql("DROP TABLE tmp")
+		hiveContext.createDataFrame(enforceDupSchema(rdd)).saveAsTable(tmpTableName)
+		//hiveContext.sql(qb.createTableAs(tmpTableName) +qb.buildSelectQuery(List("*"),"tmp"))
 
 		//Uses the hive API to get the schema of the table.
 		var selectionString = List[String]()
@@ -344,12 +345,14 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		for (field <- getHiveTableSchema(tableNameClean))
 		{
 			if (field.equals("dup"))
-				selectionString = typeSafeHQL(qb.makeExpressionExplicit("dup",tmpTableName),1) :: selectionString // To Sanjay: It was tmpNameClean before. Since it failed to compile, I changed it to tableNameClean
+				selectionString = typeSafeHQL(tmpTableName+".dup",1) :: selectionString // To Sanjay: It was tmpNameClean before. Since it failed to compile, I changed it to tableNameClean
 			else
-				selectionString = qb.makeExpressionExplicit(field,tableNameClean) :: selectionString
+				selectionString = tableNameClean+"."+field :: selectionString
 		}
 
 		selectionString = selectionString.reverse
+
+		//println(selectionString)
 
    		//applies hive query to update the data
    		if(persist){
@@ -376,10 +379,10 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
 		
 		//hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceFilterSchema(rdd)),"tmp")
-		hql("DROP TABLE tmp")
-		hiveContext.createDataFrame(enforceFilterSchema(rdd)).saveAsTable("tmp")
+		//hql("DROP TABLE tmp")
+		hiveContext.createDataFrame(enforceFilterSchema(rdd)).saveAsTable(tmpTableName)
 
-		hiveContext.sql(qb.createTableAs(tmpTableName) + qb.buildSelectQuery(List("hash"),"tmp"))
+		//hiveContext.sql(qb.createTableAs(tmpTableName) + qb.buildSelectQuery(List("hash"),"tmp"))
 		
 		if(persist){
 			hiveContext.sql(qb.overwriteTable(tableNameClean) +
