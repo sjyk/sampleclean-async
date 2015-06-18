@@ -13,7 +13,7 @@ import org.apache.spark.sql.Row
  * application. We execute commands read from the command
  * line.
  */
-private [sampleclean] object VLDBDemo {
+private [sampleclean] object ALdemo {
 
 
   /**
