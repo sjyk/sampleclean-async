@@ -1,0 +1,111 @@
+package sampleclean
+
+import org.apache.spark.{SparkContext, SparkConf}
+import sampleclean.clean.algorithm.AlgorithmParameters
+import sampleclean.clean.deduplication.blocker.Blocker
+import sampleclean.clean.deduplication.join.{SimilarityJoin, BlockerMatcherSelfJoinSequence, BroadcastJoin}
+import sampleclean.clean.deduplication.matcher._
+import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer.{WeightedOverlapSimilarity, WeightedCosineSimilarity, WeightedJaccardSimilarity}
+import sampleclean.clean.featurize.SimilarityFeaturizer
+import sampleclean.clean.featurize.Tokenizer.WordTokenizer
+import sampleclean.eval._
+import sampleclean.clean.deduplication.matcher.MatcherPredicate
+
+import sampleclean.util._
+import sampleclean.api.SampleCleanContext
+import sampleclean.clean.deduplication._
+import org.apache.spark.sql.Row
+
+/**
+ * This object provides the main driver for the SampleClean
+ * application. We execute commands read from the command
+ * line.
+ */
+private [sampleclean] object HybridDemo {
+
+
+  /**
+   * Main function
+   */
+  def main(args: Array[String]) {
+
+    val conf = new SparkConf();
+    conf.setAppName("SampleClean Spark Driver");
+    conf.setMaster("local[4]");
+    conf.set("spark.executor.memory", "4g");
+
+    val sc = new SparkContext(conf);
+    val scc = new SampleCleanContext(sc);
+    scc.closeHiveSession()
+    println("closed hive session")
+    val hiveContext = scc.getHiveContext();
+    val loader = new CSVLoader(scc, List(("id","String"),("name","String")),"/Users/juanmanuelsanchez/Documents/sampleCleanData/hybridMatcherTest")
+    //val loader = new CSVLoader(scc, List(("id","String"), ("entity_id","String"), ("name","String"), ("address","String"), ("city","String"), ("type","String")),
+    //"/Users/juanmanuelsanchez/src/sampleclean-async/src/main/resources/restaurant.csv" )
+    val data = loader.load()
+
+
+    //def ERC = EntityResolution.longAttributeCanonicalize(_:SampleCleanContext,_:String,"name",0.8,false)
+
+    // Candidates
+    val attribute = "name"
+    val threshold = 0.0
+    val algoPara = new AlgorithmParameters()
+    algoPara.put("attr", attribute)
+    algoPara.put("mergeStrategy", "mostFrequent")
+
+    val cols = List(attribute)
+
+
+    def similarity(sampleName:String) = new WeightedJaccardSimilarity(List(attribute),
+      scc.getTableContext(sampleName),
+      WordTokenizer(),
+      threshold)
+
+    def join(sampleName:String) = new BroadcastJoin(scc.getSparkContext(), similarity(sampleName), false)
+
+    // Auto matcher 1
+    def featurizer(sampleName:String) = new WeightedJaccardSimilarity(List(attribute),
+      scc.getTableContext(sampleName),
+      WordTokenizer(),
+      0.9)
+    def autoMatcher1(sampleName:String) = new SimilarityMatcher(scc, sampleName,featurizer(sampleName))
+
+    /*// Auto matcher 2
+    def featurizer2(sampleName:String) = new WeightedOverlapSimilarity(List(attribute),
+      scc.getTableContext(sampleName),
+      WordTokenizer(),
+      3)
+    def autoMatcher2(sampleName:String) = new SimilarityMatcher(scc, sampleName,featurizer2(sampleName))*/
+
+
+    //AL matcher
+    def baseFeaturizer(sampleName:String) = new SimilarityFeaturizer(cols,
+      scc.getTableContext(sampleName),
+      List("Levenshtein", "JaroWinkler"))
+
+    def alStrategy(sampleName:String) = new ActiveLearningStrategy(cols, baseFeaturizer(sampleName))
+    def activeMatcher(sampleName:String):Matcher = new ActiveLearningMatcher(scc, sampleName, alStrategy(sampleName))
+
+
+    // Hybrid Matcher
+    def p(sampleName:String) = new MatcherPredicate.ProbabilityPredicate(autoMatcher1(sampleName),activeMatcher(sampleName))
+    def hybridMatcher(sampleName:String) = new HybridMatcher(scc,sampleName,p(sampleName))
+
+    def blockerMatcher(sampleName:String) = {
+      new BlockerMatcherSelfJoinSequence(scc,sampleName, join(sampleName), List(hybridMatcher(sampleName)))
+    }
+
+    def ERhybrid(scc:SampleCleanContext,sampleName:String) = {
+
+      new EntityResolution(algoPara, scc, sampleName, blockerMatcher(sampleName))
+    }
+
+    data.clean(ERhybrid)
+
+
+
+
+  }
+
+}

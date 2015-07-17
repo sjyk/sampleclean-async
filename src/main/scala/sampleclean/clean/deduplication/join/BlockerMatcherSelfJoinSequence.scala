@@ -96,7 +96,7 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 
 		for (m <- matchers)
 			m.updateContext(newContext)
-		
+
 		println("Context Updated to: " + newContext)
 	}
 
@@ -109,7 +109,7 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 		if(matchers.last.asynchronous)
 			matchers.last.onReceiveNewMatches = func
 		else
-			println("[SampleClean] Asychrony has no effect in this pipeline")
+			println("[SampleClean] Asynchrony has no effect in this pipeline")
 	}
 
 	def printPipeline()={
