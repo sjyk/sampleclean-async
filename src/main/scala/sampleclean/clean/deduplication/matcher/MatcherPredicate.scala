@@ -16,7 +16,7 @@ object MatcherPredicate {
   /**
    * This class chooses matchers based on their probabilities
    */
-  class ProbabilityPredicate(input: List[(Matcher,Double)]) extends MatcherPredicate(input.map(_._1)) {
+  class ProbabilityPredicate(var input: List[(Matcher,Double)]) extends MatcherPredicate(input.map(_._1)) {
 
     def this (matcher_1: Matcher, matcher_2: Matcher){
       this (List((matcher_1,0.5),(matcher_2,0.5)))
@@ -33,7 +33,7 @@ object MatcherPredicate {
     }
 
     def validate() = {
-      if (input.map(_._2).foldLeft(0.0)(_ + _) != 1.0 | !input.forall(_._2 > 0.0))
+      if (input.map(_._2).foldLeft(0.0)(_ + _) != 1.0 | !input.forall(_._2 >= 0.0))
         throw new RuntimeException("Input must be a list of probabilities")
     }
 
@@ -51,6 +51,7 @@ object MatcherPredicate {
       result
 
     }
+
 
   }
 

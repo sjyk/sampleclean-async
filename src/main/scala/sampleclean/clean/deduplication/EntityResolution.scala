@@ -78,7 +78,7 @@ class EntityResolution(params:AlgorithmParameters,
         setTableParameters(sampleTableName)
 
         val sampleTableRDD = scc.getCleanSample(sampleTableName).repartition(scc.getSparkContext().defaultParallelism)
-        val attrCountGroup = sampleTableRDD.map(x => 
+        val attrCountGroup = sampleTableRDD.map(x =>
                                           (x(attrCol).asInstanceOf[String],
                                            x(hashCol).asInstanceOf[String])).
                                           groupByKey()
@@ -356,6 +356,116 @@ object EntityResolution {
         val join = new BroadcastJoin(scc.getSparkContext(), similarity, weighting)
         val blockerMatcher = new BlockerMatcherSelfJoinSequence(scc,sampleName, join, List(matcher))
         return new EntityResolution(algoPara, scc, sampleName, blockerMatcher)
+    }
+
+  /**
+   * This method builds an Entity Resolution algorithm that will
+   * resolve asynchronously. It follows a hybrid approach to resolve,
+   * combining automatic ER with crowd-sourced ER.
+   *
+   * It uses several default values and is designed
+   * for simple Entity Resolution tasks. For more flexibility in
+   * parameters (such as setting a Similarity Featurizer, Tokenizer and
+   * Active Learning Strategy), refer to the [[EntityResolution]] class.
+   *
+   * This algorithm uses the Jaccard Similarity for pairwise filtering
+   * and sim measures Levenshtein and JaroWinkler for featurization.
+   *
+   * The algorithm also uses a word tokenizer.
+   *
+   * @param scc SampleClean Context
+   * @param sampleName
+   * @param attribute name of attribute to resolve
+   * @param low_threshold threshold used in first [filtering] step. Must be
+   *                  between 0.0 and 1.0
+   * @param high_threshold threshold used in automatic ER. Must be
+   *                       >= low_threshold.
+   * @param weighting If set to true, the algorithm will automatically calculate
+   *                 token weights. Default token weights are defined based on
+   *                 token idf values.
+   *
+   *                 Adding weights into the join might lead to more reliable
+   *                 pair comparisons and speed up the algorithm if there is
+   *                 an abundance of common words in the dataset.
+   * @param crowd_ratio Ratio of sample that will be resolved using crowd-sourcing
+   */
+    def hybridAttributeAL(scc:SampleCleanContext,
+                          sampleName:String,
+                          attribute: String,
+                          low_threshold: Double,
+                          high_threshold:Double,
+                          weighting:Boolean =true,
+                          crowd_ratio:Double = 0.5
+                          ):EntityResolution = {
+
+      val algoPara = new AlgorithmParameters()
+      algoPara.put("attr", attribute)
+      algoPara.put("mergeStrategy", "mostFrequent")
+
+      // blocker-matcher
+      val filteringSimilarity = new WeightedJaccardSimilarity(List(attribute),
+       scc.getTableContext(sampleName),
+       WordTokenizer(),
+       low_threshold)
+
+      val matcher = DefaultHybridMatcher.forEntityResolution(scc,sampleName,attribute,high_threshold,crowd_ratio)
+      val join = new BroadcastJoin(scc.getSparkContext(), filteringSimilarity, weighting)
+      val blockerMatcher = new BlockerMatcherSelfJoinSequence(scc,sampleName, join, List(matcher))
+
+      case class HybridER(hybrid: HybridMatcher)
+        extends EntityResolution(algoPara, scc,sampleName, blockerMatcher){
+
+        override def exec() = {
+
+          validateParameters()
+          setTableParameters(sampleTableName)
+
+          val sampleTableRDD = scc.getCleanSample(sampleTableName)
+            .repartition(scc.getSparkContext().defaultParallelism)
+
+          val attrCountGroup = sampleTableRDD.map(x =>
+            (x(attrCol).asInstanceOf[String],
+              x(hashCol).asInstanceOf[String])).
+            groupByKey()
+
+          val attrCountRdd = attrCountGroup.map(x => Row(x._1, x._2.size.toLong))
+
+          val vertexRDD = attrCountGroup.map(x => (x._1.hashCode().toLong,
+            (x._1, x._2.toSet)))
+
+          val edgeRDD: RDD[(Long, Long, Double)] = scc.getSparkContext().parallelize(List())
+          graphXGraph = GraphXInterface.buildGraph(vertexRDD, edgeRDD)
+
+          blockerMatcher.updateContext(List(attr,"count"))
+
+          val fullCandidatePairs = join.join(attrCountRdd,attrCountRdd,false)
+            .map(pair => (pair,hybrid.p.chooseMatcher(pair._1,pair._2))).cache()
+
+          //println("fullCandidatePairs: " + fullCandidatePairs.collect().toSeq)
+
+
+
+          def finish(matchersAndIndices: List[(Matcher,Int)]) = {
+
+            for (pair <- matchersAndIndices){
+              if (pair._1.asynchronous) pair._1.onReceiveNewMatches = apply
+              val candidatePairs = fullCandidatePairs.filter(_._2._1 == pair._2).map(_._1)
+              val matched = pair._1.matchPairs(candidatePairs)
+              //println("Matched: " + matched.collect().toSeq)
+              apply(matched)
+            }
+          }
+
+          finish(hybrid.matchers.zipWithIndex.filter(!_._1.asynchronous))
+          println("Finished synchronous component")
+          finish(hybrid.matchers.zipWithIndex.filter(_._1.asynchronous))
+
+          fullCandidatePairs.unpersist()
+        }
+      }
+
+      new HybridER(matcher)
+
     }
 
     def createCrowdMatcher(scc:SampleCleanContext,

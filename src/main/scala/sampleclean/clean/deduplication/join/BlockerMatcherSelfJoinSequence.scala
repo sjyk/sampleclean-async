@@ -3,7 +3,7 @@ package sampleclean.clean.deduplication.join
 import sampleclean.api.SampleCleanContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
-import sampleclean.clean.deduplication.matcher.Matcher
+import sampleclean.clean.deduplication.matcher.{DefaultHybridMatcher, Matcher}
 import sampleclean.clean.deduplication.blocker.Blocker
 import sampleclean.clean.featurize.Tokenizer._
 import sampleclean.clean.featurize.Tokenizer
@@ -126,7 +126,7 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 	}
 
 	/**
-	 * This function changes the similarity metric used in the Entity Resolution algorithm
+	 * This function changes the similarity metric used for filtering in the Entity Resolution algorithm
 	 * @type {[type]}
 	 */
 	def changeSimilarity(newSimilarity: String) = {

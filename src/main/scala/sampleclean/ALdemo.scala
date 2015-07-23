@@ -31,15 +31,21 @@ private [sampleclean] object ALdemo {
     scc.closeHiveSession()
     println("closed hive session")
     val hiveContext = scc.getHiveContext();
-    //val loader = new CSVLoader(scc, List(("id","String"),("country","String")),"/Users/juanmanuelsanchez/Documents/sampleCleanData/countries_dirty")
+    //val loader = new CSVLoader(scc, List(("id","String"),("name","String")),"/Users/juanmanuelsanchez/Documents/sampleCleanData/hybridMatcherTest")
     val loader = new CSVLoader(scc, List(("id","String"), ("entity_id","String"), ("name","String"), ("address","String"), ("city","String"), ("type","String")),
-      "src/main/resources/restaurant.csv" )
+    "/Users/juanmanuelsanchez/src/sampleclean-async/src/main/resources/restaurant.csv" )
     val data = loader.load()
 
 
-    def ERC = EntityResolution.textAttributeActiveLearning(_:SampleCleanContext,_:String,"name",0.8,false)
+    val attribute = "name"
 
-    data.clean(ERC)
+    def hybridER(scc:SampleCleanContext,sampleName:String) =
+      EntityResolution.hybridAttributeAL(scc,sampleName,attribute,0.5,0.9,false)
+
+    def alER(scc:SampleCleanContext,sampleName:String) =
+      EntityResolution.textAttributeActiveLearning(scc,sampleName,attribute,0.9,false)
+
+    data.clean(hybridER)
 
 
   }
