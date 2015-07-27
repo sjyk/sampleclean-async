@@ -1,0 +1,12 @@
+{
+	"pipeline":
+	[
+	  {
+		"name":"shortAttributeER",
+		"threshold":2,
+		"attribute":"name"
+	  }
+	],
+
+	"dataset":"restaurant"
+}

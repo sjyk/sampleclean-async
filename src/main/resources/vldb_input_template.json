@@ -1,0 +1,51 @@
+{
+	"pipeline":
+	[
+		{
+			"name":"shortAttributeER",
+			"threshold":2,
+			"attribute":"name"
+		},
+
+		{
+			"name":"longAttributeER",
+			"threshold":0.9,
+			"attribute":"name",
+			"weighting":false
+		},
+
+
+		{
+			"name":"activeLearningER",
+			"threshold":0.9,
+			"attribute":"name",
+			"weighting":false
+		},
+
+
+		{
+			"name":"hybridER",
+			"threshold":0.3,
+			"attribute":"name",
+			"weighting":false,
+			"second_threshold":0.9
+		},
+
+
+		{
+			"name":"recordDedup",
+			"threshold":0.9,
+			"weighting":false,
+			"dedup_culumns":["name"]
+		},
+
+		{
+			"name":"splitExtraction",
+			"attribute":"name",
+			"delimiter":" ",
+			"output_columns":["output"]
+		}
+	],
+
+	"dataset":"alcohol"
+}

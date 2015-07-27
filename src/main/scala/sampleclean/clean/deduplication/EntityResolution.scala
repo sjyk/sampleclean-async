@@ -231,21 +231,13 @@ object EntityResolution {
    * @param scc SampleClean Context
    * @param sampleName
    * @param attribute name of attribute to resolve
-   * @param threshold threshold used in the algorithm. Must be
-   *                  between 0.0 and 1.0
-   * @param weighting If set to true, the algorithm will automatically calculate
-   *                 token weights. Default token weights are defined based on
-   *                 token idf values.
-   *
-   *                 Adding weights into the join might lead to more reliable
-   *                 pair comparisons and speed up the algorithm if there is
-   *                 an abundance of common words in the dataset.
+   * @param threshold Maximum edit distance used for entity matching. Must be
+   *                  larger than 0.
    */
     def shortAttributeCanonicalize(scc:SampleCleanContext,
                                sampleName:String, 
                                attribute: String, 
-                               threshold:Double=0.9,
-                               weighting:Boolean =true):EntityResolution = {
+                               threshold:Double=1):EntityResolution = {
 
         val algoPara = new AlgorithmParameters()
         algoPara.put("attr", attribute)
