@@ -79,7 +79,7 @@ class EntityResolution(params:AlgorithmParameters,
 
         val sampleTableRDD = scc.getCleanSample(sampleTableName).repartition(scc.getSparkContext().defaultParallelism)
         val attrCountGroup = sampleTableRDD.map(x =>
-                                          (x(attrCol).asInstanceOf[String],
+                                          (Option(x(attrCol)).getOrElse("").asInstanceOf[String],
                                            x(hashCol).asInstanceOf[String])).
                                           groupByKey()
         val attrCountRdd  = attrCountGroup.map(x => Row(x._1, x._2.size.toLong))
