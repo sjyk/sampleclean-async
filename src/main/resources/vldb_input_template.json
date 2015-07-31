@@ -47,5 +47,6 @@
 		}
 	],
 
-	"dataset":"alcohol"
+	"dataset":"alcohol",
+  	"sql_query":"SELECT COUNT(*) FROM $t"
 }

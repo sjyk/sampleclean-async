@@ -2,11 +2,14 @@
 	"pipeline":
 	[
 	  {
-		"name":"shortAttributeER",
-		"threshold":2,
-		"attribute":"name"
+		"name":"splitExtraction",
+		"attribute":"store_location",
+		"delimiter":"\\(",
+		"output_columns":["output"]
 	  }
 	],
 
-	"dataset":"restaurant"
+	"dataset":"alcohol",
+  	"sql_query":"SELECT * FROM $t LIMIT 1",
+  	"sampling_ratio":0.1
 }
