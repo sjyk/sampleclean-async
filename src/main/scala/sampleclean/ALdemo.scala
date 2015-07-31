@@ -55,8 +55,10 @@ private [sampleclean] object ALdemo {
 
     val conf = new SparkConf()
     conf.setAppName("SampleClean Spark Driver")
-    conf.setMaster("local[4]")
-    conf.set("spark.executor.memory", "4g")
+    //conf.setMaster("local[4]")
+    conf.set("spark.executor.memory", "3g")
+    //conf.set("spark.driver.memory", "1g")
+    conf.set("spark.storage.memoryFraction", "0.4")
 
     val sc = new SparkContext(conf)
     val scc = new SampleCleanContext(sc)
@@ -65,25 +67,37 @@ private [sampleclean] object ALdemo {
     val hiveContext = scc.getHiveContext()
 
     val source = scala.io.Source.fromFile("./src/main/resources/vldb_input_test.json").mkString
+    //val source = scala.io.Source.fromFile(args(0)).mkString
 
     val json = JsonMethods.parse(source)
     implicit val formats = DefaultFormats
 
+    val sampling_ratio = (json \\ "sampling_ratio").values.toString.toDouble
+
     val dataset:WorkingSet = ((json \\ "dataset").values.toString match {
       case "restaurant" => new CSVLoader(scc, List(("id","String"), ("entity_id","String"), ("name","String"), ("address","String"), ("city","String"), ("type","String")),
         "./src/main/resources/restaurant.csv" )
-      //TODO
-      case "alcohol" => new CSVLoader(scc, List(("id","String"), ("entity_id","String"), ("name","String"), ("address","String"), ("city","String"), ("type","String")),
-        "alcohol.csv" )
-    }).load()
+      case "alcohol" => {
+        val alc_cols = List("id","date","convenience_store","store","name","address","city","zipcode") :::
+          List("store_location","county_number","county","category","category_name","vendor_no","vendor") :::
+            List("item","description","pack","liter_size","state_btl_cost","btl_price","bottle_qty","total")
+        new CSVLoader(scc, alc_cols.map(x => (x, "String")),
+          "./src/main/resources/alcohol.csv")
+      }
+    }).load(sampling_ratio)
+
+    val query = (json \\ "sql_query").values.toString
 
     val algorithms = json.extract[UnparsedPipeline]
+
+    println("Query result dirty data: " + dataset.query(query).collect().toSeq)
 
     for (a <- algorithms.pipeline){
       dataset.clean(a.toSCAlgorithm)
       println("Finished " + a.name + " algorithm")
     }
 
+    println("Query result clean data: " + dataset.query(query).collect().toSeq)
   }
 
 }
