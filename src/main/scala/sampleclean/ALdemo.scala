@@ -47,18 +47,21 @@ private [sampleclean] object ALdemo {
   }
 
   case class UnparsedPipeline(pipeline: List[UnparsedAlgorithm])
+  case class QueryList(sql_queries: List[String])
 
   /**
    * Main function
    */
   def main(args: Array[String]) {
 
+    val start_time = System.nanoTime()
+
     val conf = new SparkConf()
     conf.setAppName("SampleClean Spark Driver")
     //conf.setMaster("local[4]")
-    conf.set("spark.executor.memory", "3g")
+    //conf.set("spark.executor.memory", "4g")
     //conf.set("spark.driver.memory", "1g")
-    conf.set("spark.storage.memoryFraction", "0.4")
+    //conf.set("spark.storage.memoryFraction", "0.2")
 
     val sc = new SparkContext(conf)
     val scc = new SampleCleanContext(sc)
@@ -86,18 +89,29 @@ private [sampleclean] object ALdemo {
       }
     }).load(sampling_ratio)
 
-    val query = (json \\ "sql_query").values.toString
+    val queries = json.extract[QueryList]
 
     val algorithms = json.extract[UnparsedPipeline]
 
-    println("Query result dirty data: " + dataset.query(query).collect().toSeq)
+    queries.sql_queries.foreach { q =>
+      println("Query result dirty data: " + q)
+      println(dataset.query(q).collect().toSeq)
+    }
 
     for (a <- algorithms.pipeline){
       dataset.clean(a.toSCAlgorithm)
       println("Finished " + a.name + " algorithm")
     }
 
-    println("Query result clean data: " + dataset.query(query).collect().toSeq)
+    val end_time = System.nanoTime()
+
+    queries.sql_queries.foreach { q =>
+      println("Query result clean data: " + q)
+      println(dataset.query(q).collect().toSeq)
+    }
+
+    println("Execution time in seconds: " + (end_time - start_time) / 1000000000)
+
   }
 
 }

@@ -25,7 +25,7 @@
 
 		{
 			"name":"hybridER",
-			"threshold":0.3,
+			"threshold":0.5,
 			"attribute":"name",
 			"weighting":false,
 			"second_threshold":0.9
@@ -36,14 +36,14 @@
 			"name":"recordDedup",
 			"threshold":0.9,
 			"weighting":false,
-			"dedup_culumns":["name"]
+			"dedup_columns":["name","address","city"]
 		},
 
 		{
-			"name":"splitExtraction",
-			"attribute":"name",
-			"delimiter":" ",
-			"output_columns":["output"]
+		  "name":"splitExtraction",
+		  "attribute":"store_location",
+		  "delimiter":"\\((?=[0-9]|-)|(?<=[0-9])\\)",
+		  "output_columns":["store_address","gps_coordinates"]
 		}
 	],
 
