@@ -85,7 +85,7 @@ class SampleCleanQueryParser(scc: SampleCleanContext, saqp:SampleCleanAQP) {
 
    		return new SampleCleanQuery(scc,
    									saqp,
-   									table,
+   									table.trim,
    									parsedExpr._2,
    									parsedExpr._1,
    									pred,

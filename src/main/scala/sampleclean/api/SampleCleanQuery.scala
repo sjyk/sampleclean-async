@@ -40,9 +40,7 @@ class SampleCleanQuery(scc:SampleCleanContext,
    */
 	def execute():SchemaRDD= {
 
-		var sampleRatio = scc.getSamplingRatio(scc.qb.getCleanFactSampleName(sampleName))
-		println(sampleRatio)
-
+		var sampleRatio = scc.getSamplingRatio(scc.qb.getDirtySampleName(sampleName))
 		var defaultPred = ""
 		if(pred != "")
 			defaultPred = pred

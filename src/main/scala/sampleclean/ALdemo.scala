@@ -3,7 +3,7 @@ package sampleclean
 import org.apache.spark.{SparkContext, SparkConf}
 
 import sampleclean.clean.algorithm.{SampleCleanAlgorithm}
-import sampleclean.clean.extraction.SplitExtraction
+import sampleclean.clean.extraction.FastSplitExtraction
 import sampleclean.eval._
 
 import sampleclean.util._
@@ -38,7 +38,7 @@ private [sampleclean] object ALdemo {
         case "activeLearningER" => EntityResolution.textAttributeActiveLearning(_,_,attribute.get,threshold.get,weighting.get)
         case "hybridER" => EntityResolution.hybridAttributeAL(_,_,attribute.get,threshold.get,second_threshold.get,weighting.get)
         case "recordDedup" => RecordDeduplication.deduplication(_,_,dedup_columns.get,threshold.get,weighting.get)
-        case "splitExtraction" => SplitExtraction.stringSplitAtDelimiter(_,_,attribute.get,delimiter.get,output_columns.get)
+        case "splitExtraction" => FastSplitExtraction.stringSplitAtDelimiter(_,_,attribute.get,delimiter.get,output_columns.get)
         case _ => throw new RuntimeException("Algorithm name not found.")
       }
 
@@ -54,20 +54,19 @@ private [sampleclean] object ALdemo {
    */
   def main(args: Array[String]) {
 
-    val start_time = System.nanoTime()
-
     val conf = new SparkConf()
     conf.setAppName("SampleClean Spark Driver")
-    //conf.setMaster("local[4]")
-    //conf.set("spark.executor.memory", "4g")
-    //conf.set("spark.driver.memory", "1g")
-    //conf.set("spark.storage.memoryFraction", "0.2")
+    conf.setMaster("local[4]")
+    conf.set("spark.executor.memory", "4g")
+    conf.set("spark.driver.memory", "1g")
+    conf.set("spark.storage.memoryFraction", "0.2")
 
     val sc = new SparkContext(conf)
     val scc = new SampleCleanContext(sc)
-    scc.closeHiveSession()
-    println("closed hive session")
     val hiveContext = scc.getHiveContext()
+    //scc.closeHiveSession()
+    //
+    //scc.hql("select * from restaurant_sample_dirty") //cache
 
     val source = scala.io.Source.fromFile("./src/main/resources/vldb_input_test.json").mkString
     //val source = scala.io.Source.fromFile(args(0)).mkString
@@ -89,14 +88,23 @@ private [sampleclean] object ALdemo {
       }
     }).load(sampling_ratio)
 
+    //scc.hql("show tables").collect().foreach(println)
+
+    /*val dataset:WorkingSet = ((json \\ "dataset")).values.toString match {
+      case "restaurant" => new WorkingSet(scc, "restaurant_sample")
+    }*/
+
     val queries = json.extract[QueryList]
 
     val algorithms = json.extract[UnparsedPipeline]
 
+    var qmap:Map[String,Double] = Map() 
     queries.sql_queries.foreach { q =>
       println("Query result dirty data: " + q)
-      println(dataset.query(q).collect().toSeq)
+      qmap = dataset.query(q).map(x=> (x(0).toString(),x(1).asInstanceOf[Double])).collect().toMap
     }
+
+    val start_time = System.nanoTime()
 
     for (a <- algorithms.pipeline){
       dataset.clean(a.toSCAlgorithm)
@@ -107,10 +115,16 @@ private [sampleclean] object ALdemo {
 
     queries.sql_queries.foreach { q =>
       println("Query result clean data: " + q)
-      println(dataset.query(q).collect().toSeq)
+      dataset.query(q).map(x=> (x(0),x(1).asInstanceOf[Double] - qmap(x(0).toString()))).filter(x => x._2 > 5000).collect().foreach(println)
     }
 
     println("Execution time in seconds: " + (end_time - start_time) / 1000000000)
+
+    //scc.resetSample("restaurant_sample")
+    scc.closeHiveSession()
+
+    //scc.closeHiveSession()
+    //println("closed hive session")
 
   }
 

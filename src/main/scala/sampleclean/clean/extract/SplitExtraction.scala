@@ -33,11 +33,15 @@ class SplitExtraction(params:AlgorithmParameters,
 	def extractFunction(data:SchemaRDD): Map[String,RDD[(String,String)]] = {
 
 		var result:Map[String,RDD[(String,String)]] = Map()
+
+		var start_time = System.nanoTime()
+		val extract = data.rdd.map(row => (row(hashCol).asInstanceOf[String], row(attrCol).toString().split(delim))).cache()
+		println("Extract Calculate Time: " +(System.nanoTime() - start_time)/ 1000000000)
+
 		for (col <- newCols)
 		{
 			if (col != null)
 			{
-				val extract = data.rdd.map(row => (row(hashCol).asInstanceOf[String], row(attrCol).toString().split(delim)))
 				//extract = extract.filter(x => (x._2.length >= newCols.length))		
 				result += (col -> extract.map(row => (row._1, getIndexIfExists(row._2,newCols.indexOf(col)) )).cache())
 			}

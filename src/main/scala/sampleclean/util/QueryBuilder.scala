@@ -124,7 +124,7 @@ private [sampleclean] class QueryBuilder(scc: SampleCleanContext) {
 	}
 
   private [sampleclean] def forceMapJoin(table1:String, table2:String):String = {
-		return "/*+ MAPJOIN("+table1+"), MAPJOIN("+table2+") */"
+		return "/*+ MAPJOIN("+table2+") */"
 	}
 
 	/** This builds a select query with a semi join with another table, that is, keep only records in the other table

@@ -16,8 +16,8 @@ class CSVLoader(scc:SampleCleanContext,
 	val TABLEDEF = "CREATE TABLE IF NOT EXISTS %s ROW FORMAT serde 'com.bizo.hive.serde.csv.CSVSerde'"
 	val TABLELOAD = "LOAD DATA LOCAL INPATH '%t' OVERWRITE INTO TABLE %w"
 
-	def load2Hive():String = {
-		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
+	def load2Hive(namedSet:String=""):String = {
+		val tmpTableName = if (namedSet == "") "tmp"+Math.abs((new Random().nextLong())) else namedSet
 		scc.hql("add jar ./lib/csv-serde-1.1.2-0.11.0-all.jar")
 		scc.hql(TABLEDEF.replace("%s", tmpTableName+schemaToSchemaList(schema)))
 		scc.hql(TABLELOAD.replace("%t",filename).replace("%w",tmpTableName))

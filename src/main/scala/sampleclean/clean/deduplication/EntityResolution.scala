@@ -104,7 +104,10 @@ class EntityResolution(params:AlgorithmParameters,
 	  private [sampleclean] def apply(candidatePairs: RDD[(Row, Row)]):Unit = {
        val sampleTableRDD = scc.getCleanSample(sampleTableName).repartition(scc.getSparkContext().defaultParallelism)
        //candidatePairs.collect().foreach(println)
+       //
+       var start_time = System.nanoTime()
        apply(candidatePairs, sampleTableRDD.rdd)
+       println("Entity Resolution Apply Time: " + (System.nanoTime() - start_time)/ 1000000000)
 	  }
 
      /* TODO fix!
@@ -112,6 +115,7 @@ class EntityResolution(params:AlgorithmParameters,
      */	
   	private [sampleclean] def apply(candidatePairs: RDD[(Row, Row)],
                 sampleTableRDD:RDD[Row]):Unit = {
+
 
       var resultRDD = sampleTableRDD.map(x =>
         (x(hashCol).asInstanceOf[String], x(attrCol).asInstanceOf[String]))
@@ -136,6 +140,7 @@ class EntityResolution(params:AlgorithmParameters,
 
         val winner:String = mergeStrategy.toLowerCase.trim match {
           case "mostconcise" => if (b1._1.length < b2._1.length) b1._1 else b2._1
+          case "leastconcise" => if (b1._1.length > b2._1.length) b1._1 else b2._1
           case "mostfrequent" => if (b1._2.size > b2._2.size) b1._1 else b2._1
           case _ => throw new RuntimeException("Invalid merge strategy: " + mergeStrategy)
         }
@@ -239,9 +244,11 @@ object EntityResolution {
                                attribute: String, 
                                threshold:Double=1):EntityResolution = {
 
+        var start_time = System.nanoTime()
+
         val algoPara = new AlgorithmParameters()
         algoPara.put("attr", attribute)
-        algoPara.put("mergeStrategy", "mostFrequent")
+        algoPara.put("mergeStrategy", "leastconcise")
 
         val similarity = new EditFeaturizer(List(attribute), 
                                                    scc.getTableContext(sampleName),
@@ -251,6 +258,9 @@ object EntityResolution {
         val join = new PassJoin(scc.getSparkContext(), similarity)
         val matcher = new AllMatcher(scc, sampleName)
         val blockerMatcher = new BlockerMatcherSelfJoinSequence(scc,sampleName, join, List(matcher))
+
+        println("Entity Resolution Setup Time: " + (System.nanoTime() - start_time)/ 1000000000)
+
         return new EntityResolution(algoPara, scc, sampleName, blockerMatcher)
     }
 

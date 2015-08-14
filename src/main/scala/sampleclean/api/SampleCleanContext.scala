@@ -99,6 +99,8 @@ class SampleCleanContext(@transient sc: SparkContext) {
 
 			hiveContext.sql(query)
 
+			hiveContext.sql(qb.setTableParent(qb.getDirtySampleName(sampleTable),qb.getBaseName(baseTable) + " " + samplingRatio))
+
 			//hiveContext.sql("cache table "+ qb.getDirtySampleName(sampleTable))
 		}
 		
@@ -152,6 +154,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 
 			hiveContext.sql(query)
 
+			hiveContext.sql(qb.setTableParent(qb.getDirtySampleName(sampleTable),qb.getBaseName(baseTable) + " " + samplingRatio))
 			
 		}
 		
@@ -300,29 +303,47 @@ class SampleCleanContext(@transient sc: SparkContext) {
 
 		//Uses the hive API to get the schema of the table.
 		var selectionString = List[String]()
+		var selectionString2 = List[String]()
 
 		for (field <- getHiveTableSchema(tableNameClean))
 		{
 			if (field.equals(attr))
-				selectionString = tmpTableName+"."+"updateAttr":: selectionString // To Sanjay: It was tmpNameClean before. Since it failed to compile, I changed it to tableNameClean
+				selectionString = tmpTableName+"."+"updateAttr as " + attr:: selectionString // To Sanjay: It was tmpNameClean before. Since it failed to compile, I changed it to tableNameClean
 			else
 				selectionString = tableNameClean+"."+field :: selectionString
+
+			selectionString2 = tableNameClean+"."+field :: selectionString2
 		}
 
 		selectionString = selectionString.reverse
 
    		//applies hive query to update the data
    		if(persist){
-   		    hiveContext.sql(qb.overwriteTable(tableNameClean) +
+   			val tmpTableName2 = tmpTableName+"2"
+
+   			hiveContext.sql(qb.createTableAs(tmpTableName2) +
    		    				qb.buildSelectQuery(selectionString,
    		    					             tableNameClean,
    		    					             "true",tmpTableName,
    		    					             "hash"))
+
+   			hiveContext.sql("set hive.optimize.bucketmapjoin = true");
+   			hiveContext.sql("drop table "+tableNameClean);
+
+   			hiveContext.sql("ALTER TABLE " + tmpTableName2 + " RENAME TO " +tableNameClean);
+   		    /*hiveContext.sql(qb.createTableAs(tmpTableName2) +
+   		    				qb.buildSelectQuery(selectionString,
+   		    					             tableNameClean,
+   		    					             "true",tmpTableName,
+   		    					             "hash"))*/
    	   }
 
-   		return hiveContext.sql(qb.buildSelectQuery(selectionString, 
+   		/*return hiveContext.sql(qb.buildSelectQuery(selectionString, 
    			                   tableNameClean, 
-   			                   "true",tmpTableName,"hash"))
+   			                   "true",tmpTableName,"hash"))*/
+		return hiveContext.sql(qb.buildSelectQuery(selectionString2, 
+   			                   tableNameClean, 
+   			                   "true"))
 
 	}
 

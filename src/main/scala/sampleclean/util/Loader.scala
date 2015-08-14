@@ -15,7 +15,7 @@ abstract class Loader(scc:SampleCleanContext,
 	 * This performs given the input file returns a 
 	 * reference to the base table.
 	 */
-	def load2Hive():String
+	def load2Hive(tableName:String=""):String
 
 	/**
 	 * This turns the loaded base table into a reference to the
@@ -23,12 +23,8 @@ abstract class Loader(scc:SampleCleanContext,
 	 * @type {[type]}
 	 */
 	def load(samplingRatio:Double=1.0,namedSet:String=""):WorkingSet = {
-		val baseTable = load2Hive()
+		val baseTable = if (namedSet == "") load2Hive() else load2Hive(namedSet)
 		var workingSetName = baseTable + "_sample"
-		
-		if (namedSet != "")
-			workingSetName = namedSet
-
 		scc.initialize(baseTable,workingSetName,samplingRatio)
 		return new WorkingSet(scc,workingSetName)
 	}

@@ -1,15 +1,27 @@
 {
-	"pipeline":
+	"dataset":"alcohol",
+	"stages":
 	[
 	  {
-		"name":"activeLearningER",
-		"threshold":0.9,
-		"attribute":"name",
-		"weighting":false
-	  }
-	],
+	  	"operator": "attrdedup",
+	  	"field": "name",
+	  	"options" : {
+	  					"similarity": "jaccard",
+	  					"threshold": 0.8,
+	  					"crowd": "none",
+	  					"hybrid_threshold": 0.9
+	  				}
 
-	"dataset":"alcohol",
-  	"sql_queries":["SELECT * FROM $t LIMIT 1","SELECT COUNT(DISTINCT name) FROM $t"],
-  	"sampling_ratio":0.1
+	  },
+	  {
+	  	"operator": "extract",
+	  	"field": "store_location",
+	  	"options" : {
+	  					"delimiter": "[()]",
+	  					"output_columns": ["splitaddress", "gps"]
+	   				}
+
+	  }
+	]
+	  
 }

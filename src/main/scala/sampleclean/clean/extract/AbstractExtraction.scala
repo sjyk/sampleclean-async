@@ -37,7 +37,7 @@ abstract class AbstractExtraction(params:AlgorithmParameters,
 		val hc = scc.getHiveContext()
 		val cleanSampleTable = scc.qb.getCleanSampleName(sampleTableName)
 		val dirtySampleTable = scc.qb.getDirtySampleName(sampleTableName)
-		val baseTable = scc.getParentTable(scc.qb.getCleanSampleName(sampleTableName))
+		val baseTable = scc.getParentTable(scc.qb.getDirtySampleName(sampleTableName))
 
 		val existingCols = scc.getTableContext(sampleTableName)
 
@@ -50,21 +50,28 @@ abstract class AbstractExtraction(params:AlgorithmParameters,
 		
 		if(actualNewCols.length > 0){
 			val query1 = scc.qb.addColsToTable(actualNewCols, cleanSampleTable)
+			println(query1)
 			scc.hql(query1)
 
 			val query2 = scc.qb.addColsToTable(actualNewCols, dirtySampleTable)
+			println(query2)
 			scc.hql(query2)
 
 			val query3 = scc.qb.addColsToTable(actualNewCols, baseTable)
+			println(query3)
 			scc.hql(query3)
 		}
+
+		//scc.hql("select split(name, ',') from "+cleanSampleTable).collect().foreach(println)
 
 		val extract = extractFunction(data)
 
 		for (col <- newCols){
 			//println(col)
 			//extract(col).collect().foreach(println)
+			var start_time = System.nanoTime()
 			scc.updateTableAttrValue(sampleTableName,col,extract(col))
+			println("Extract Apply Time: " + (System.nanoTime() - start_time)/ 1000000000)
 		}
 	}
 

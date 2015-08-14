@@ -57,15 +57,20 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 
 		var blocks:RDD[Set[Row]] = null
 		var matchedData:RDD[(Row,Row)] = null
+		
+		var start_time = System.nanoTime()
 
 		if (blocker != null)
 			blocks = blocker.block(data)
 		else
 			{ 
 			  matchedData = join.join(data,data,false)
+			  println("Entity Resolution Join Time: " + (System.nanoTime() - start_time)/ 1000000000)
+			  
 			  println("Candidate Pairs Size: " + matchedData.count)
 			}	
 
+		start_time = System.nanoTime()
 		for (m <- matchers)
 		{
 			if (matchedData == null)
@@ -73,6 +78,7 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 			else
 				matchedData = m.matchPairs(matchedData)
 		}
+		println("Entity Resolution Match Time: " + (System.nanoTime() - start_time)/ 1000000000)
 
 		return matchedData
 	}
