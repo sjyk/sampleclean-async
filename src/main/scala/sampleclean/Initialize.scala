@@ -41,6 +41,7 @@ private [sampleclean] object Initialize {
   def queryToJSON(result:Array[Row],dataset:String):JObject= {
       val schema:List[String] = if(dataset == "alcohol") ALC_SCHEMA.map(_._1) else RESTAURANT_SCHEMA.map(_._1)
       var json:JObject = ("schema", schema)
+
       var records:List[JObject] = List()
       for(r <- result){
          var count = 0
@@ -52,6 +53,11 @@ private [sampleclean] object Initialize {
          records = jsonInner :: records
       }
       json = json ~ ("records" -> records)
+      return json
+  }
+
+  def queriesToJSON(result:List[Array[Row]],dataset:String):JObject = {
+      var json:JObject = ("p0q0", queryToJSON(result(0),dataset)) ~ ("p0q1", aggQueryToJSON(result(1)))
       return json
   }
 
@@ -95,34 +101,17 @@ private [sampleclean] object Initialize {
     val alcWS = new CSVLoader(scc, ALC_SCHEMA,ALC_LOCATION).load(SAMPLING_ALC,"alcohol")
     val restaurantWS = new CSVLoader(scc, RESTAURANT_SCHEMA,RESTAURANT_LOCATION).load(SAMPLING_RESTAURANT,"restaurant")
 
-    val pwaq1 = new PrintWriter(new File("./src/main/resources/alc1.json"))
-    val aq1 = pretty(render(queryToJSON(alcWS.query("select * from $t limit 10").collect(),"alcohol")))
+    val pwaq1 = new PrintWriter(new File("./src/main/resources/alcohol.json"))
+    val aq1 = pretty(render(queriesToJSON(List(alcWS.query("select * from $t limit 10").collect(),
+                                               alcWS.query("selectrawsc count(1) from $t group by name").collect()),"alcohol")))
     pwaq1.write(aq1)
     pwaq1.close
 
-    val pwaq2 = new PrintWriter(new File("./src/main/resources/alc2.json"))
-    val aq2 = pretty(render(aggQueryToJSON(alcWS.query("selectrawsc count(1) from $t group by name").collect())))
-    pwaq2.write(aq2)
-    pwaq2.close
-
-    val pwrq1 = new PrintWriter(new File("./src/main/resources/restaurant1.json"))
-    val rq1 = pretty(render(queryToJSON(restaurantWS.query("select * from $t limit 10").collect(),"restaurant")))
+    val pwrq1 = new PrintWriter(new File("./src/main/resources/restaurant.json"))
+    val rq1 = pretty(render(queriesToJSON(List(restaurantWS.query("select * from $t limit 10").collect(),
+                                                         restaurantWS.query("select 'all',count(distinct name) from $t").collect()),"restaurant")))
     pwrq1.write(rq1)
     pwrq1.close
-
-    val pwrq2 = new PrintWriter(new File("./src/main/resources/restaurant2.json"))
-    val rq2 = pretty(render(aggQueryToJSON(restaurantWS.query("select 'all',count(distinct name) from $t").collect())))
-    pwrq2.write(rq2)
-    pwrq2.close
-
-     val pwr1 = new PrintWriter(new File("./src/main/resources/restaurant2res.json"))
-     pwr1.close
-
-     val pwr2 = new PrintWriter(new File("./src/main/resources/alc1res.json"))
-     pwr2.close
-
-     val pwr3 = new PrintWriter(new File("./src/main/resources/alc2res.json"))
-     pwr3.close
 
   }
 

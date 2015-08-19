@@ -146,22 +146,39 @@ private [sampleclean] object CleanAndQuery {
 
     val stages = json.extract[Stages]
 
+    val datasetFile = "./src/main/resources/"+datasetName+".json"
+    val results = scala.io.Source.fromFile(datasetFile).mkString
+    var resultsJson = JsonMethods.parse(results)
+    var q0Results = (json \\ "p0q0")
+    var q1Results = (json \\ "p0q1")
+
+    var pcount = 1
     for (s <- stages.stages){
       if (s.operator == "attrdedup"){
         dataset.clean(createAttrDedupStage(s,scc,datasetName+"_sample"))
         val result = dataset.query(queries((s.operator,datasetName))).collect()
-        val pw = new PrintWriter(new File("./src/main/resources/"+outputFiles((s.operator,datasetName))))
-        pw.write(pretty(render(aggQueryToJSON(result))))
-        pw.close
+        //val pw = new PrintWriter(new File("./src/main/resources/"+outputFiles((s.operator,datasetName))))
+        //pw.write(pretty(render(aggQueryToJSON(result))))
+        //pw.close
+        q1Results = aggQueryToJSON(result)
         
       }
       else if (s.operator == "extract"){
         dataset.clean(createExtractStage(s,scc,datasetName+"_sample"))
         val result = dataset.query(queries((s.operator,datasetName))).collect()
-        val pw = new PrintWriter(new File("./src/main/resources/"+outputFiles((s.operator,datasetName))))
-        pw.write(pretty(render(queryToJSON(result,datasetName,scc))))
-        pw.close
+        q0Results = queryToJSON(result,datasetName,scc)
       }
+
+      val j1:JObject = ("p"+pcount+"q0",q0Results)
+      val j2:JObject = ("p"+pcount+"q1",q1Results)
+
+      resultsJson = resultsJson merge j1  
+      resultsJson = resultsJson merge j2
+      //val pw = new PrintWriter(new File(datasetFile))
+      //pw.write(pretty(render(resultsJson)))
+      //pw.close
+      println(pretty(render(resultsJson)))   
+      pcount = pcount + 1
       
     }
 
