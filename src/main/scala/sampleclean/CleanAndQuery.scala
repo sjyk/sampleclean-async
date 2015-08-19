@@ -103,10 +103,6 @@ private [sampleclean] object CleanAndQuery {
                     ("extract","alcohol") -> "select * from $t limit 10",
                     ("attrdedup","restaurant") -> "select 'all',count(distinct name) from $t")
 
-  val outputFiles = Map(("attrdedup","alcohol") -> "alc2res.json",
-                    ("extract","alcohol") -> "alc1res.json",
-                    ("attrdedup","restaurant") -> "restaurant2res.json")
-
   case class Stages(stages: List[Stage])
   case class Stage(operator: String, field: String, options: OperatorOptions)
   case class OperatorOptions( similarity:Option[String],
@@ -149,17 +145,14 @@ private [sampleclean] object CleanAndQuery {
     val datasetFile = "./src/main/resources/"+datasetName+".json"
     val results = scala.io.Source.fromFile(datasetFile).mkString
     var resultsJson = JsonMethods.parse(results)
-    var q0Results = (json \\ "p0q0")
-    var q1Results = (json \\ "p0q1")
+    var q0Results = (resultsJson \\ "p0q0")
+    var q1Results = (resultsJson \\ "p0q1")
 
     var pcount = 1
     for (s <- stages.stages){
       if (s.operator == "attrdedup"){
         dataset.clean(createAttrDedupStage(s,scc,datasetName+"_sample"))
         val result = dataset.query(queries((s.operator,datasetName))).collect()
-        //val pw = new PrintWriter(new File("./src/main/resources/"+outputFiles((s.operator,datasetName))))
-        //pw.write(pretty(render(aggQueryToJSON(result))))
-        //pw.close
         q1Results = aggQueryToJSON(result)
         
       }
@@ -174,9 +167,9 @@ private [sampleclean] object CleanAndQuery {
 
       resultsJson = resultsJson merge j1  
       resultsJson = resultsJson merge j2
-      //val pw = new PrintWriter(new File(datasetFile))
-      //pw.write(pretty(render(resultsJson)))
-      //pw.close
+      val pw = new PrintWriter(new File(datasetFile))
+      pw.write(pretty(render(resultsJson)))
+      pw.close
       println(pretty(render(resultsJson)))   
       pcount = pcount + 1
       
