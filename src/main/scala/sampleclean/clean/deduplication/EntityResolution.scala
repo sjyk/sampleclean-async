@@ -482,4 +482,16 @@ object EntityResolution {
         return new ActiveLearningMatcher(scc, sampleName, alStrategy)
     }
 
+    def createCrowdFilter(scc:SampleCleanContext,
+                           attr: String,
+                           sampleName: String):CrowdMatcher = {
+
+        val baseFeaturizer = new SimilarityFeaturizer(List(attr), 
+                                                      scc.getTableContext(sampleName), 
+                                                      List("Levenshtein", "JaroWinkler"))
+
+        val alStrategy = new CrowdsourcingStrategy(List(attr), baseFeaturizer)
+        return new CrowdMatcher(scc, sampleName, alStrategy)
+    }
+
 }

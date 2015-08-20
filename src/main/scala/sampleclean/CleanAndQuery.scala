@@ -87,10 +87,13 @@ private [sampleclean] object CleanAndQuery {
          er.components.addMatcher(cm)
          uninstantiatedAlgo = ((x:SampleCleanContext,y:String) => er)
       }
-      /*else if (s.options.crowd.get == "hybrid")
+      else if (s.options.crowd.get == "hybrid")
       {
-         uninstantiatedAlgo = EntityResolution.hybridAttributeAL(_,_,attribute.get,threshold.get,second_threshold.get,weighting.get)
-      }*/
+         val cm = EntityResolution.createCrowdFilter(scc,s.field,sampleName)
+         val er = uninstantiatedAlgo(scc,sampleName)
+         er.components.addMatcher(cm)
+         uninstantiatedAlgo = ((x:SampleCleanContext,y:String) => er)
+      }
 
       return uninstantiatedAlgo
   }
