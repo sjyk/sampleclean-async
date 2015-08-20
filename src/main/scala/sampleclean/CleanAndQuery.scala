@@ -25,11 +25,11 @@ import java.io._
  */
 private [sampleclean] object CleanAndQuery {
 
-  val ALC_SCHEMA = (List("id","date","convenience_store","store","name","address","city","zipcode") :::
+  var ALC_SCHEMA = (List("id","date","convenience_store","store","name","address","city","zipcode") :::
                     List("store_location","county_number","county","category","category_name","vendor_no","vendor") :::
                     List("item","description","pack","liter_size","state_btl_cost","btl_price","bottle_qty","total")).map(x => (x, "String"))
   
-  val RESTAURANT_SCHEMA = List(("id","String"), ("entity_id","String"), 
+  var RESTAURANT_SCHEMA = List(("id","String"), ("entity_id","String"), 
                                ("name","String"), ("address","String"), 
                                ("city","String"), ("type","String"))
 
@@ -160,6 +160,12 @@ private [sampleclean] object CleanAndQuery {
         
       }
       else if (s.operator == "extract"){
+
+        if (datasetName == "alcohol")
+          ALC_SCHEMA = ALC_SCHEMA ::: s.options.output_columns.get.map(x => (x, "String"))
+        else
+          RESTAURANT_SCHEMA = RESTAURANT_SCHEMA ::: s.options.output_columns.get.map(x => (x, "String"))
+
         dataset.clean(createExtractStage(s,scc,datasetName+"_sample"))
         val result = dataset.query(queries((s.operator,datasetName))).collect()
         q0Results = queryToJSON(result,datasetName,scc)
