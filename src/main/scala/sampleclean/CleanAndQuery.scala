@@ -34,11 +34,11 @@ private [sampleclean] object CleanAndQuery {
                                ("city","String"), ("type","String"))
 
     def queryToJSON(result:Array[Row],dataset:String, scc:SampleCleanContext):JObject= {
-      val schema:List[String] = scc.getTableContext(dataset+"_sample")
+      val schema:List[String] = if(dataset == "alcohol") ALC_SCHEMA.map(_._1) else RESTAURANT_SCHEMA.map(_._1)
       var json:JObject = ("schema", schema)
       var records:List[JObject] = List()
       for(r <- result){
-         var count = 0
+         var count = 2
          var jsonInner:JObject = ("data","record")
          for(s <- schema){
             jsonInner = jsonInner ~ (s -> r(count).toString())

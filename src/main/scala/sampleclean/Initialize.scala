@@ -44,7 +44,7 @@ private [sampleclean] object Initialize {
 
       var records:List[JObject] = List()
       for(r <- result){
-         var count = 0
+         var count = 2
          var jsonInner:JObject = ("data","record")
          for(s <- schema){
             jsonInner = jsonInner ~ (s -> r(count).toString())
