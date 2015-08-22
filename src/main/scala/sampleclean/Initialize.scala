@@ -41,12 +41,12 @@ private [sampleclean] object Initialize {
   def queryToJSON(result:Array[Row],dataset:String):JObject= {
       val schema:List[String] = if(dataset == "alcohol") ALC_SCHEMA.map(_._1) else RESTAURANT_SCHEMA.map(_._1)
       val printSchema: List[String] = if(dataset == "alcohol") List("id", "date", "name", "store_location",  "category_name", "vendor",  "item", "description", "pack", "bottle_qty", "total") else List("id","name","city","type")
-      var json:JObject = ("schema", printSchema)
+      var json:JObject = ("schema", printSchema) ~ ("query","SELECT * FROM " + dataset)
 
       var records:List[JObject] = List()
       for(r <- result){
          var count = 2
-         var jsonInner:JObject = ("data","record")
+         var jsonInner:JObject = ("data","records")
          for(s <- schema){
             jsonInner = jsonInner ~ (s -> r(count).toString())
             count = count + 1
@@ -58,17 +58,19 @@ private [sampleclean] object Initialize {
   }
 
   def queriesToJSON(result:List[Array[Row]],dataset:String):JArray = {
-      var json:JArray = JArray(List(("q0", queryToJSON(result(0),dataset)) ~ ("q1", aggQueryToJSON(result(1)))))
+      var json:JArray = JArray(List(("q0", queryToJSON(result(0),dataset)) ~ ("q1", aggQueryToJSON(result(1),dataset))))
       return json
   }
 
-  def aggQueryToJSON(result:Array[Row]):JObject = {
+  def aggQueryToJSON(result:Array[Row], dataset:String):JObject = {
       val schema:List[String] = List("group", "aggregate")
-      var json:JObject = ("schema", schema)
+      val query = if(dataset == "alcohol") "SELECT COUNT(1) FROM alcohol GROUP BY name" else "SELECT COUNT(distinct name) FROM restaurant"
+      var json:JObject = ("schema", schema) ~ ("query",query)
+
       var records:List[JObject] = List()
       for(r <- result){
          var count = 0
-         var jsonInner:JObject = ("data","record")
+         var jsonInner:JObject = ("data","aggregate")
          for(s <- schema){
             jsonInner = jsonInner ~ (s -> r(count).toString())
             count = count + 1
