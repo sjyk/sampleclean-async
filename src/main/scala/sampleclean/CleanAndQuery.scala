@@ -41,7 +41,7 @@ private [sampleclean] object CleanAndQuery {
          var count = 2
          var jsonInner:JObject = ("data","record")
          for(s <- schema){
-            jsonInner = jsonInner ~ (s -> r(count).toString())
+              jsonInner = jsonInner ~ (s -> r(count).toString())
             count = count + 1
          }
          records = jsonInner :: records
@@ -104,6 +104,7 @@ private [sampleclean] object CleanAndQuery {
 
   val queries = Map(("attrdedup","alcohol") -> "selectrawsc count(1) from $t group by name",
                     ("extract","alcohol") -> "select * from $t limit 10",
+                    ("extract","restaurant") -> "select * from $t limit 10",
                     ("attrdedup","restaurant") -> "select 'all',count(distinct name) from $t")
 
   case class Stages(stages: List[Stage])
@@ -148,39 +149,44 @@ private [sampleclean] object CleanAndQuery {
     val datasetFile = "./src/main/resources/"+datasetName+".json"
     val results = scala.io.Source.fromFile(datasetFile).mkString
     var resultsJson = JsonMethods.parse(results)
-    var q0Results = (resultsJson \\ "p0q0")
-    var q1Results = (resultsJson \\ "p0q1")
 
-    var pcount = 1
     for (s <- stages.stages){
       if (s.operator == "attrdedup"){
         dataset.clean(createAttrDedupStage(s,scc,datasetName+"_sample"))
-        val result = dataset.query(queries((s.operator,datasetName))).collect()
-        q1Results = aggQueryToJSON(result)
-        
       }
-      else if (s.operator == "extract"){
-
+      else if (s.operator == "extract" && s.field == "store_location"){
         if (datasetName == "alcohol")
           ALC_SCHEMA = ALC_SCHEMA ::: s.options.output_columns.get.map(x => (x, "String"))
         else
           RESTAURANT_SCHEMA = RESTAURANT_SCHEMA ::: s.options.output_columns.get.map(x => (x, "String"))
 
         dataset.clean(createExtractStage(s,scc,datasetName+"_sample"))
-        val result = dataset.query(queries((s.operator,datasetName))).collect()
-        q0Results = queryToJSON(result,datasetName,scc)
       }
 
-      val j1:JObject = ("p"+pcount+"q0",q0Results)
-      val j2:JObject = ("p"+pcount+"q1",q1Results)
+      val result0 = dataset.query(queries(("extract",datasetName))).collect()
+      val q0Results = queryToJSON(result0,datasetName,scc)
 
-      resultsJson = resultsJson merge j1  
-      resultsJson = resultsJson merge j2
+      val result1 = dataset.query(queries(("attrdedup",datasetName))).collect()
+      val q1Results = aggQueryToJSON(result1)
+
+      val update:JObject = ("q0",q0Results) ~ ("q1",q1Results)
+      //val pw = new PrintWriter(new File(datasetFile))
+      val newJsonObject = JArray(resultsJson.asInstanceOf[JArray].arr ::: List(update))
+      
+      val outputJson = pretty(render(newJsonObject))
+      val pw = new PrintWriter(new File(datasetFile))
+      pw.write(outputJson)
+      println(outputJson)
+      pw.close
+
+      /*
+      //resultsJson = resultsJson merge j1  
+      //resultsJson = resultsJson merge j2
       val pw = new PrintWriter(new File(datasetFile))
       pw.write(pretty(render(resultsJson)))
       pw.close
       println(pretty(render(resultsJson)))   
-      pcount = pcount + 1
+      pcount = pcount + 1*/
       
     }
 

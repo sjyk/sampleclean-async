@@ -56,8 +56,8 @@ private [sampleclean] object Initialize {
       return json
   }
 
-  def queriesToJSON(result:List[Array[Row]],dataset:String):JObject = {
-      var json:JObject = ("p0q0", queryToJSON(result(0),dataset)) ~ ("p0q1", aggQueryToJSON(result(1)))
+  def queriesToJSON(result:List[Array[Row]],dataset:String):JArray = {
+      var json:JArray = JArray(List(("q0", queryToJSON(result(0),dataset)) ~ ("q1", aggQueryToJSON(result(1)))))
       return json
   }
 
