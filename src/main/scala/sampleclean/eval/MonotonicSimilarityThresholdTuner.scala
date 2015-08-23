@@ -90,7 +90,7 @@ private [sampleclean] class MonotonicSimilarityThresholdTuner(scc: SampleCleanCo
 				return 0.43
 		}
 		else
-			return 0.73
+			return 0.6
 		//println(reachableSet(tree.keySet.last, Set()))
 	}
 
