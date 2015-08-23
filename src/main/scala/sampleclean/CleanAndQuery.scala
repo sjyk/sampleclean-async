@@ -29,7 +29,7 @@ private [sampleclean] object CleanAndQuery {
                     List("store_location","county_number","county","category","category_name","vendor_no","vendor") :::
                     List("item","description","pack","liter_size","state_btl_cost","btl_price","bottle_qty","total")).map(x => (x, "String"))
   
-  var ALC_PSCHEMA = List("id", "date", "name", "store_location",  "category_name", "vendor",  "item", "description", "pack", "bottle_qty", "total")
+  var ALC_PSCHEMA = List("name", "store_location",  "category_name", "vendor",  "item", "description", "pack", "bottle_qty", "total")
   var RESTAURANT_PSCHEMA = List("id","name","address","city","type")
 
   var RESTAURANT_SCHEMA = List(("id","String"), ("entity_id","String"), 
@@ -55,21 +55,26 @@ private [sampleclean] object CleanAndQuery {
   }
 
   def aggQueryToJSON(result:Array[Row], dataset:String):JObject = {
-      val schema:List[String] = List("group", "aggregate")
+      val schema:List[String] = List("group", "Count")
       
-      val query = if(dataset == "alcohol") "SELECT COUNT(1) FROM alcohol GROUP BY name" else "SELECT COUNT(distinct name) FROM restaurant"
-      var json:JObject = ("schema", schema) ~ ("query",query)
+      val query = if(dataset == "alcohol") "SELECT COUNT(distinct name) FROM alcohol" else "SELECT COUNT(distinct name) FROM restaurant"
+      var json:JObject = ("schema", List(schema(1))) ~ ("query",query)
 
       var records:List[JObject] = List()
       for(r <- result){
          println(r)
          var count = 0
+         //val key = r(0).asInstanceOf[String]
+         //val value = r(1).asInstanceOf[Double]
+
+         //if(frMap.contains(key) && frMap(key) != value){
          var jsonInner:JObject = ("data","aggregate")
          for(s <- schema){
-            jsonInner = jsonInner ~ (s -> r(count).toString())
+               jsonInner = jsonInner ~ (s -> r(count).toString())
             count = count + 1
          }
          records = jsonInner :: records
+         //}
       }
       json = json ~ ("records" -> records)
       return json
@@ -109,8 +114,8 @@ private [sampleclean] object CleanAndQuery {
     return FastSplitExtraction.stringSplitAtDelimiter(_,_,s.field,s.options.delimiter.get,s.options.output_columns.get)
   }
 
-  val queries = Map(("attrdedup","alcohol") -> "selectrawsc count(1) from $t group by name",
-                    ("extract","alcohol") -> "select * from $t limit 10",
+  val queries = Map(("attrdedup","alcohol") -> "select 'all',count(distinct name) from $t",
+                    ("extract","alcohol") -> "select * from $t where id < 10 order by id",
                     ("extract","restaurant") -> "select * from $t limit 10",
                     ("attrdedup","restaurant") -> "select 'all',count(distinct name) from $t")
 
@@ -122,6 +127,9 @@ private [sampleclean] object CleanAndQuery {
                                hybrid_thresh:Option[Double],
                                output_columns:Option[List[String]],
                                delimiter:Option[String])
+
+  case class AggQueryResults(records:List[AggResult])
+  case class AggResult(group:String, aggregate:String)
 
   /**
    * Main function
@@ -179,10 +187,15 @@ private [sampleclean] object CleanAndQuery {
       val result0 = dataset.query(queries(("extract",datasetName))).collect()
       val q0Results = queryToJSON(result0,datasetName,scc)
 
+      //val firstResult = (resultsJson.asInstanceOf[JArray].arr(0) \\ "q1").extract[AggQueryResults]
+      //println(pretty(render(jsquad)))
+      //val firstResultMap = firstResult.records.map(x => (x.group, 0.0)).toMap
+
       val result1 = dataset.query(queries(("attrdedup",datasetName))).collect()
       val q1Results = aggQueryToJSON(result1,datasetName)
 
       val update:JObject = ("q0",q0Results) ~ ("q1",q1Results)
+
       //val pw = new PrintWriter(new File(datasetFile))
       val newJsonObject = JArray(resultsJson.asInstanceOf[JArray].arr ::: List(update))
       

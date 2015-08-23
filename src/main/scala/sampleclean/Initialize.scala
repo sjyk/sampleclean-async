@@ -29,7 +29,7 @@ private [sampleclean] object Initialize {
   val ALC_SCHEMA = (List("id","date","convenience_store","store","name","address","city","zipcode") :::
                     List("store_location","county_number","county","category","category_name","vendor_no","vendor") :::
                     List("item","description","pack","liter_size","state_btl_cost","btl_price","bottle_qty","total")).map(x => (x, "String"))
-  val SAMPLING_ALC = 0.0001
+  val SAMPLING_ALC = 1
   
   val RESTAURANT_LOCATION = "./src/main/resources/restaurant.csv"
   val RESTAURANT_SCHEMA = List(("id","String"), ("entity_id","String"), 
@@ -40,7 +40,7 @@ private [sampleclean] object Initialize {
 
   def queryToJSON(result:Array[Row],dataset:String):JObject= {
       val schema:List[String] = if(dataset == "alcohol") ALC_SCHEMA.map(_._1) else RESTAURANT_SCHEMA.map(_._1)
-      val printSchema: List[String] = if(dataset == "alcohol") List("id", "date", "name", "store_location",  "category_name", "vendor",  "item", "description", "pack", "bottle_qty", "total") else List("id","name","city","type")
+      val printSchema: List[String] = if(dataset == "alcohol") List("name", "store_location",  "category_name", "vendor",  "item", "description", "pack", "bottle_qty", "total") else List("id","name","city","type")
       var json:JObject = ("schema", printSchema) ~ ("query","SELECT * FROM " + dataset)
 
       var records:List[JObject] = List()
@@ -63,12 +63,15 @@ private [sampleclean] object Initialize {
   }
 
   def aggQueryToJSON(result:Array[Row], dataset:String):JObject = {
-      val schema:List[String] = List("group", "aggregate")
-      val query = if(dataset == "alcohol") "SELECT COUNT(1) FROM alcohol GROUP BY name" else "SELECT COUNT(distinct name) FROM restaurant"
-      var json:JObject = ("schema", schema) ~ ("query",query)
+      val schema:List[String] = List("group", "Count")
+      val query = if(dataset == "alcohol") "SELECT COUNT(distinct name) FROM alcohol" else "SELECT COUNT(distinct name) FROM restaurant"
+      var json:JObject = ("schema", List(schema(1))) ~ ("query",query)
+
+      var sorted = result.sortWith((x,y) => x(1).asInstanceOf[Double] > y(1).asInstanceOf[Double])
+      //sorted = if(dataset == "alcohol") sorted.slice(0,10) else sorted
 
       var records:List[JObject] = List()
-      for(r <- result){
+      for(r <- sorted){
          var count = 0
          var jsonInner:JObject = ("data","aggregate")
          for(s <- schema){
@@ -97,16 +100,28 @@ private [sampleclean] object Initialize {
     val scc = new SampleCleanContext(sc)
     val hiveContext = scc.getHiveContext()
     
+    scc.hql("drop index x1 on restaurant_sample_clean")
+    scc.hql("drop index x2 on alcohol_sample_clean")
+
     scc.closeHiveSession()
+    
     scc.hql("drop table restaurant")
     scc.hql("drop table alcohol")
 
     val alcWS = new CSVLoader(scc, ALC_SCHEMA,ALC_LOCATION).load(SAMPLING_ALC,"alcohol")
     val restaurantWS = new CSVLoader(scc, RESTAURANT_SCHEMA,RESTAURANT_LOCATION).load(SAMPLING_RESTAURANT,"restaurant")
 
+    //scc.hql("CREATE INDEX x1 ON TABLE restaurant_sample_clean(hash) AS 'COMPACT' WITH DEFERRED REBUILD")
+    //scc.hql("CREATE INDEX x2 ON TABLE alcohol_sample_clean(hash) AS 'COMPACT' WITH DEFERRED REBUILD")
+
+    //scc.hql("alter index x1 on restaurant_sample_clean rebuild")
+    //scc.hql("alter index x2 on alcohol_sample_clean rebuild")
+
+    //scc.hql("SHOW INDEXES ON restaurant_sample_clean").collect().foreach(println)
+
     val pwaq1 = new PrintWriter(new File("./src/main/resources/alcohol.json"))
-    val aq1 = pretty(render(queriesToJSON(List(alcWS.query("select * from $t limit 10").collect(),
-                                               alcWS.query("selectrawsc count(1) from $t group by name").collect()),"alcohol")))
+    val aq1 = pretty(render(queriesToJSON(List(alcWS.query("select * from $t where id < 10 order by id").collect(),
+                                               alcWS.query("select 'all',count(distinct name) from $t").collect()),"alcohol")))
     pwaq1.write(aq1)
     pwaq1.close
 

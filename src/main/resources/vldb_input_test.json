@@ -1,1 +1,1 @@
-{"stages": [{"operator": "attrdedup", "field": "name", "options": {"threshold": 0.8, "hybrid_threshold": 0.9, "crowd": "none", "similarity": "jaccard"}}], "dataset": "restaurant"}
+{"stages": [{"operator": "attrdedup", "field": "name", "options": {"threshold": 3, "hybrid_threshold": 0.9, "crowd": "none", "similarity": "edit"}}, {"operator": "attrdedup", "field": "name", "options": {"threshold": 0.6, "hybrid_threshold": 0.9, "crowd": "none", "similarity": "jaccard"}}], "dataset": "alcohol"}
