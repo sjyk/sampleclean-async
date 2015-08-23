@@ -29,13 +29,16 @@ private [sampleclean] object CleanAndQuery {
                     List("store_location","county_number","county","category","category_name","vendor_no","vendor") :::
                     List("item","description","pack","liter_size","state_btl_cost","btl_price","bottle_qty","total")).map(x => (x, "String"))
   
+  var ALC_PSCHEMA = List("id", "date", "name", "store_location",  "category_name", "vendor",  "item", "description", "pack", "bottle_qty", "total")
+  var RESTAURANT_PSCHEMA = List("id","name","address","city","type")
+
   var RESTAURANT_SCHEMA = List(("id","String"), ("entity_id","String"), 
                                ("name","String"), ("address","String"), 
                                ("city","String"), ("type","String"))
 
     def queryToJSON(result:Array[Row],dataset:String, scc:SampleCleanContext):JObject= {
       val schema:List[String] = if(dataset == "alcohol") ALC_SCHEMA.map(_._1) else RESTAURANT_SCHEMA.map(_._1)
-      val printSchema: List[String] = if(dataset == "alcohol") List("id", "date", "name", "store_location",  "category_name", "vendor",  "item", "description", "pack", "bottle_qty", "total") else List("id","name","city","type")
+      val printSchema: List[String] = if(dataset == "alcohol")  ALC_PSCHEMA else RESTAURANT_PSCHEMA
       var json:JObject = ("schema", printSchema) ~ ("query","SELECT * FROM " + dataset)
       var records:List[JObject] = List()
       for(r <- result){
@@ -160,9 +163,15 @@ private [sampleclean] object CleanAndQuery {
       }
       else if (s.operator == "extract" && s.field == "store_location"){
         if (datasetName == "alcohol")
-          ALC_SCHEMA = ALC_SCHEMA ::: s.options.output_columns.get.map(x => (x, "String"))
+        {
+            ALC_SCHEMA = ALC_SCHEMA ::: s.options.output_columns.get.map(x => (x, "String"))
+            ALC_PSCHEMA = ALC_PSCHEMA ::: s.options.output_columns.get
+        }
         else
+        {
           RESTAURANT_SCHEMA = RESTAURANT_SCHEMA ::: s.options.output_columns.get.map(x => (x, "String"))
+          RESTAURANT_PSCHEMA = RESTAURANT_PSCHEMA ::: s.options.output_columns.get
+        }
 
         dataset.clean(createExtractStage(s,scc,datasetName+"_sample"))
       }
