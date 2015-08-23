@@ -169,7 +169,7 @@ private [sampleclean] object CleanAndQuery {
       if (s.operator == "attrdedup"){
         dataset.clean(createAttrDedupStage(s,scc,datasetName+"_sample"))
       }
-      else if (s.operator == "extract" && s.field == "store_location"){
+      else if (s.operator == "extract"){
         if (datasetName == "alcohol")
         {
             ALC_SCHEMA = ALC_SCHEMA ::: s.options.output_columns.get.map(x => (x, "String"))
