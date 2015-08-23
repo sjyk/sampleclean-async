@@ -23,16 +23,6 @@ private [sampleclean] class SimilarityMetricChooser(scc: SampleCleanContext,
                                                    WordTokenizer(), 
                                                    0.0) ,
 
-							new WeightedOverlapSimilarity(cols, 
-                                                   scc.getTableContext(sampleTableName),
-                                                   WordTokenizer(), 
-                                                   0.0) ,
-
-							new WeightedDiceSimilarity(cols, 
-                                                   scc.getTableContext(sampleTableName),
-                                                   WordTokenizer(), 
-                                                   0.0) ,
-
 							new WeightedCosineSimilarity(cols, 
                                                    scc.getTableContext(sampleTableName),
                                                    WordTokenizer(), 

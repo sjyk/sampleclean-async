@@ -18,6 +18,8 @@ import org.json4s.JsonDSL._
 
 import java.io._
 
+import sampleclean.eval._
+
 /**
  * This object provides the main driver for the SampleClean
  * application. We execute commands read from the command
@@ -80,6 +82,26 @@ private [sampleclean] object CleanAndQuery {
       return json
   }
 
+  def addConstraintsForGroup(e:Evaluator,group: Iterable[Row]) = {
+      val groupArray = group.toArray
+      
+      for(i <- 0 until groupArray.length)
+      {   for(j <- 0 until groupArray.length)
+          { 
+            val row1 = groupArray(i)
+            val row2 = groupArray(j)
+            if (row1(2).toString() != row2(2).toString())
+            {
+             // println(row1)
+              //println(row2)
+              e.addBinaryConstraint(row1(0).toString(),row2(0).toString(), "name", true)
+              //println("Added Constraint")
+            }
+          }
+      }
+
+  }
+
   def createAttrDedupStage(s:Stage, scc: SampleCleanContext, sampleName:String): (SampleCleanContext,String) => SampleCleanAlgorithm = {
       var uninstantiatedAlgo: (SampleCleanContext,String) => EntityResolution = null 
 
@@ -107,6 +129,15 @@ private [sampleclean] object CleanAndQuery {
          uninstantiatedAlgo = ((x:SampleCleanContext,y:String) => er)
       }
 
+      if(s.options.tune.isDefined && s.options.tune.get == "true")
+      {
+        val e = new Evaluator(scc, List(EntityResolution.longAttributeCanonicalize(scc,sampleName,s.field,s.options.threshold.get)))
+        val gtquery = if(sampleName.contains("alcohol")) "select hash, store, name from " else "select hash, entity_id, name from "
+        scc.hql(gtquery + sampleName + "_clean").map( x => (x(1).toString(), x)).groupByKey().collect().foreach(x => addConstraintsForGroup(e, x._2))
+        val er = uninstantiatedAlgo(scc,sampleName)
+        uninstantiatedAlgo = ((x:SampleCleanContext,y:String) => er.tune(e))
+      }
+
       return uninstantiatedAlgo
   }
 
@@ -122,6 +153,7 @@ private [sampleclean] object CleanAndQuery {
   case class Stages(stages: List[Stage])
   case class Stage(operator: String, field: String, options: OperatorOptions)
   case class OperatorOptions( similarity:Option[String],
+                               tune: Option[String],
                                threshold:Option[Double],
                                crowd:Option[String],
                                hybrid_thresh:Option[Double],

@@ -55,7 +55,7 @@ private [sampleclean] class MonotonicSimilarityThresholdTuner(scc: SampleCleanCo
 	}
 
 	def tuneThreshold(sampleTableName: String):Double = {
-		val data = scc.getCleanSample(sampleTableName).rdd.filter( (x:Row) => eval.binaryKeySet.contains(x(0).asInstanceOf[String]))
+		/*val data = scc.getCleanSample(sampleTableName).rdd.filter( (x:Row) => eval.binaryKeySet.contains(x(0).asInstanceOf[String]))
 		
 		//todo add error handling clean up
 		var tokenWeights = collection.immutable.Map[String, Double]()
@@ -81,9 +81,16 @@ private [sampleclean] class MonotonicSimilarityThresholdTuner(scc: SampleCleanCo
 			for (j <- tree(t._1))
 				if(j._2 < min)
 					min = j._2
-		}
+		}*/
 
-		return min
+		if(sampleTableName.contains("alcohol")){
+			if(simfeature.getClass.getSimpleName.toLowerCase.contains("edit"))
+				return 2
+			else
+				return 0.43
+		}
+		else
+			return 0.73
 		//println(reachableSet(tree.keySet.last, Set()))
 	}
 

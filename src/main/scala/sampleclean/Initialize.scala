@@ -100,8 +100,8 @@ private [sampleclean] object Initialize {
     val scc = new SampleCleanContext(sc)
     val hiveContext = scc.getHiveContext()
     
-    scc.hql("drop index x1 on restaurant_sample_clean")
-    scc.hql("drop index x2 on alcohol_sample_clean")
+    //scc.hql("drop index x1 on restaurant_sample_clean")
+    //scc.hql("drop index x2 on alcohol_sample_clean")
 
     scc.closeHiveSession()
     
