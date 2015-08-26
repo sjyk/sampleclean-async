@@ -229,9 +229,9 @@ private [sampleclean] object CleanAndQuery {
       val update:JObject = ("q0",q0Results) ~ ("q1",q1Results)
 
       //val pw = new PrintWriter(new File(datasetFile))
-      val newJsonObject = JArray(resultsJson.asInstanceOf[JArray].arr ::: List(update))
+      resultsJson = JArray(resultsJson.asInstanceOf[JArray].arr ::: List(update))
       
-      val outputJson = pretty(render(newJsonObject))
+      val outputJson = pretty(render(resultsJson))
       val pw = new PrintWriter(new File(datasetFile))
       pw.write(outputJson)
       println(outputJson)
