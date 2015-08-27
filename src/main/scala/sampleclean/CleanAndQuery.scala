@@ -146,8 +146,8 @@ private [sampleclean] object CleanAndQuery {
   }
 
   val queries = Map(("attrdedup","alcohol") -> "select 'all',count(distinct name) from $t",
-                    ("extract","alcohol") -> "select * from $t where id < 10 order by id",
-                    ("extract","restaurant") -> "select * from $t limit 10",
+                    ("extract","alcohol") -> "select * from $t where hash(id) % 100 = 1",
+                    ("extract","restaurant") -> "select * from $t where hash(name) % 80 = 1",
                     ("attrdedup","restaurant") -> "select 'all',count(distinct name) from $t")
 
   case class Stages(stages: List[Stage])

@@ -120,13 +120,13 @@ private [sampleclean] object Initialize {
     //scc.hql("SHOW INDEXES ON restaurant_sample_clean").collect().foreach(println)
 
     val pwaq1 = new PrintWriter(new File("./src/main/resources/alcohol.json"))
-    val aq1 = pretty(render(queriesToJSON(List(alcWS.query("select * from $t where id < 10 order by id").collect(),
+    val aq1 = pretty(render(queriesToJSON(List(alcWS.query("select * from $t where hash(id) % 100 = 1").collect(),
                                                alcWS.query("select 'all',count(distinct name) from $t").collect()),"alcohol")))
     pwaq1.write(aq1)
     pwaq1.close
 
     val pwrq1 = new PrintWriter(new File("./src/main/resources/restaurant.json"))
-    val rq1 = pretty(render(queriesToJSON(List(restaurantWS.query("select * from $t limit 10").collect(),
+    val rq1 = pretty(render(queriesToJSON(List(restaurantWS.query("select * from $t where hash(name) % 80 = 1").collect(),
                                                          restaurantWS.query("select 'all',count(distinct name) from $t").collect()),"restaurant")))
     pwrq1.write(rq1)
     pwrq1.close
