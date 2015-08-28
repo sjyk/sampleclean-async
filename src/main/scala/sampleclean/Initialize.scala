@@ -40,7 +40,7 @@ private [sampleclean] object Initialize {
 
   def queryToJSON(result:Array[Row],dataset:String):JObject= {
       val schema:List[String] = if(dataset == "alcohol") ALC_SCHEMA.map(_._1) else RESTAURANT_SCHEMA.map(_._1)
-      val printSchema: List[String] = if(dataset == "alcohol") List("name", "store_location",  "category_name", "vendor",  "item", "description", "pack", "bottle_qty", "total") else List("id","name","city","type")
+      val printSchema: List[String] = if(dataset == "alcohol") List("name", "store_location",  "category_name", "vendor",  "item", "description", "pack", "bottle_qty", "total") else List("id","name","address","city","type")
       var json:JObject = ("schema", printSchema) ~ ("query","SELECT * FROM " + dataset)
 
       var records:List[JObject] = List()

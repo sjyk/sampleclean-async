@@ -1,1 +1,1 @@
-{"stages": [{"operator": "attrdedup", "field": "name", "options": {"threshold": 0.6, "hybrid_threshold": 0.9, "tune": "false", "crowd": "active", "similarity": "jaccard"}}, {"operator": "extract", "field": "store_location", "options": {"output_columns": ["new_address", "gps"], "delimiter": "[()]"}}], "dataset": "alcohol"}
+{"stages": [{"operator": "extract", "field": "address", "options": {"output_columns": ["new_address", "crossstreet"], "delimiter": "between"}}], "dataset": "restaurant"}

@@ -47,7 +47,12 @@ private [sampleclean] object CleanAndQuery {
          var count = 2
          var jsonInner:JObject = ("data","records")
          for(s <- schema){
+            try{
               jsonInner = jsonInner ~ (s -> r(count).toString())
+            }
+            catch{
+              case ne: NullPointerException => jsonInner = jsonInner ~ (s -> "")
+            }
             count = count + 1
          }
          records = jsonInner :: records
