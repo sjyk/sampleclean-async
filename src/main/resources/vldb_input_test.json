@@ -1,1 +1,1 @@
-{"stages": [{"operator": "extract", "field": "address", "options": {"output_columns": ["new_address", "crossstreet"], "delimiter": "between"}}], "dataset": "restaurant"}
+{"stages": [], "dataset": "alcohol"}

@@ -85,7 +85,7 @@ private [sampleclean] class MonotonicSimilarityThresholdTuner(scc: SampleCleanCo
 
 		if(sampleTableName.contains("alcohol")){
 			if(simfeature.getClass.getSimpleName.toLowerCase.contains("edit"))
-				return 2
+				return 3
 			else
 				return 0.43
 		}

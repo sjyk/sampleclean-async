@@ -151,8 +151,8 @@ private [sampleclean] object CleanAndQuery {
   }
 
   val queries = Map(("attrdedup","alcohol") -> "select 'all',count(distinct name) from $t",
-                    ("extract","alcohol") -> "select * from $t where hash(id) % 100 = 1",
-                    ("extract","restaurant") -> "select * from $t where hash(name) % 80 = 1",
+                    ("extract","alcohol") -> "select * from $t where hash(id) % 3 = 1 order by name",
+                    ("extract","restaurant") -> "select * from $t where entity_id % 70 = 1",
                     ("attrdedup","restaurant") -> "select 'all',count(distinct name) from $t")
 
   case class Stages(stages: List[Stage])
@@ -178,7 +178,7 @@ private [sampleclean] object CleanAndQuery {
     conf.setMaster("local[4]")
     conf.set("spark.executor.memory", "4g")
     conf.set("spark.driver.memory", "1g")
-    conf.set("spark.storage.memoryFraction", "0.2")
+    //conf.set("spark.storage.memoryFraction", "0.2")
 
     val sc = new SparkContext(conf)
     val scc = new SampleCleanContext(sc)
@@ -195,6 +195,8 @@ private [sampleclean] object CleanAndQuery {
       case "restaurant" => new WorkingSet(scc, "restaurant_sample")
       case "alcohol" => new WorkingSet(scc, "alcohol_sample")
     }
+
+    //dataset.query("CACHE TABLE " + datasetName +"_sample_clean")
 
     val stages = json.extract[Stages]
 

@@ -48,7 +48,12 @@ private [sampleclean] object Initialize {
          var count = 2
          var jsonInner:JObject = ("data","records")
          for(s <- schema){
-            jsonInner = jsonInner ~ (s -> r(count).toString())
+            try{
+              jsonInner = jsonInner ~ (s -> r(count).toString())
+            }
+            catch{
+              case ne: NullPointerException => jsonInner = jsonInner ~ (s -> "")
+            }
             count = count + 1
          }
          records = jsonInner :: records
@@ -120,13 +125,13 @@ private [sampleclean] object Initialize {
     //scc.hql("SHOW INDEXES ON restaurant_sample_clean").collect().foreach(println)
 
     val pwaq1 = new PrintWriter(new File("./src/main/resources/alcohol.json"))
-    val aq1 = pretty(render(queriesToJSON(List(alcWS.query("select * from $t where hash(id) % 100 = 1").collect(),
+    val aq1 = pretty(render(queriesToJSON(List(alcWS.query("select * from $t where hash(id) % 3 = 1 order by name").collect(),
                                                alcWS.query("select 'all',count(distinct name) from $t").collect()),"alcohol")))
     pwaq1.write(aq1)
     pwaq1.close
 
     val pwrq1 = new PrintWriter(new File("./src/main/resources/restaurant.json"))
-    val rq1 = pretty(render(queriesToJSON(List(restaurantWS.query("select * from $t where hash(name) % 80 = 1").collect(),
+    val rq1 = pretty(render(queriesToJSON(List(restaurantWS.query("select * from $t where entity_id % 70 = 1").collect(),
                                                          restaurantWS.query("select 'all',count(distinct name) from $t").collect()),"restaurant")))
     pwrq1.write(rq1)
     pwrq1.close
