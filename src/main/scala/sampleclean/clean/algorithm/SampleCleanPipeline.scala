@@ -7,7 +7,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
 /**
- * This class defines a "pipeline". A pipeline is a set of SampleCleanAlgorithms
+ * This class defines a data cleaning "pipeline". A pipeline is a set of chained SampleCleanAlgorithms
  * to execute. The pipeline determines how to execute the algorithms and whether to
  * optimize their executions
  */

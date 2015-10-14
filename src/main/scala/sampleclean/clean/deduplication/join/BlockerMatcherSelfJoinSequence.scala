@@ -3,7 +3,7 @@ package sampleclean.clean.deduplication.join
 import sampleclean.api.SampleCleanContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
-import sampleclean.clean.deduplication.matcher.Matcher
+import sampleclean.clean.deduplication.matcher.{DefaultHybridMatcher, Matcher}
 import sampleclean.clean.deduplication.blocker.Blocker
 import sampleclean.clean.featurize.Tokenizer._
 import sampleclean.clean.featurize.Tokenizer
@@ -57,15 +57,20 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 
 		var blocks:RDD[Set[Row]] = null
 		var matchedData:RDD[(Row,Row)] = null
+		
+		var start_time = System.nanoTime()
 
 		if (blocker != null)
 			blocks = blocker.block(data)
 		else
 			{ 
 			  matchedData = join.join(data,data,false)
+			  println("Entity Resolution Join Time: " + (System.nanoTime() - start_time)/ 1000000000)
+			  
 			  println("Candidate Pairs Size: " + matchedData.count)
 			}	
 
+		start_time = System.nanoTime()
 		for (m <- matchers)
 		{
 			if (matchedData == null)
@@ -73,6 +78,7 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 			else
 				matchedData = m.matchPairs(matchedData)
 		}
+		println("Entity Resolution Match Time: " + (System.nanoTime() - start_time)/ 1000000000)
 
 		return matchedData
 	}
@@ -96,7 +102,7 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 
 		for (m <- matchers)
 			m.updateContext(newContext)
-		
+
 		println("Context Updated to: " + newContext)
 	}
 
@@ -109,7 +115,7 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 		if(matchers.last.asynchronous)
 			matchers.last.onReceiveNewMatches = func
 		else
-			println("[SampleClean] Asychrony has no effect in this pipeline")
+			println("[SampleClean] Asynchrony has no effect in this pipeline")
 	}
 
 	def printPipeline()={
@@ -126,7 +132,7 @@ class BlockerMatcherSelfJoinSequence(scc: SampleCleanContext,
 	}
 
 	/**
-	 * This function changes the similarity metric used in the Entity Resolution algorithm
+	 * This function changes the similarity metric used for filtering in the Entity Resolution algorithm
 	 * @type {[type]}
 	 */
 	def changeSimilarity(newSimilarity: String) = {

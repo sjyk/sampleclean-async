@@ -21,10 +21,8 @@ abstract class Tokenizer{
       var stringA = ""
       var tokSeq: Seq[String] = Seq()
       for (col <- cols){
-        tokSeq = tokSeq ++ tokenSet(row(col).toString)
-        //stringA = stringA + " " + row(col)
+        tokSeq = tokSeq ++ tokenSet(Option(row(col)).getOrElse("").toString)
       }
-      //return tokenSet(stringA.trim)
       tokSeq
     }
 

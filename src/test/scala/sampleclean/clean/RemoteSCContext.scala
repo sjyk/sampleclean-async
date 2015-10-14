@@ -34,9 +34,9 @@ trait RemoteSCContext extends Serializable {
     val contextString = context.mkString(" String,") + " String"
     val hiveContext = scc.getHiveContext()
     scc.closeHiveSession()
-    hiveContext.hql("DROP TABLE IF EXISTS test")
-    hiveContext.hql("CREATE TABLE IF NOT EXISTS test(%s) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'".format(contextString))
-    hiveContext.hql("LOAD DATA INPATH 'hdfs://%s:9000/csvJaccard100000dups' OVERWRITE INTO TABLE test".format(master))
+    scc.hql("DROP TABLE IF EXISTS test")
+    scc.hql("CREATE TABLE IF NOT EXISTS test(%s) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'".format(contextString))
+    scc.hql("LOAD DATA INPATH 'hdfs://%s:9000/csvJaccard100000dups' OVERWRITE INTO TABLE test".format(master))
     scc.initializeConsistent("test", "test_sample", "id", sample)
 
     try {

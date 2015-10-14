@@ -182,6 +182,7 @@ object CrowdHTTPServer {
     // Check that our crowd request was successful. The response data will be handled by handleResponse()
     responseFuture onSuccess { resp: HttpResponse =>
       val responseData = resp.getContent.toString("UTF-8")
+      println(responseData)
       resp.getStatus  match {
         case HttpResponseStatus.OK =>
           implicit val formats = DefaultFormats

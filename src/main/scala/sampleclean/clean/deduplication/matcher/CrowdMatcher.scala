@@ -28,8 +28,8 @@ private [sampleclean] class CrowdMatcher(scc: SampleCleanContext,
       if(onReceiveNewMatches == null)
         throw new RuntimeException("For asynchronous matchers you need to specify a onReceiveNewMatches function")
 
-      val candidatesWithSortKeys = candidatePairs.map { pair => -math.min(pair._1.getLong(1), pair._2.getLong(1)) -> pair }
-      val sortedCandidates = candidatesWithSortKeys.sortByKey().map{kv => kv._2}
+      //val candidatesWithSortKeys = candidatePairs.map { pair => -math.min(pair._1.getLong(1), pair._2.getLong(1)) -> pair }
+      val sortedCandidates = candidatePairs
       //var candidatePairsArray = candidatePairs.collect().sortBy(pair => -math.min(pair._1.getLong(1), pair._2.getLong(1)))
 
       println("[SampleClean] Publish %d pairs to AMT".format(sortedCandidates.count()))
@@ -37,7 +37,7 @@ private [sampleclean] class CrowdMatcher(scc: SampleCleanContext,
 
       //todo fix
       val groupContext = DeduplicationGroupLabelingContext(
-        taskType="er", data=Map("fields" ->context))
+        taskType="er", data=Map("fields" -> List(context(0))))
 
       // Assign a unique id for each candidate pair
       val candidatePairsWithId = sortedCandidates.map{ pair =>
@@ -58,8 +58,8 @@ private [sampleclean] class CrowdMatcher(scc: SampleCleanContext,
 
       // Construct the point labeling context with a unique id for each point
       val crowdData = candidatePairsWithId.map { case (id, (row1, row2)) =>
-        val entity1Data = List(row1.getString(0), row1.getLong(1))
-        val entity2Data = List(row2.getString(0), row2.getLong(1))
+        val entity1Data = List(row1.getString(0))
+        val entity2Data = List(row2.getString(0))
         val dcontext = DeduplicationPointLabelingContext(content=List(entity1Data, entity2Data))
         (id, dcontext)
       }

@@ -68,18 +68,20 @@ class BroadcastJoin( @transient sc: SparkContext,
       }
 
       //Add a record ID into sampleTable. Id is a unique id assigned to each row.
-      var smallTableWithId: RDD[(String, (Seq[String], Row))] = null
+      var smallTableWithId: RDD[(String, (Seq[String], Seq[String]))] = null
 
       if(!sampleA)
       {  
         smallTableWithId = smallTable.zipWithUniqueId
-          .map(x => (x._2.toString, (simfeature.tokenizer.tokenize(x._1, 
-            simfeature.getCols(false)), x._1))).cache()
+          .map(x => (x._2.toString, (simfeature.tokenizer.tokenize(x._1,
+          simfeature.getCols(false)), x._1.toSeq.map(_.toString))))
+          .setName("sampleTableWithId").cache()
       }
       else
       {
-        smallTableWithId = smallTable.map(x => (x(0).asInstanceOf[String], 
-          (simfeature.tokenizer.tokenize(x, simfeature.getCols(false)), x))).cache()
+        smallTableWithId = smallTable.map(x => (x(0).asInstanceOf[String],
+          (simfeature.tokenizer.tokenize(x, simfeature.getCols(false)),
+            x.toSeq.map(_.toString)))).setName("sampleTableWithId").cache()
       }
 
       // Set a global order to all tokens based on their frequencies
@@ -91,7 +93,7 @@ class BroadcastJoin( @transient sc: SparkContext,
 
 
       // Build an inverted index for the prefixes of sample data
-      val invertedIndex: RDD[(String, Seq[String])] = smallTableWithId.flatMap {
+      val invertedIndex: RDD[(String, Array[String])] = smallTableWithId.flatMap {
         case (id, (tokens, value)) =>
           if (tokens.size < featurizer.minSize) Seq()
           else {
@@ -99,7 +101,7 @@ class BroadcastJoin( @transient sc: SparkContext,
             for (x <- sorted)
             yield (x, id)
           }
-      }.groupByKey().map(x => (x._1, x._2.toSeq.distinct))
+      }.groupByKey().map(x => (x._1, x._2.toArray.distinct))
 
 
       //Broadcast sample data to all nodes
@@ -109,10 +111,11 @@ class BroadcastJoin( @transient sc: SparkContext,
 
       val selfJoin = !sampleA
 
-      val scanTable = {
+      val scanTable: RDD[(String, (Seq[String], Seq[String]))] = {
         if (selfJoin) smallTableWithId
         else {
-          largeTable.map(row => (row(0).asInstanceOf[String], (featurizer.tokenizer.tokenize(row,simfeature.getCols(false)), row)))
+          largeTable.map(row => (row.getString(0),
+            (featurizer.tokenizer.tokenize(row,simfeature.getCols(false)), row.toSeq.map(_.toString))))
         }
       }
 
@@ -130,7 +133,7 @@ class BroadcastJoin( @transient sc: SparkContext,
 
             filtered.foldLeft(List[String]()) {
               case (a, b) =>
-                a ++ broadcastIndexValue.getOrElse(b, List())
+                a ++ broadcastIndexValue.getOrElse(b, Array())
             }.distinct.map {
               case id2 =>
                 // Avoid double checking in self-join
@@ -139,13 +142,15 @@ class BroadcastJoin( @transient sc: SparkContext,
                 else if ((id2.toString == id1.toString) && !selfJoin) (null, null, false)
                 else {
                   val (key2, row2) = broadcastDataValue(id2)
+                  if (key1 == key2) (key2, row2, true)
+                  else {
+                    val similar: Boolean = simfeature.optimizedSimilarity(key1, key2, simfeature.threshold, weightsValue)._1
+                    (key2, row2, similar)
+                  }
 
-                  val similar: Boolean = simfeature.optimizedSimilarity(key1, key2, simfeature.threshold, weightsValue)._1
-
-                  (key2, row2, similar)
                 }
             }.withFilter(_._3).map {
-              case (key2, row2, similar) => (row1, row2)
+              case (key2, row2, similar) => (Row.fromSeq(row1), Row.fromSeq(row2))
             }
           }
           else List()

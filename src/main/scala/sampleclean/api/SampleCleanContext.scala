@@ -81,29 +81,32 @@ class SampleCleanContext(@transient sc: SparkContext) {
 			var baseQuery = qb.createTableAs(qb.getBaseName(baseTable)) +
 			qb.buildSelectQuery(selectionList,baseTable)
 
-			hiveContext.hql(baseQuery)
+			hiveContext.sql(baseQuery)
 
 			var query = qb.createTableAs(qb.getCleanSampleName(sampleTable)) +
 			qb.buildSelectQuery(List("*"),qb.getBaseName(baseTable)) +
 			qb.tableSample(samplingRatio)
 
-			hiveContext.hql(query)
+			hiveContext.sql(query)
 
-			hiveContext.hql("cache table "+ qb.getCleanSampleName(sampleTable))
+			//hiveContext.sql("cache table "+ qb.getCleanSampleName(sampleTable))
+			hiveContext.cacheTable(qb.getCleanSampleName(sampleTable))
 
-			hiveContext.hql(qb.setTableParent(qb.getCleanSampleName(sampleTable),qb.getBaseName(baseTable) + " " + samplingRatio))
+			hiveContext.sql(qb.setTableParent(qb.getCleanSampleName(sampleTable),qb.getBaseName(baseTable) + " " + samplingRatio))
 
 			query = qb.createTableAs(qb.getDirtySampleName(sampleTable)) +
 					qb.buildSelectQuery(List("*"),qb.getCleanSampleName(sampleTable))
 
-			hiveContext.hql(query)
+			hiveContext.sql(query)
 
-			hiveContext.hql("cache table "+ qb.getDirtySampleName(sampleTable))
+			hiveContext.sql(qb.setTableParent(qb.getDirtySampleName(sampleTable),qb.getBaseName(baseTable) + " " + samplingRatio))
+
+			//hiveContext.sql("cache table "+ qb.getDirtySampleName(sampleTable))
 		}
 		
-		return (hiveContext.hql(qb.buildSelectQuery(List("*"),
+		return (hiveContext.sql(qb.buildSelectQuery(List("*"),
 								qb.getCleanSampleName(sampleTable))),
-				hiveContext.hql(qb.buildSelectQuery(List("*"),
+				hiveContext.sql(qb.buildSelectQuery(List("*"),
 								qb.getDirtySampleName(sampleTable))))
 	}
 
@@ -133,28 +136,31 @@ class SampleCleanContext(@transient sc: SparkContext) {
 			var baseQuery = qb.createTableAs(qb.getBaseName(baseTable)) +
 			qb.buildSelectQuery(selectionList,baseTable)
 
-			hiveContext.hql(baseQuery)
+			hiveContext.sql(baseQuery)
 
 			var query = qb.createTableAs(qb.getCleanSampleName(sampleTable)) +
 			qb.buildSelectQuery(List("*"),qb.getBaseName(baseTable)) +
 			qb.tableConsistentHash((1.0 / samplingRatio).toLong,onKey)
 
-			hiveContext.hql(query)
+			hiveContext.sql(query)
 
-			hiveContext.hql(qb.setTableParent(qb.getCleanSampleName(sampleTable),qb.getBaseName(baseTable) + " " + samplingRatio))
+			hiveContext.cacheTable(qb.getCleanSampleName(sampleTable))
+
+			hiveContext.sql(qb.setTableParent(qb.getCleanSampleName(sampleTable),qb.getBaseName(baseTable) + " " + samplingRatio))
 
 			query = qb.createTableAs(qb.getDirtySampleName(sampleTable)) +
 					qb.buildSelectQuery(List("*"),qb.getCleanSampleName(sampleTable))
 		
 
-			hiveContext.hql(query)
+			hiveContext.sql(query)
 
+			hiveContext.sql(qb.setTableParent(qb.getDirtySampleName(sampleTable),qb.getBaseName(baseTable) + " " + samplingRatio))
 			
 		}
 		
-		return (hiveContext.hql(qb.buildSelectQuery(List("*"),
+		return (hiveContext.sql(qb.buildSelectQuery(List("*"),
 								qb.getCleanSampleName(sampleTable))), 
-				hiveContext.hql(qb.buildSelectQuery(List("*"),
+				hiveContext.sql(qb.buildSelectQuery(List("*"),
 								qb.getDirtySampleName(sampleTable))))
 	}
   
@@ -169,7 +175,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 
 		for (t <- getAllTempTables())
 		{
-			hiveContext.hql("DROP TABLE IF EXISTS " + t)
+			hiveContext.sql("DROP TABLE IF EXISTS " + t)
 		}
 	}
 
@@ -185,7 +191,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		if(result._1)
 			return result._2
 		else
-			return hiveContext.hql(query)
+			return hiveContext.sql(query)
 	}
 
 	/* Returns an RDD which points to a full table
@@ -196,7 +202,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 
 		//println(getParentTable(qb.getCleanSampleName(sampleName)))
 
-		return hiveContext.hql(qb.buildSelectQuery(List("*"),
+		return hiveContext.sql(qb.buildSelectQuery(List("*"),
 							   getParentTable(qb.getCleanSampleName(sampleName))))
 	}
   
@@ -207,7 +213,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
    */
 	def getCleanSample(sampleTable: String):SchemaRDD = {
 		val hiveContext = new HiveContext(sc)
-		return hiveContext.hql(qb.buildSelectQuery(List("*"),qb.getCleanSampleName(sampleTable)))
+		return hiveContext.sql(qb.buildSelectQuery(List("*"),qb.getCleanSampleName(sampleTable)))
 	}
 
   /**
@@ -219,7 +225,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
    */
   private [sampleclean] def getCleanSampleAttr(tableName: String, attr: String):SchemaRDD = {
 		val hiveContext = new HiveContext(sc)
-		return hiveContext.hql(qb.buildSelectQuery(List("hash",attr),qb.getCleanSampleName(tableName)))
+		return hiveContext.sql(qb.buildSelectQuery(List("hash",attr),qb.getCleanSampleName(tableName)))
 	}
 
 	/* Returns an RDD which points to a sample 
@@ -228,7 +234,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 	 */
   private [sampleclean] def getCleanSampleAttr(tableName: String, attr: String, pred:String):SchemaRDD = {
 		val hiveContext = new HiveContext(sc)
-		return hiveContext.hql(qb.buildSelectQuery(List("hash",attr),qb.getCleanSampleName(tableName), pred))
+		return hiveContext.sql(qb.buildSelectQuery(List("hash",attr),qb.getCleanSampleName(tableName), pred))
 	}
 
 	/**
@@ -239,7 +245,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		val sqlContext = new SQLContext(sc)
 		val tableNameClean = qb.getCleanSampleName(tableName)
 		val tableNameDirty = qb.getDirtySampleName(tableName)
-		hiveContext.hql(qb.overwriteTable(tableNameDirty) +
+		hiveContext.sql(qb.overwriteTable(tableNameDirty) +
 						qb.buildSelectQuery(List("*"),
    		    					            tableNameClean))
 	}
@@ -259,7 +265,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		if (m < 1.0)
 			throw new RuntimeException("Writing back samples is not currently supported")
 
-		hiveContext.hql(qb.overwriteTable(parent) +
+		hiveContext.sql(qb.overwriteTable(parent) +
 						qb.buildSelectQuery(getHiveTableSchema(parent),
    		    					            tableNameClean))
 	}
@@ -273,7 +279,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		val sqlContext = new SQLContext(sc)
 		val tableNameClean = qb.getCleanSampleName(sampleTable)
 		val tableNameDirty = qb.getDirtySampleName(sampleTable)
-		hiveContext.hql(qb.overwriteTable(tableNameClean) +
+		hiveContext.sql(qb.overwriteTable(tableNameClean) +
 						qb.buildSelectQuery(List("*"),
    		    					            tableNameDirty))
 	}
@@ -287,35 +293,57 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		val sqlContext = new SQLContext(sc)
 		val tableNameClean = qb.getCleanSampleName(tableName)
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
+
     // TODO spark issues in test
-		hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceSSSchema(rdd)),"tmp")
-		hiveContext.hql(qb.createTableAs(tmpTableName) +qb.buildSelectQuery(List("*"),"tmp"))
+    // 
+    	//hql("DROP TABLE tmp")
+    	hiveContext.createDataFrame(enforceSSSchema(rdd)).saveAsTable(tmpTableName)
+		//hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceSSSchema(rdd)),"tmp")
+		//hiveContext.sql(qb.createTableAs(tmpTableName) +qb.buildSelectQuery(List("*"),"tmp"))
 
 		//Uses the hive API to get the schema of the table.
 		var selectionString = List[String]()
+		var selectionString2 = List[String]()
 
 		for (field <- getHiveTableSchema(tableNameClean))
 		{
 			if (field.equals(attr))
-				selectionString = qb.makeExpressionExplicit("updateAttr",tmpTableName) :: selectionString // To Sanjay: It was tmpNameClean before. Since it failed to compile, I changed it to tableNameClean
+				selectionString = tmpTableName+"."+"updateAttr as " + attr:: selectionString // To Sanjay: It was tmpNameClean before. Since it failed to compile, I changed it to tableNameClean
 			else
-				selectionString = qb.makeExpressionExplicit(field,tableNameClean) :: selectionString
+				selectionString = tableNameClean+"."+field :: selectionString
+
+			selectionString2 = tableNameClean+"."+field :: selectionString2
 		}
 
 		selectionString = selectionString.reverse
 
    		//applies hive query to update the data
    		if(persist){
-   		    hiveContext.hql(qb.overwriteTable(tableNameClean) +
+   			val tmpTableName2 = tmpTableName+"2"
+
+   			hiveContext.sql(qb.createTableAs(tmpTableName2) +
    		    				qb.buildSelectQuery(selectionString,
    		    					             tableNameClean,
    		    					             "true",tmpTableName,
    		    					             "hash"))
+
+   			hiveContext.sql("set hive.optimize.bucketmapjoin = true");
+   			hiveContext.sql("drop table "+tableNameClean);
+
+   			hiveContext.sql("ALTER TABLE " + tmpTableName2 + " RENAME TO " +tableNameClean);
+   		    /*hiveContext.sql(qb.createTableAs(tmpTableName2) +
+   		    				qb.buildSelectQuery(selectionString,
+   		    					             tableNameClean,
+   		    					             "true",tmpTableName,
+   		    					             "hash"))*/
    	   }
 
-   		return hiveContext.hql(qb.buildSelectQuery(selectionString, 
+   		/*return hiveContext.sql(qb.buildSelectQuery(selectionString, 
    			                   tableNameClean, 
-   			                   "true",tmpTableName,"hash"))
+   			                   "true",tmpTableName,"hash"))*/
+		return hiveContext.sql(qb.buildSelectQuery(selectionString2, 
+   			                   tableNameClean, 
+   			                   "true"))
 
 	}
 
@@ -327,8 +355,10 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		val sqlContext = new SQLContext(sc)
 		val tableNameClean = qb.getCleanSampleName(tableName)
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
-		hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceDupSchema(rdd)),"tmp")
-		hiveContext.hql(qb.createTableAs(tmpTableName) +qb.buildSelectQuery(List("*"),"tmp"))
+		//hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceDupSchema(rdd)),"tmp")
+		//hql("DROP TABLE tmp")
+		hiveContext.createDataFrame(enforceDupSchema(rdd)).saveAsTable(tmpTableName)
+		//hiveContext.sql(qb.createTableAs(tmpTableName) +qb.buildSelectQuery(List("*"),"tmp"))
 
 		//Uses the hive API to get the schema of the table.
 		var selectionString = List[String]()
@@ -336,23 +366,25 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		for (field <- getHiveTableSchema(tableNameClean))
 		{
 			if (field.equals("dup"))
-				selectionString = typeSafeHQL(qb.makeExpressionExplicit("dup",tmpTableName),1) :: selectionString // To Sanjay: It was tmpNameClean before. Since it failed to compile, I changed it to tableNameClean
+				selectionString = typeSafeHQL(tmpTableName+".dup",1) :: selectionString // To Sanjay: It was tmpNameClean before. Since it failed to compile, I changed it to tableNameClean
 			else
-				selectionString = qb.makeExpressionExplicit(field,tableNameClean) :: selectionString
+				selectionString = tableNameClean+"."+field :: selectionString
 		}
 
 		selectionString = selectionString.reverse
 
+		//println(selectionString)
+
    		//applies hive query to update the data
    		if(persist){
-   		    hiveContext.hql(qb.overwriteTable(tableNameClean) +
+   		    hiveContext.sql(qb.overwriteTable(tableNameClean) +
    		    				qb.buildSelectQuery(selectionString,
    		    					             tableNameClean,
    		    					             "true",tmpTableName,
    		    					             "hash"))
    	   }
 
-   		return hiveContext.hql(qb.buildSelectQuery(selectionString, 
+   		return hiveContext.sql(qb.buildSelectQuery(selectionString, 
    			                   tableNameClean, 
    			                   "true",tmpTableName,"hash"))
 
@@ -366,19 +398,22 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		val sqlContext = new SQLContext(sc)
 		val tableNameClean = qb.getCleanSampleName(tableName)
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
-		hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceFilterSchema(rdd)),"tmp")
+		
+		//hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceFilterSchema(rdd)),"tmp")
+		//hql("DROP TABLE tmp")
+		hiveContext.createDataFrame(enforceFilterSchema(rdd)).saveAsTable(tmpTableName)
 
-		hiveContext.hql(qb.createTableAs(tmpTableName) + qb.buildSelectQuery(List("hash"),"tmp"))
+		//hiveContext.sql(qb.createTableAs(tmpTableName) + qb.buildSelectQuery(List("hash"),"tmp"))
 		
 		if(persist){
-			hiveContext.hql(qb.overwriteTable(tableNameClean) +
+			hiveContext.sql(qb.overwriteTable(tableNameClean) +
    		    				qb.buildSelectSemiJoinQuery(List(tableNameClean+".*"),
    		    					             tableNameClean,
    		    					             "true",tmpTableName,
    		    					             "hash"))
 		}
 
-		val result = hiveContext.hql(qb.buildSelectSemiJoinQuery(List(tableNameClean+".*"),
+		val result = hiveContext.sql(qb.buildSelectSemiJoinQuery(List(tableNameClean+".*"),
    		    					             tableNameClean,
    		    					             "true",tmpTableName,
    		    					             "hash"))

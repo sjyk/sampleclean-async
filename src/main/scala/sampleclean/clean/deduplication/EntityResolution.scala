@@ -14,6 +14,7 @@ import sampleclean.clean.featurize.AnnotatedSimilarityFeaturizer._
 import sampleclean.clean.featurize.Tokenizer._
 import sampleclean.clean.deduplication.matcher._
 import sampleclean.clean.featurize._
+import sampleclean.eval._
 
 /**
  * This is the base class for attribute deduplication.
@@ -77,8 +78,8 @@ class EntityResolution(params:AlgorithmParameters,
         setTableParameters(sampleTableName)
 
         val sampleTableRDD = scc.getCleanSample(sampleTableName).repartition(scc.getSparkContext().defaultParallelism)
-        val attrCountGroup = sampleTableRDD.map(x => 
-                                          (x(attrCol).asInstanceOf[String],
+        val attrCountGroup = sampleTableRDD.map(x =>
+                                          (Option(x(attrCol)).getOrElse("").asInstanceOf[String],
                                            x(hashCol).asInstanceOf[String])).
                                           groupByKey()
         val attrCountRdd  = attrCountGroup.map(x => Row(x._1, x._2.size.toLong))
@@ -103,7 +104,10 @@ class EntityResolution(params:AlgorithmParameters,
 	  private [sampleclean] def apply(candidatePairs: RDD[(Row, Row)]):Unit = {
        val sampleTableRDD = scc.getCleanSample(sampleTableName).repartition(scc.getSparkContext().defaultParallelism)
        //candidatePairs.collect().foreach(println)
-       apply(candidatePairs, sampleTableRDD)
+       //
+       var start_time = System.nanoTime()
+       apply(candidatePairs, sampleTableRDD.rdd)
+       println("Entity Resolution Apply Time: " + (System.nanoTime() - start_time)/ 1000000000)
 	  }
 
      /* TODO fix!
@@ -111,6 +115,7 @@ class EntityResolution(params:AlgorithmParameters,
      */	
   	private [sampleclean] def apply(candidatePairs: RDD[(Row, Row)],
                 sampleTableRDD:RDD[Row]):Unit = {
+
 
       var resultRDD = sampleTableRDD.map(x =>
         (x(hashCol).asInstanceOf[String], x(attrCol).asInstanceOf[String]))
@@ -135,6 +140,7 @@ class EntityResolution(params:AlgorithmParameters,
 
         val winner:String = mergeStrategy.toLowerCase.trim match {
           case "mostconcise" => if (b1._1.length < b2._1.length) b1._1 else b2._1
+          case "leastconcise" => if (b1._1.length > b2._1.length) b1._1 else b2._1
           case "mostfrequent" => if (b1._2.size > b2._2.size) b1._1 else b2._1
           case _ => throw new RuntimeException("Invalid merge strategy: " + mergeStrategy)
         }
@@ -169,8 +175,48 @@ class EntityResolution(params:AlgorithmParameters,
     /**
      * Sets the canonicalization strategy
      */
-    def setCanonicalizationStrategy(strategy:String) = {
+    def setCanonicalizationStrategy(strategy:String):EntityResolution = {
       mergeStrategy = strategy
+      return this
+    }
+
+    def changeSimilarity(newSimilarity: String):EntityResolution = {
+      components.changeSimilarity(newSimilarity)
+      return this
+    }
+
+    def changeTokenization(newTokenization: String):EntityResolution = {
+      components.changeTokenization(newTokenization)
+      return this
+    }
+
+    def changeThreshold(newThreshold:Double):EntityResolution = {
+      components.join.simfeature.threshold = newThreshold
+      return this
+    }
+
+    def tune(eval:Evaluator):EntityResolution = {
+      val m = new MonotonicSimilarityThresholdTuner(scc,eval,components.join.simfeature)
+      val tunedThreshold = m.tuneThreshold(sampleTableName);
+      changeThreshold(tunedThreshold)
+      println("Changing Threshold to " + tunedThreshold + " based on ground truth.")
+      return this
+    }
+
+    def tunePersistent():EntityResolution = {
+      val m = new PersistentHomologyThresholdTuner(scc,components.join.simfeature)
+      val tunedThreshold = m.tuneThreshold(sampleTableName)
+      changeThreshold(tunedThreshold)
+      println("Changing Threshold to " + tunedThreshold + " based on persistence.")
+      return this
+    }
+
+    def auto(eval:Evaluator):EntityResolution = {
+      val m = new SimilarityMetricChooser(scc, eval)
+      val tunedMetric = m.tuneThresholdAndMetric(sampleTableName, List(attr))
+      components.join.simfeature = tunedMetric
+      println("Changing Metric to " + tunedMetric.getClass.getName)
+      return this
     }
 
 }
@@ -190,25 +236,19 @@ object EntityResolution {
    * @param scc SampleClean Context
    * @param sampleName
    * @param attribute name of attribute to resolve
-   * @param threshold threshold used in the algorithm. Must be
-   *                  between 0.0 and 1.0
-   * @param weighting If set to true, the algorithm will automatically calculate
-   *                 token weights. Default token weights are defined based on
-   *                 token idf values.
-   *
-   *                 Adding weights into the join might lead to more reliable
-   *                 pair comparisons and speed up the algorithm if there is
-   *                 an abundance of common words in the dataset.
+   * @param threshold Maximum edit distance used for entity matching. Must be
+   *                  larger than 0.
    */
     def shortAttributeCanonicalize(scc:SampleCleanContext,
                                sampleName:String, 
                                attribute: String, 
-                               threshold:Double=0.9,
-                               weighting:Boolean =true):EntityResolution = {
+                               threshold:Double=1):EntityResolution = {
+
+        var start_time = System.nanoTime()
 
         val algoPara = new AlgorithmParameters()
         algoPara.put("attr", attribute)
-        algoPara.put("mergeStrategy", "mostFrequent")
+        algoPara.put("mergeStrategy", "leastconcise")
 
         val similarity = new EditFeaturizer(List(attribute), 
                                                    scc.getTableContext(sampleName),
@@ -218,6 +258,9 @@ object EntityResolution {
         val join = new PassJoin(scc.getSparkContext(), similarity)
         val matcher = new AllMatcher(scc, sampleName)
         val blockerMatcher = new BlockerMatcherSelfJoinSequence(scc,sampleName, join, List(matcher))
+
+        println("Entity Resolution Setup Time: " + (System.nanoTime() - start_time)/ 1000000000)
+
         return new EntityResolution(algoPara, scc, sampleName, blockerMatcher)
     }
 
@@ -317,6 +360,116 @@ object EntityResolution {
         return new EntityResolution(algoPara, scc, sampleName, blockerMatcher)
     }
 
+  /**
+   * This method builds an Entity Resolution algorithm that will
+   * resolve asynchronously. It follows a hybrid approach to resolve,
+   * combining automatic ER with crowd-sourced ER.
+   *
+   * It uses several default values and is designed
+   * for simple Entity Resolution tasks. For more flexibility in
+   * parameters (such as setting a Similarity Featurizer, Tokenizer and
+   * Active Learning Strategy), refer to the [[EntityResolution]] class.
+   *
+   * This algorithm uses the Jaccard Similarity for pairwise filtering
+   * and sim measures Levenshtein and JaroWinkler for featurization.
+   *
+   * The algorithm also uses a word tokenizer.
+   *
+   * @param scc SampleClean Context
+   * @param sampleName
+   * @param attribute name of attribute to resolve
+   * @param low_threshold threshold used in first [filtering] step. Must be
+   *                  between 0.0 and 1.0
+   * @param high_threshold threshold used in automatic ER. Must be
+   *                       >= low_threshold.
+   * @param weighting If set to true, the algorithm will automatically calculate
+   *                 token weights. Default token weights are defined based on
+   *                 token idf values.
+   *
+   *                 Adding weights into the join might lead to more reliable
+   *                 pair comparisons and speed up the algorithm if there is
+   *                 an abundance of common words in the dataset.
+   * @param crowd_ratio Ratio of sample that will be resolved using crowd-sourcing
+   */
+    def hybridAttributeAL(scc:SampleCleanContext,
+                          sampleName:String,
+                          attribute: String,
+                          low_threshold: Double,
+                          high_threshold:Double,
+                          weighting:Boolean =true,
+                          crowd_ratio:Double = 0.5
+                          ):EntityResolution = {
+
+      val algoPara = new AlgorithmParameters()
+      algoPara.put("attr", attribute)
+      algoPara.put("mergeStrategy", "mostFrequent")
+
+      // blocker-matcher
+      val filteringSimilarity = new WeightedJaccardSimilarity(List(attribute),
+       scc.getTableContext(sampleName),
+       WordTokenizer(),
+       low_threshold)
+
+      val matcher = DefaultHybridMatcher.forEntityResolution(scc,sampleName,attribute,high_threshold,crowd_ratio)
+      val join = new BroadcastJoin(scc.getSparkContext(), filteringSimilarity, weighting)
+      val blockerMatcher = new BlockerMatcherSelfJoinSequence(scc,sampleName, join, List(matcher))
+
+      case class HybridER(hybrid: HybridMatcher)
+        extends EntityResolution(algoPara, scc,sampleName, blockerMatcher){
+
+        override def exec() = {
+
+          validateParameters()
+          setTableParameters(sampleTableName)
+
+          val sampleTableRDD = scc.getCleanSample(sampleTableName)
+            .repartition(scc.getSparkContext().defaultParallelism)
+
+          val attrCountGroup = sampleTableRDD.map(x =>
+            (x(attrCol).asInstanceOf[String],
+              x(hashCol).asInstanceOf[String])).
+            groupByKey()
+
+          val attrCountRdd = attrCountGroup.map(x => Row(x._1, x._2.size.toLong))
+
+          val vertexRDD = attrCountGroup.map(x => (x._1.hashCode().toLong,
+            (x._1, x._2.toSet)))
+
+          val edgeRDD: RDD[(Long, Long, Double)] = scc.getSparkContext().parallelize(List())
+          graphXGraph = GraphXInterface.buildGraph(vertexRDD, edgeRDD)
+
+          blockerMatcher.updateContext(List(attr,"count"))
+
+          val fullCandidatePairs = join.join(attrCountRdd,attrCountRdd,false)
+            .map(pair => (pair,hybrid.p.chooseMatcher(pair._1,pair._2))).cache()
+
+          //println("fullCandidatePairs: " + fullCandidatePairs.collect().toSeq)
+
+
+
+          def finish(matchersAndIndices: List[(Matcher,Int)]) = {
+
+            for (pair <- matchersAndIndices){
+              if (pair._1.asynchronous) pair._1.onReceiveNewMatches = apply
+              val candidatePairs = fullCandidatePairs.filter(_._2._1 == pair._2).map(_._1)
+              val matched = pair._1.matchPairs(candidatePairs)
+              //println("Matched: " + matched.collect().toSeq)
+              apply(matched)
+            }
+          }
+
+          finish(hybrid.matchers.zipWithIndex.filter(!_._1.asynchronous))
+          println("Finished synchronous component")
+          finish(hybrid.matchers.zipWithIndex.filter(_._1.asynchronous))
+
+          fullCandidatePairs.unpersist()
+        }
+      }
+
+      new HybridER(matcher)
+
+    }
+
     def createCrowdMatcher(scc:SampleCleanContext,
                            attr: String,
                            sampleName: String):ActiveLearningMatcher = {
@@ -327,6 +480,18 @@ object EntityResolution {
 
         val alStrategy = new ActiveLearningStrategy(List(attr), baseFeaturizer)
         return new ActiveLearningMatcher(scc, sampleName, alStrategy)
+    }
+
+    def createCrowdFilter(scc:SampleCleanContext,
+                           attr: String,
+                           sampleName: String):CrowdMatcher = {
+
+        val baseFeaturizer = new SimilarityFeaturizer(List(attr), 
+                                                      scc.getTableContext(sampleName), 
+                                                      List("Levenshtein", "JaroWinkler"))
+
+        val alStrategy = new CrowdsourcingStrategy(List(attr), baseFeaturizer)
+        return new CrowdMatcher(scc, sampleName, alStrategy)
     }
 
 }
