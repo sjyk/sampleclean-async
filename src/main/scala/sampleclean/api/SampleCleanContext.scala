@@ -293,6 +293,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		val sqlContext = new SQLContext(sc)
 		val tableNameClean = qb.getCleanSampleName(tableName)
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
+		println("[SampleCleanContext]: Update Table Attr Value")
 
     // TODO spark issues in test
     // 
