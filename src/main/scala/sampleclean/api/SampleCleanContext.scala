@@ -17,7 +17,12 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import SampleCleanContext._
 import sampleclean.util.TypeUtils._
 import sampleclean.util.QueryBuilder
+import sampleclean.util.CachedSchemaRDD
 import sampleclean.parse.SampleCleanQueryParser
+
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.{Failure, Success}
 
 import scala.concurrent._
 
@@ -68,11 +73,6 @@ class SampleCleanContext(@transient sc: SparkContext) {
 	def initialize(baseTable:String, sampleTable:String, samplingRatio: Double=1.0, persist:Boolean=true): (SchemaRDD, SchemaRDD) = {
 
 		val hiveContext = new HiveContext(sc)
-		//creates the clean sample using table sampling procedure
-		//when databricks gives us a better implementation of sampling
-		//we can use that. 
-		//val selectionList = List("reflect(\"java.util.UUID\", \"randomUUID\") as hash",
-		//	                     "1 as dup", "*")
 		val selectionList = List("reflect(\"java.util.UUID\", \"randomUUID\") as hash",
 			                     "1 as dup", "*")
 
@@ -104,6 +104,17 @@ class SampleCleanContext(@transient sc: SparkContext) {
 			//hiveContext.sql("cache table "+ qb.getDirtySampleName(sampleTable))
 		}
 		
+		val schema = getHiveTableSchema(qb.getDirtySampleName(sampleTable))
+		workingSetCache += qb.getDirtySampleName(sampleTable) -> 
+								new CachedSchemaRDD(hiveContext.sql(
+												qb.buildSelectQuery(List("*"),
+												qb.getDirtySampleName(sampleTable))), schema, this)
+
+		workingSetCache += qb.getCleanSampleName(sampleTable) -> 
+								new CachedSchemaRDD(hiveContext.sql(
+												qb.buildSelectQuery(List("*"),
+												qb.getCleanSampleName(sampleTable))), schema, this)
+
 		return (hiveContext.sql(qb.buildSelectQuery(List("*"),
 								qb.getCleanSampleName(sampleTable))),
 				hiveContext.sql(qb.buildSelectQuery(List("*"),
@@ -212,6 +223,12 @@ class SampleCleanContext(@transient sc: SparkContext) {
    * @param sampleTable sample table name
    */
 	def getCleanSample(sampleTable: String):SchemaRDD = {
+
+		if (workingSetCache.contains(qb.getCleanSampleName(sampleTable))){
+				println("Data in Mutable Cache")
+				return workingSetCache(qb.getCleanSampleName(sampleTable)).getAll()
+		}
+
 		val hiveContext = new HiveContext(sc)
 		return hiveContext.sql(qb.buildSelectQuery(List("*"),qb.getCleanSampleName(sampleTable)))
 	}
@@ -295,12 +312,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		val tmpTableName = "tmp"+Math.abs((new Random().nextLong()))
 		println("[SampleCleanContext]: Update Table Attr Value")
 
-    // TODO spark issues in test
-    // 
-    	//hql("DROP TABLE tmp")
     	hiveContext.createDataFrame(enforceSSSchema(rdd)).saveAsTable(tmpTableName)
-		//hiveContext.registerRDDAsTable(sqlContext.createSchemaRDD(enforceSSSchema(rdd)),"tmp")
-		//hiveContext.sql(qb.createTableAs(tmpTableName) +qb.buildSelectQuery(List("*"),"tmp"))
 
 		//Uses the hive API to get the schema of the table.
 		var selectionString = List[String]()
@@ -318,8 +330,16 @@ class SampleCleanContext(@transient sc: SparkContext) {
 
 		selectionString = selectionString.reverse
 
-   		//applies hive query to update the data
-   		if(persist){
+		if(workingSetCache.contains(tableNameClean))
+		{
+			println("updateTableAttrValue Data in Mutable Cache!!")
+			val cachedTable = workingSetCache(tableNameClean)
+			println("Update length: " + rdd.collect().length)
+			rdd.collect().foreach(x => cachedTable.update(x._1, attr, x._2) )
+		}
+
+		val f = Future{
+   		  if(persist){
    			val tmpTableName2 = tmpTableName+"2"
 
    			hiveContext.sql(qb.createTableAs(tmpTableName2) +
@@ -337,14 +357,15 @@ class SampleCleanContext(@transient sc: SparkContext) {
    		    					             tableNameClean,
    		    					             "true",tmpTableName,
    		    					             "hash"))*/
-   	   }
+   	   		}
+   	    }
 
-   		/*return hiveContext.sql(qb.buildSelectQuery(selectionString, 
-   			                   tableNameClean, 
-   			                   "true",tmpTableName,"hash"))*/
-		return hiveContext.sql(qb.buildSelectQuery(selectionString2, 
-   			                   tableNameClean, 
-   			                   "true"))
+   	    f.onComplete {
+						case Success(value) => println("Committed To persistent")
+						case Failure(e) => e.printStackTrace
+					}
+
+	   return getCleanSample(tableName)
 
 	}
 
@@ -664,11 +685,14 @@ class SampleCleanContext(@transient sc: SparkContext) {
 //This object provides some helper methods from the SampleCleanContext
 @serializable
 private [sampleclean] object SampleCleanContext {
+
 	//two case clases that can help force typing
 	case class FilterTuple(hash: String)
 	case class DupTuple(hash: String, dup: Int)
 	case class SSTuple(hash: String, updateAttr:String)
 	case class SDTuple(hash: String, updateAttr:Double)
+
+	var workingSetCache:Map[String, CachedSchemaRDD] = Map() 
 
 	//These methods take un-named cols in RDDs and force them
 	//into named cols.

@@ -38,6 +38,10 @@ libraryDependencies += "com.lambdaworks" %% "jacks" % "2.3.3"
 
 libraryDependencies += "org.scalatest" % "scalatest_2.10" % "2.2.1" % "test"
 
+libraryDependencies += "amplab" % "spark-indexedrdd" % "0.3"
+
+libraryDependencies += "com.ankurdave" %% "part" % "0.1"
+
 
 libraryDependencies ++= Seq(
     "org.eclipse.jetty.orbit" % "javax.servlet" % "3.0.0.v201112011016" artifacts Artifact("javax.servlet", "jar", "jar"),
@@ -50,6 +54,10 @@ libraryDependencies ++= Seq(
 resolvers += "Akka Repository" at "http://repo.akka.io/releases/"
 
 resolvers += "Hive Contrib Repo" at "https://repository.jboss.org/"
+
+resolvers += "Spark Packages Repo" at "http://dl.bintray.com/spark-packages/maven"
+
+resolvers += "Repo at github.com/ankurdave/maven-repo" at "https://github.com/ankurdave/maven-repo/raw/master"
 
 addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.6.0")
 

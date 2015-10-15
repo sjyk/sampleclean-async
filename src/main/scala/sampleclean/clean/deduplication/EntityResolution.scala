@@ -160,12 +160,16 @@ class EntityResolution(params:AlgorithmParameters,
       val joined = resultRDD.leftOuterJoin(newAttrs).mapValues(tuple => {
         tuple._2 match {
           case Some(newAttr) => {
-            //TODO if (tuple._1 != newAttr) log println(tuple._1 + " => " + newAttr)
-            newAttr
+            if (tuple._1 != newAttr) println(tuple._1 + " => " + newAttr)
+
+            (tuple._1, newAttr)
           }
-          case None => tuple._1
+          case None => (tuple._1, tuple._1)
         }
-      })
+      }).filter(t => t._2._1 != t._2._2).map(t => (t._1,t._2._2))
+
+      //joined.collect().foreach(println)
+      //println(joined.count + " " + sampleTableRDD.count)
 
       scc.updateTableAttrValue(sampleTableName, attr, joined)
       this.onUpdateNotify()
