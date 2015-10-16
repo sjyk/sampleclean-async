@@ -18,6 +18,11 @@ import org.apache.spark.graphx._
 import sampleclean.crowd._
 import sampleclean.crowd.context.{DeduplicationPointLabelingContext, DeduplicationGroupLabelingContext}
 
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.{Failure, Success}
+
+import scala.concurrent._
 
 /**
  * The Abstract Deduplication class builds the structure for
@@ -37,12 +42,40 @@ class FastSplitExtraction(params:AlgorithmParameters,
     val delimiter = params.get("delimiter").asInstanceOf[String]
 
 	def exec()={
+
+		if(scc.caching)
+		{	
+			val existingCols = scc.getTableContext(sampleTableName)
+			var actualNewCols = List[String]()
+			var i = 0
+
+			for (col <- newCols)
+				if (!existingCols.contains(col)){
+					
+					scc.updateTableColumnInCache(sampleTableName, 
+												 attr, 
+												 col, 
+												 _.split(delimiter)(i))
+					i = i + 1
+				}
+			val f = Future{execPersist()}
+			f.onComplete {
+							case Success(value) => println("Committed To persistent")
+							case Failure(e) => e.printStackTrace
+						}
+		}
+		else
+		{
+			execPersist()
+		}
+	}
+
+	def execPersist() = {
 		val data = scc.getCleanSample(sampleTableName)
 		val hc = scc.getHiveContext()
 		val cleanSampleTable = scc.qb.getCleanSampleName(sampleTableName)
 		val dirtySampleTable = scc.qb.getDirtySampleName(sampleTableName)
 		val baseTable = scc.getParentTable(scc.qb.getDirtySampleName(sampleTableName))
-
 		val existingCols = scc.getTableContext(sampleTableName)
 
 		var actualNewCols = List[String]()
@@ -87,17 +120,6 @@ class FastSplitExtraction(params:AlgorithmParameters,
 		scc.hql("drop table "+cleanSampleTable);
 
    		scc.hql("ALTER TABLE " + tmpTableName + " RENAME TO " +cleanSampleTable);
-
-
-		/*val extract = extractFunction(data)
-
-		for (col <- newCols){
-			//println(col)
-			//extract(col).collect().foreach(println)
-			var start_time = System.nanoTime()
-			scc.updateTableAttrValue(sampleTableName,col,extract(col))
-			println("Extract Apply Time: " + (System.nanoTime() - start_time)/ 1000000000)
-		}*/
 	}
 
 	//def extractFunction(data:SchemaRDD): Map[String,RDD[(String,String)]]

@@ -19,7 +19,7 @@ class CachedSchemaRDD(rdd:SchemaRDD, var schema:List[String], scc:SampleCleanCon
 
 	val hashCol = schema.indexOf("hash")
 	val tupleizedRDD = rdd.map( row => (row(hashCol).toString(),row))
-	val indexedRdd:IndexedRDD[String, Row] = IndexedRDD(tupleizedRDD).cache()
+	var indexedRdd:IndexedRDD[String, Row] = IndexedRDD(tupleizedRDD).cache()
 
 	def update(hash:String, attr:String, newVal: String) = {
 		var row = indexedRdd.get(hash).get.toSeq
@@ -36,7 +36,18 @@ class CachedSchemaRDD(rdd:SchemaRDD, var schema:List[String], scc:SampleCleanCon
 		}
 	}
 
-	def updateSchema(newSchema:List[String]){
+	def collapse(row:Row, cval:String):Row = {
+		val rowSeq = row.toSeq :+ cval
+		return Row.fromSeq(rowSeq)
+	} 
+
+	def addTransformColumn(sourceColumn:String, destColumn:String, func:String => String) = {
+		val attrCol = schema.indexOf(sourceColumn)
+		val tf = indexedRdd.map(t => func(t._2(attrCol).toString()))
+		indexedRdd = IndexedRDD(indexedRdd.zip(tf).map(t => (t._1._1, collapse(t._1._2,t._2)))).cache()
+	}
+
+	def updateSchema(newSchema:List[String]) = {
 		schema = newSchema
 	}
 

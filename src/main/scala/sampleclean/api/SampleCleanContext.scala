@@ -38,7 +38,7 @@ import scala.concurrent._
  * @param sc an existing Spark Context
  */
 @serializable
-class SampleCleanContext(@transient sc: SparkContext) {
+class SampleCleanContext(@transient sc: SparkContext, val caching:Boolean=true) {
 
 	//Use these functions to access the Spark
 	//and Hive contexts in API calls.
@@ -105,15 +105,19 @@ class SampleCleanContext(@transient sc: SparkContext) {
 		}
 		
 		val schema = getHiveTableSchema(qb.getDirtySampleName(sampleTable))
-		workingSetCache += qb.getDirtySampleName(sampleTable) -> 
+		
+		if(caching)
+		{	
+			workingSetCache += qb.getDirtySampleName(sampleTable) -> 
 								new CachedSchemaRDD(hiveContext.sql(
 												qb.buildSelectQuery(List("*"),
 												qb.getDirtySampleName(sampleTable))), schema, this)
 
-		workingSetCache += qb.getCleanSampleName(sampleTable) -> 
+			workingSetCache += qb.getCleanSampleName(sampleTable) -> 
 								new CachedSchemaRDD(hiveContext.sql(
 												qb.buildSelectQuery(List("*"),
 												qb.getCleanSampleName(sampleTable))), schema, this)
+		}
 
 		return (hiveContext.sql(qb.buildSelectQuery(List("*"),
 								qb.getCleanSampleName(sampleTable))),
@@ -183,6 +187,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
    */
 	def closeHiveSession() = {
 		val hiveContext = new HiveContext(sc)
+		workingSetCache = Map()
 
 		for (t <- getAllTempTables())
 		{
@@ -338,6 +343,7 @@ class SampleCleanContext(@transient sc: SparkContext) {
 			rdd.collect().foreach(x => cachedTable.update(x._1, attr, x._2) )
 		}
 
+		if (caching){
 		val f = Future{
    		  if(persist){
    			val tmpTableName2 = tmpTableName+"2"
@@ -357,17 +363,54 @@ class SampleCleanContext(@transient sc: SparkContext) {
    		    					             tableNameClean,
    		    					             "true",tmpTableName,
    		    					             "hash"))*/
-   	   		}
-   	    }
+   	   			}
+   	    	}
 
-   	    f.onComplete {
+   	    	f.onComplete {
 						case Success(value) => println("Committed To persistent")
 						case Failure(e) => e.printStackTrace
 					}
+		}
+		else{
+			if(persist){
+   			val tmpTableName2 = tmpTableName+"2"
+
+   			hiveContext.sql(qb.createTableAs(tmpTableName2) +
+   		    				qb.buildSelectQuery(selectionString,
+   		    					             tableNameClean,
+   		    					             "true",tmpTableName,
+   		    					             "hash"))
+
+   			hiveContext.sql("set hive.optimize.bucketmapjoin = true");
+   			hiveContext.sql("drop table "+tableNameClean);
+
+   			hiveContext.sql("ALTER TABLE " + tmpTableName2 + " RENAME TO " +tableNameClean);
+   		    /*hiveContext.sql(qb.createTableAs(tmpTableName2) +
+   		    				qb.buildSelectQuery(selectionString,
+   		    					             tableNameClean,
+   		    					             "true",tmpTableName,
+   		    					             "hash"))*/
+
+   	    	}
+		}
 
 	   return getCleanSample(tableName)
 
 	}
+
+  private [sampleclean] def updateTableColumnInCache(tableName: String, 
+  									   srcAttr:String, 
+  									   destAttr:String, 
+  									   func:String=>String) = {
+
+  	val tableNameClean = qb.getCleanSampleName(tableName)
+  	val tableNameDirty = qb.getDirtySampleName(tableName)
+
+  	if(workingSetCache.contains(tableNameClean))
+  		workingSetCache(tableNameClean).addTransformColumn(srcAttr,destAttr,func)
+  	else
+  		workingSetCache(tableNameDirty).addTransformColumn(srcAttr,destAttr,func)
+  }
 
 	/**This function takes a sample and a rdd of (Hash, Dup) and updates those records in the RDD.
 	 * it returns a new updated SchemaRDD, and there is a persist flag to write these results to HIVE.

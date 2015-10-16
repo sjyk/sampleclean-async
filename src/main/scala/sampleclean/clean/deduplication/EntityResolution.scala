@@ -37,7 +37,8 @@ import sampleclean.eval._
 class EntityResolution(params:AlgorithmParameters, 
 							scc: SampleCleanContext,
               sampleTableName:String,
-              private [sampleclean] val components: BlockerMatcherSelfJoinSequence
+              private [sampleclean] val components: BlockerMatcherSelfJoinSequence,
+              joinOptimization: Boolean = true
               ) extends SampleCleanAlgorithm(params, scc, sampleTableName) {
 
     //validate params before starting
@@ -157,21 +158,23 @@ class EntityResolution(params:AlgorithmParameters,
       // Join with the old data to merge in new values.
       val flatPairs = connectedPairs.flatMap(vertex => vertex._2._2.map((_, vertex._2._1)))
       val newAttrs = flatPairs.asInstanceOf[RDD[(String, String)]].reduceByKey((x, y) => x)
-      val joined = resultRDD.leftOuterJoin(newAttrs).mapValues(tuple => {
+      var joined = resultRDD.leftOuterJoin(newAttrs).mapValues(tuple => {
         tuple._2 match {
           case Some(newAttr) => {
-            if (tuple._1 != newAttr) println(tuple._1 + " => " + newAttr)
+            //if (tuple._1 != newAttr) println(tuple._1 + " => " + newAttr)
 
             (tuple._1, newAttr)
           }
           case None => (tuple._1, tuple._1)
         }
-      }).filter(t => t._2._1 != t._2._2).map(t => (t._1,t._2._2))
+      })
 
-      //joined.collect().foreach(println)
-      //println(joined.count + " " + sampleTableRDD.count)
+      var joinProcessed = joined.map(t => (t._1,t._2._2))
+      
+      if(joinOptimization)
+        joinProcessed = joined.filter(t => t._2._1 != t._2._2).map(t => (t._1,t._2._2))
 
-      scc.updateTableAttrValue(sampleTableName, attr, joined)
+      scc.updateTableAttrValue(sampleTableName, attr, joinProcessed)
       this.onUpdateNotify()
 
   	}
@@ -246,7 +249,8 @@ object EntityResolution {
     def shortAttributeCanonicalize(scc:SampleCleanContext,
                                sampleName:String, 
                                attribute: String, 
-                               threshold:Double=1):EntityResolution = {
+                               threshold:Double=1,
+                               joinOptimization:Boolean = true):EntityResolution = {
 
         var start_time = System.nanoTime()
 
@@ -265,7 +269,7 @@ object EntityResolution {
 
         println("Entity Resolution Setup Time: " + (System.nanoTime() - start_time)/ 1000000000)
 
-        return new EntityResolution(algoPara, scc, sampleName, blockerMatcher)
+        return new EntityResolution(algoPara, scc, sampleName, blockerMatcher, joinOptimization)
     }
 
       /**
@@ -295,7 +299,8 @@ object EntityResolution {
                                sampleName:String, 
                                attribute: String, 
                                threshold:Double=0.9,
-                               weighting:Boolean =true):EntityResolution = {
+                               weighting:Boolean =true,
+                               joinOptimization:Boolean = true):EntityResolution = {
 
         val algoPara = new AlgorithmParameters()
         algoPara.put("attr", attribute)
@@ -309,7 +314,7 @@ object EntityResolution {
         val join = new BroadcastJoin(scc.getSparkContext(), similarity, weighting)
         val matcher = new AllMatcher(scc, sampleName)
         val blockerMatcher = new BlockerMatcherSelfJoinSequence(scc,sampleName, join, List(matcher))
-        return new EntityResolution(algoPara, scc, sampleName, blockerMatcher)
+        return new EntityResolution(algoPara, scc, sampleName, blockerMatcher, joinOptimization)
     }
 
   /**

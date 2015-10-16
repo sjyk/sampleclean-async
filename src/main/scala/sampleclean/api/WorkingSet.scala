@@ -102,8 +102,10 @@ class WorkingSet(scc:SampleCleanContext, tableName:String) {
 	  def clean(contextFreeAlgorithm: (SampleCleanContext,String) 
 	  						=> SampleCleanAlgorithm):WorkingSet =
 	  {
+	  	val timeStart = System.currentTimeMillis
 	  	val algorithm = contextFreeAlgorithm(scc, tableName)
 	  	algorithm.exec()
+	  	println("Exec Time: " + (System.currentTimeMillis - timeStart))
 	  	return this
 	  }
 
