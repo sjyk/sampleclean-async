@@ -38,6 +38,8 @@ libraryDependencies += "com.lambdaworks" %% "jacks" % "2.3.3"
 
 libraryDependencies += "org.scalatest" % "scalatest_2.10" % "2.2.1" % "test"
 
+libraryDependencies += "com.databricks" % "spark-csv_2.10" % "1.2.0"
+
 
 libraryDependencies ++= Seq(
     "org.eclipse.jetty.orbit" % "javax.servlet" % "3.0.0.v201112011016" artifacts Artifact("javax.servlet", "jar", "jar"),
